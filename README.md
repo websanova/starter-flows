@@ -4,7 +4,10 @@ Feature flow specs for the starter projects.
 
 | Flow | Status | Updated |
 | ---- | ------ | ------- |
-| -    | -      | -       |
+| [Subscription Create - Stripe Hosted Checkout](flows/subscriptions/stripe/create-hosted.md) | draft | 2026-08-16 |
+| [Subscription Create - Stripe Embedded Checkout](flows/subscriptions/stripe/create-embedded.md) | draft | 2026-08-16 |
+| [Subscription Create - Stripe Payment Element, Intent On Init](flows/subscriptions/stripe/create-on-init.md) | draft | 2026-08-16 |
+| [Subscription Create - Stripe Payment Element, Deferred Intent](flows/subscriptions/stripe/create-deferred.md) | draft | 2026-08-16 |
 
 ## Projects
 

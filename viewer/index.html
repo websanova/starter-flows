@@ -67,6 +67,16 @@
             color: var(--muted);
         }
 
+        nav .group {
+            padding: .8rem 1.2rem .25rem;
+            font-size: .7rem;
+            font-weight: 600;
+            letter-spacing: .04em;
+            color: var(--muted);
+            cursor: default;
+            user-select: none;
+        }
+
         nav a {
             display: flex;
             align-items: center;
@@ -76,6 +86,10 @@
             text-decoration: none;
             font-size: .875rem;
             border-left: 2px solid transparent;
+        }
+
+        nav a.nested {
+            padding-left: 2rem;
         }
 
         nav a:hover {
@@ -294,20 +308,37 @@
 
         const readStatus = text => (text.match(/^Status:\s*(draft|approved|implemented)/mi) || [])[1] || '';
 
-        async function fetchIndex () {
-            const res = await fetch('flows/', { cache: 'no-store' });
+        const encodePath = path => path.split('/').map(encodeURIComponent).join('/');
+
+        // Walks flows/ and every directory under it. Names come back as paths
+        // relative to flows/, e.g. subscriptions/stripe/create-hosted.md.
+        async function listDir (path) {
+            const res = await fetch('flows/' + encodePath(path), { cache: 'no-store' });
 
             if (! res.ok) {
                 throw new Error(res.status + ' ' + res.statusText);
             }
 
-            return (await res.json())
-                .filter(e => e.type !== 'directory' && e.name.endsWith('.md'))
-                .sort((a, b) => a.name.localeCompare(b.name));
+            const out = [];
+
+            for (const e of await res.json()) {
+                if (e.type === 'directory') {
+                    out.push(...await listDir(path + e.name + '/'));
+                }
+                else if (e.name.endsWith('.md')) {
+                    out.push({ ...e, name: path + e.name });
+                }
+            }
+
+            return out;
+        }
+
+        async function fetchIndex () {
+            return (await listDir('')).sort((a, b) => a.name.localeCompare(b.name));
         }
 
         async function fetchDoc (name) {
-            const res = await fetch('flows/' + encodeURIComponent(name), { cache: 'no-store' });
+            const res = await fetch('flows/' + encodePath(name), { cache: 'no-store' });
 
             if (! res.ok) {
                 throw new Error(res.status + ' ' + res.statusText);
@@ -325,16 +356,34 @@
                 return;
             }
 
+            // List is sorted by full path, so files in a directory are contiguous.
+            let group = null;
+
             for (const e of list) {
+                const cut = e.name.lastIndexOf('/');
+                const dir = cut === -1 ? '' : e.name.slice(0, cut);
+
+                if (dir !== group) {
+                    group = dir;
+
+                    if (dir) {
+                        const head = document.createElement('div');
+
+                        head.className = 'group';
+                        head.textContent = dir;
+                        nav.appendChild(head);
+                    }
+                }
+
                 const a = document.createElement('a');
 
                 a.href = '#' + slug(e.name);
-                a.className = e.name === current ? 'active' : '';
+                a.className = (e.name === current ? 'active' : '') + (dir ? ' nested' : '');
 
                 const label = document.createElement('span');
 
                 label.className = 'name';
-                label.textContent = slug(e.name);
+                label.textContent = slug(e.name.slice(cut + 1));
                 a.appendChild(label);
 
                 const status = (meta.get(e.name) || {}).status;
