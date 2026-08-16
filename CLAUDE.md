@@ -1,6 +1,7 @@
 ## Hard Rules
 - When in doubt, STOP and ask. Never assume the next step.
-- NEVER write or edit any file unless the most recent message is an explicit `/ex`. No other phrasing counts. Not "do it", not "go ahead", not "implement", not "go", not "go for it", not "ok do it", not "make it", not "write it", not "add it", not questions, not problem descriptions, not bug reports, not anything else. If in doubt, do NOT write.
+- NEVER write or edit any file unless the message contains an explicit `/ex`. No other phrasing counts. Not "do it", not "go ahead", not "implement", not "go", not "go for it", not "ok do it", not "make it", not "write it", not "add it", not questions, not problem descriptions, not bug reports, not anything else. If in doubt, do NOT write.
+- `/ex` anywhere in a message is an `/ex`, including "lets do that /ex". It means write now, acting on what the conversation has established.
 - "Can you", "could you", "would you", and any question form is NOT a command. It is a request for a description.
 - Default output is a proposal in the response. Show the sections, tables, and mermaid inline in chat.
 - NEVER create or modify anything on disk. No `mkdir`, no `touch`, no `mv`, no `rm`, no shell redirects.
@@ -45,11 +46,10 @@
 - Shared concerns (auth policy, plan limits) are restated per flow for now. Extract to shared files only when told to.
 - Do not implement anything here. Do not scaffold code, configs, or migrations.
 
-## Token Efficiency
-- Compress responses. Every sentence must earn its place.
-- No redundant context. Do not repeat information already established in the session.
-- No long intros or transitions between sections.
-- Short responses are correct unless depth is explicitly requested.
+## Responses
+- Answer the question that was asked. Nothing else. Length follows the question.
+- Never volunteer a proposal, an alternative, or a next step. Only when asked.
+- Never restate what I just said back to me.
 
 ## Typography - ASCII Only
 - No em dashes (-) - use hyphens (-)

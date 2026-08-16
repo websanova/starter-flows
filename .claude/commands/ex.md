@@ -5,7 +5,7 @@ disable-model-invocation: true
 allowed-tools: Read, Edit, Write, Grep, Glob
 ---
 
-FLOW FILES ONLY. Write exactly what was discussed and agreed in a PREVIOUS message. Proposals made in the same response as this command are not authorized.
+FLOW FILES ONLY. `/ex` means write now. Act on what the conversation has established. If `$ARGUMENTS` is present it directs what to write. Do not invent scope that was never discussed.
 
 ## Rules
 
