@@ -1,3 +1,11 @@
+## Hard Rules
+- When in doubt, STOP and ask. Never assume the next step.
+- NEVER write or edit any file unless the most recent message is an explicit `/ex`. No other phrasing counts. Not "do it", not "go ahead", not "implement", not "go", not "go for it", not "ok do it", not "make it", not "write it", not "add it", not questions, not problem descriptions, not bug reports, not anything else. If in doubt, do NOT write.
+- "Can you", "could you", "would you", and any question form is NOT a command. It is a request for a description.
+- Default output is a proposal in the response. Show the sections, tables, and mermaid inline in chat.
+- NEVER create or modify anything on disk. No `mkdir`, no `touch`, no `mv`, no `rm`, no shell redirects.
+- NEVER touch the git repo. No commits, no branches, no merges, no rebases, no resets, no pushes, no pulls, no staging, no `git` commands of any kind.
+
 ## Repo Purpose
 - This repo contains flow specs only. No application code.
 - A flow is the source of truth for a feature: logic, states, rules, edge cases, error handling, decisions.
