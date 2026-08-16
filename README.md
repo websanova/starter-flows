@@ -27,3 +27,17 @@ Work the flow out here first, then paste it into a session in the target code re
 * `Review this flow against the code and report what needs updating.`
 
 Status: `draft` (being worked out), `approved` (ready to execute), `implemented` (executed in at least one repo). Section template in [CLAUDE.md](CLAUDE.md).
+
+## Docker
+
+Markdown viewer for `flows/` at http://localhost:8088.
+
+```bash
+docker compose up -d      # start
+docker compose down       # stop
+docker compose restart    # reload after editing viewer/nginx.conf
+docker compose ps         # status
+docker compose logs -f    # tail nginx logs
+```
+
+Everything is bind mounted read-only. Edits to `flows/*.md` and `viewer/index.html` are live, no restart. Only `nginx.conf` needs one.

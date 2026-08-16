@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Starter Flows</title>
+    <style>
+        :root {
+            --bg: #ffffff;
+            --fg: #1f2328;
+            --muted: #59636e;
+            --border: #d1d9e0;
+            --code-bg: #f6f8fa;
+            --link: #0969da;
+            --side-bg: #f6f8fa;
+            --hover: #eaeef2;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0d1117;
+                --fg: #e6edf3;
+                --muted: #9198a1;
+                --border: #3d444d;
+                --code-bg: #161b22;
+                --link: #4493f8;
+                --side-bg: #010409;
+                --hover: #161b22;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            display: flex;
+            margin: 0;
+            overflow: hidden;
+            background: var(--bg);
+            color: var(--fg);
+            font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        }
+
+        /* Sidebar */
+
+        aside {
+            flex: 0 0 260px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            background: var(--side-bg);
+            border-right: 1px solid var(--border);
+        }
+
+        aside h1 {
+            margin: 0;
+            padding: 1rem 1.2rem;
+            font-size: .75rem;
+            font-weight: 600;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        nav a {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            padding: .45rem 1.2rem;
+            color: var(--fg);
+            text-decoration: none;
+            font-size: .875rem;
+            border-left: 2px solid transparent;
+        }
+
+        nav a:hover {
+            background: var(--hover);
+        }
+
+        nav a.active {
+            background: var(--hover);
+            border-left-color: var(--link);
+            font-weight: 600;
+        }
+
+        nav a span.name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .badge {
+            flex: none;
+            padding: .05rem .4rem;
+            border-radius: 999px;
+            font-size: .65rem;
+            font-weight: 600;
+            letter-spacing: .03em;
+            text-transform: uppercase;
+            border: 1px solid;
+        }
+
+        .badge.draft {
+            color: #9a6700;
+            border-color: #d4a72c66;
+            background: #d4a72c22;
+        }
+
+        .badge.approved {
+            color: #0969da;
+            border-color: #0969da66;
+            background: #0969da22;
+        }
+
+        .badge.implemented {
+            color: #1a7f37;
+            border-color: #1a7f3766;
+            background: #1a7f3722;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .badge.draft { color: #d29922; }
+            .badge.approved { color: #4493f8; }
+            .badge.implemented { color: #3fb950; }
+        }
+
+        /* Content */
+
+        main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 1.75rem 6rem;
+        }
+
+        main > :first-child {
+            margin-top: 1.5rem;
+        }
+
+        h1, h2, h3 {
+            line-height: 1.25;
+            margin: 2rem 0 1rem;
+        }
+
+        main h1 {
+            font-size: 1.9rem;
+        }
+
+        h2 {
+            font-size: 1.45rem;
+            padding-bottom: .3rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h3 {
+            font-size: 1.15rem;
+        }
+
+        a {
+            color: var(--link);
+        }
+
+        code {
+            background: var(--code-bg);
+            border-radius: 4px;
+            padding: .15em .35em;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: .9em;
+        }
+
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+        }
+
+        blockquote {
+            margin: 1rem 0;
+            padding-left: 1rem;
+            border-left: 3px solid var(--border);
+            color: var(--muted);
+        }
+
+        /* Tables and diagrams scroll inside their own box so the page never does. */
+        .scroll-x {
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+
+        table {
+            border-collapse: collapse;
+        }
+
+        th, td {
+            border: 1px solid var(--border);
+            padding: .4rem .7rem;
+            text-align: left;
+        }
+
+        pre.mermaid {
+            background: none;
+            border: 0;
+            padding: 0;
+            text-align: left;
+            overflow-x: auto;
+        }
+
+        pre.mermaid svg {
+            height: auto;
+        }
+
+        .error {
+            margin-top: 1.5rem;
+            border: 1px solid var(--border);
+            border-left: 3px solid #d1242f;
+            border-radius: 6px;
+            padding: 1rem;
+        }
+
+        .empty {
+            padding: 1.5rem 1.2rem;
+            color: var(--muted);
+            font-size: .875rem;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+                overflow: auto;
+            }
+
+            aside {
+                flex: none;
+                max-height: 40vh;
+                border-right: 0;
+                border-bottom: 1px solid var(--border);
+            }
+        }
+    </style>
+</head>
+<body>
+    <aside>
+        <h1>Flows</h1>
+        <nav id="nav"></nav>
+    </aside>
+
+    <main id="doc"></main>
+
+    <script src="./vendor/marked.umd.js"></script>
+    <script src="./vendor/mermaid.min.js"></script>
+
+    <script type="module">
+        const { marked } = window.marked;
+        const mermaid = window.mermaid;
+
+        const nav = document.getElementById('nav');
+        const el = document.getElementById('doc');
+
+        const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: dark ? 'dark' : 'default',
+            themeVariables: { fontSize: '12px' },
+            flowchart: { useMaxWidth: false, padding: 8, nodeSpacing: 40, rankSpacing: 60 },
+            sequence: { useMaxWidth: false }
+        });
+
+        const POLL_MS = 2000;
+
+        // name -> { mtime, status }
+        const meta = new Map();
+
+        let current = null;
+        let busy = false;
+
+        const slug = name => name.replace(/\.md$/, '');
+
+        const fail = (title, detail) => {
+            el.innerHTML = '<div class="error"><strong>' + title + '</strong><p>' + detail + '</p></div>';
+        };
+
+        const readStatus = text => (text.match(/^Status:\s*(draft|approved|implemented)/mi) || [])[1] || '';
+
+        async function fetchIndex () {
+            const res = await fetch('flows/', { cache: 'no-store' });
+
+            if (! res.ok) {
+                throw new Error(res.status + ' ' + res.statusText);
+            }
+
+            return (await res.json())
+                .filter(e => e.type !== 'directory' && e.name.endsWith('.md'))
+                .sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        async function fetchDoc (name) {
+            const res = await fetch('flows/' + encodeURIComponent(name), { cache: 'no-store' });
+
+            if (! res.ok) {
+                throw new Error(res.status + ' ' + res.statusText);
+            }
+
+            return res.text();
+        }
+
+        function renderNav (list) {
+            nav.innerHTML = '';
+
+            if (! list.length) {
+                nav.innerHTML = '<p class="empty">No flows yet.</p>';
+
+                return;
+            }
+
+            for (const e of list) {
+                const a = document.createElement('a');
+
+                a.href = '#' + slug(e.name);
+                a.className = e.name === current ? 'active' : '';
+
+                const label = document.createElement('span');
+
+                label.className = 'name';
+                label.textContent = slug(e.name);
+                a.appendChild(label);
+
+                const status = (meta.get(e.name) || {}).status;
+
+                if (status) {
+                    const badge = document.createElement('span');
+
+                    badge.className = 'badge ' + status.toLowerCase();
+                    badge.textContent = status;
+                    a.appendChild(badge);
+                }
+
+                nav.appendChild(a);
+            }
+        }
+
+        async function render (text, keepScroll) {
+            const top = keepScroll ? el.scrollTop : 0;
+
+            el.innerHTML = marked.parse(text);
+
+            // marked emits <pre><code class="language-mermaid">, mermaid wants <pre class="mermaid">.
+            el.querySelectorAll('pre > code.language-mermaid').forEach(code => {
+                const pre = document.createElement('pre');
+
+                pre.className = 'mermaid';
+                pre.textContent = code.textContent;
+                code.parentElement.replaceWith(pre);
+            });
+
+            el.querySelectorAll('table').forEach(table => {
+                const wrap = document.createElement('div');
+
+                wrap.className = 'scroll-x';
+                table.replaceWith(wrap);
+                wrap.appendChild(table);
+            });
+
+            el.scrollTop = top;
+
+            await mermaid.run({ nodes: el.querySelectorAll('pre.mermaid') });
+
+            el.scrollTop = top;
+        }
+
+        async function load (name, keepScroll) {
+            current = name;
+            document.title = slug(name) + ' - Starter Flows';
+
+            try {
+                const text = await fetchDoc(name);
+
+                meta.set(name, { ...(meta.get(name) || {}), status: readStatus(text) });
+
+                await render(text, keepScroll);
+            }
+            catch (e) {
+                fail('Could not load ' + name, e.message);
+            }
+        }
+
+        async function sync (initial) {
+            let list;
+
+            try {
+                list = await fetchIndex();
+            }
+            catch (e) {
+                if (initial) {
+                    fail('Could not list flows', e.message
+                        + '<br>Check the container is up with <code>docker compose up -d</code> '
+                        + 'and that a <code>flows/</code> directory exists.');
+                }
+
+                return;
+            }
+
+            const names = new Set(list.map(e => e.name));
+            const changed = [];
+
+            for (const e of list) {
+                const prev = meta.get(e.name);
+
+                if (! prev || prev.mtime !== e.mtime) {
+                    meta.set(e.name, { mtime: e.mtime, status: prev ? prev.status : '' });
+                    changed.push(e.name);
+                }
+            }
+
+            for (const name of [...meta.keys()]) {
+                if (! names.has(name)) {
+                    meta.delete(name);
+                }
+            }
+
+            const want = location.hash.slice(1) + '.md';
+            const target = names.has(want) ? want : (list[0] ? list[0].name : null);
+
+            if (! target) {
+                current = null;
+                document.title = 'Starter Flows';
+                renderNav(list);
+                el.innerHTML = '<p class="empty">No flows in <code>flows/</code> yet.</p>';
+
+                return;
+            }
+
+            // Pull statuses for anything that changed but is not the open doc.
+            // load() reads the status off the open doc for free.
+            await Promise.all(changed.filter(n => n !== target).map(async name => {
+                try {
+                    meta.get(name).status = readStatus(await fetchDoc(name));
+                }
+                catch (e) {
+                    // Listed but unreadable. Leave the badge blank.
+                }
+            }));
+
+            if (target !== current || changed.includes(target)) {
+                await load(target, target === current);
+            }
+
+            renderNav(list);
+        }
+
+        async function tick (initial) {
+            if (busy) {
+                return;
+            }
+
+            busy = true;
+
+            try {
+                await sync(initial);
+            }
+            finally {
+                busy = false;
+            }
+        }
+
+        window.addEventListener('hashchange', () => tick());
+
+        await tick(true);
+
+        setInterval(tick, POLL_MS);
+    </script>
+</body>
+</html>
