@@ -150,6 +150,7 @@ Unlike hosted and embedded, a local row exists before any payment. That row is t
 | Trial hits 3DS | Bank wants the card verified even though nothing is charged | Handle 3DS on the SetupIntent path too, not just payment |
 | Tax not computable | Missing registration, no customer address, or no product tax code | Error back to the client for display. Subscription create fails |
 | Invalid promo code | Code does not resolve to a Stripe promo object | Error back to the client for display |
+| 100% promo zeroes the invoice | Nothing to charge, so there is no intent and no secret to return | Not worked out yet. Also affects a trial, where a `once` code is consumed by the `$0` trial invoice. See TODO |
 | Webhook lands late | Asynchronous, can arrive before confirm resolves | Poll the auth user, show pending until the flag flips |
 | Webhook never arrives | API dropped or failed the attempts | User sits in a pending state with an incomplete row. Needs a manual sync command to reconcile against Stripe |
 | Trial signup polls forever | Subscribed flag ignores `trialing` | Flag must count `trialing` as subscribed |
@@ -168,7 +169,12 @@ Cost of the choice: a subscription is opened on Stripe for every visitor to the 
 
 Now
 
-- Decide whether tax and promo codes are in play at all. With `automatic_tax` off and no promo codes, the address and promo step disappears and the element mounts on page load.
+- Tax and promo codes are each a configurable on/off field. The API owns both and is the source of truth - the client is told what is on, it never decides. Whether each is on determines the flow on both sides:
+  - Both off - nothing to settle before mount. No address step, no promo step, the element mounts on page load.
+  - Tax on - a billing address has to be collected and pushed to the customer before the subscription is created.
+  - Promo on - a code field is shown and resolved before the subscription is created.
+  - Either on - the amount is only known after that step, so the mount waits on it.
+- Decide how the client learns the two flags (config payload at page load vs baked into the plan response).
 - Decide how subscribe failures get diagnosed. When Stripe rejects the create (tax misconfigured, bad address, invalid promo), the API returns a generic "provider unavailable" and the real reason is only attached when app.debug is on. In production it is discarded, so a user reports a failed subscribe and there is nothing to go on.
 - Lay out how the address and promo code get collected before mount.
 
@@ -177,6 +183,7 @@ Later
 - Cleanup job for abandoned incomplete rows.
 - Manual sync command to reconcile against Stripe when a webhook is dropped.
 - Polling ceiling value and what the pending state looks like.
+- Work out the 100% promo case - what the API returns when there is no secret, and whether `once` codes are allowed alongside a trial.
 
 Out of scope
 
