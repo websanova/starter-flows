@@ -169,6 +169,7 @@ Cost of the choice: a subscription is opened on Stripe for every visitor to the 
 Now
 
 - Decide whether tax and promo codes are in play at all. With `automatic_tax` off and no promo codes, the address and promo step disappears and the element mounts on page load.
+- Decide how subscribe failures get diagnosed. When Stripe rejects the create (tax misconfigured, bad address, invalid promo), the API returns a generic "provider unavailable" and the real reason is only attached when app.debug is on. In production it is discarded, so a user reports a failed subscribe and there is nothing to go on.
 - Lay out how the address and promo code get collected before mount.
 
 Later
