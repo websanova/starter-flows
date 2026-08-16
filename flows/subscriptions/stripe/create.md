@@ -1,6 +1,6 @@
-# Subscription Create - Stripe Payment Element, Intent On Init
+# Subscription Create - Stripe (Payment Element, intent on init)
 
-Status: reference
+Status: draft
 Updated: 2026-08-16
 
 ## Purpose & Scope
@@ -11,7 +11,7 @@ The tradeoff is that a subscription gets opened on Stripe for anyone who so much
 
 If you go with tax or promo codes, both have to be captured before the element mounts, however you want to lay the steps out. The intent cannot be created until every input to the amount is known, and once it is created the first invoice is finalized and its amount does not change, so neither can be applied after the fact. Re-pointing the mounted element at a new secret is not an option either, `clientSecret` is fixed when `elements()` is created. That also means letting the user go back and change the address or promo code costs a fresh intent and a fresh mount, which wipes the card they typed. With `automatic_tax: { enabled: false }` and no promo codes none of this applies, there is nothing to settle and the element can mount straight away.
 
-Not covered: cancel, resume, plan change, dunning, failed renewals. The other three create variants are siblings - see [Decisions](#decisions).
+Not covered: cancel, resume, plan change, dunning, failed renewals.
 
 ## Actors & Entities
 
@@ -124,7 +124,7 @@ Allowed transitions
 | incomplete | incomplete | Confirm declined. Same secret stays confirmable, user retries |
 | incomplete | expired | User abandons. Stripe expires the subscription after 23 hours, local row needs cleaning up |
 
-Unlike [hosted](create-hosted.md) and [embedded](create-embedded.md), a local row exists before any payment. That row is the cleanup problem.
+Unlike hosted and embedded, a local row exists before any payment. That row is the cleanup problem.
 
 ## Rules
 
@@ -156,8 +156,28 @@ Unlike [hosted](create-hosted.md) and [embedded](create-embedded.md), a local ro
 
 ## Decisions
 
-On-init over [deferred](create-deferred.md) - the element mounts against a real client secret, so there is no amount, currency or mode to keep in sync and no `IntegrationError` class of failure at confirm. The server decides trial eligibility and tells the client which confirm to call, rather than the client guessing it up front. The 3DS cold return also uses the same mount path as the initial one, so there is only one mode to support instead of two.
+Chose the Payment Element with the intent created on init. Four strategies were evaluated - hosted Checkout, embedded Checkout, Payment Element with the intent on init, and Payment Element with a deferred intent. The three not taken are kept in `reference/`.
 
-On-init over [hosted](create-hosted.md) and [embedded](create-embedded.md) - the payment UI is the Payment Element on your own page, styleable with the Appearance API. Checkout gives you Dashboard branding and nothing more.
+On-init over deferred - the element mounts against a real client secret, so there is no amount, currency or mode to keep in sync and no `IntegrationError` class of failure at confirm. The server decides trial eligibility and tells the client which confirm to call, rather than the client guessing it up front. The 3DS cold return also uses the same mount path as the initial one, so there is only one mode to support instead of two.
+
+On-init over hosted and embedded - the payment UI is the Payment Element on your own page, styleable with the Appearance API. Checkout gives you Dashboard branding and nothing more.
 
 Cost of the choice: a subscription is opened on Stripe for every visitor to the page, which needs a cleanup job on your side. Tax and promo codes have to be collected before the element mounts, and changing either afterwards means a full teardown that wipes the card the user typed.
+
+## TODO
+
+Now
+
+- Decide whether tax and promo codes are in play at all. With `automatic_tax` off and no promo codes, the address and promo step disappears and the element mounts on page load.
+- Lay out how the address and promo code get collected before mount.
+
+Later
+
+- Cleanup job for abandoned incomplete rows.
+- Manual sync command to reconcile against Stripe when a webhook is dropped.
+- Polling ceiling value and what the pending state looks like.
+
+Out of scope
+
+- Cancel, resume, plan change.
+- Renewal failures and dunning.

@@ -1,4 +1,4 @@
-# Subscription Create - Stripe Hosted Checkout
+# Subscription Create - Stripe (Hosted Checkout)
 
 Status: reference
 Updated: 2026-08-16
@@ -117,10 +117,10 @@ There is no `incomplete` state here. Nothing exists locally until the session co
 
 ## Decisions
 
-Hosted over [embedded](create-embedded.md) - no stripe.js on the page at all, nothing to mount, no client secret. Styling is identical between the two (Dashboard branding only, the Appearance API applies to neither), so embedded buys you the iframe staying on your domain and nothing else. If keeping the user on your domain does not matter, hosted is strictly less to build.
+Hosted over embedded - no stripe.js on the page at all, nothing to mount, no client secret. Styling is identical between the two (Dashboard branding only, the Appearance API applies to neither), so embedded buys you the iframe staying on your domain and nothing else. If keeping the user on your domain does not matter, hosted is strictly less to build.
 
-Hosted over [on-init](create-on-init.md) - nothing is created on Stripe until the session completes, so anyone who lands and leaves costs you a session record that expires itself. On-init opens a real subscription for every visitor, leaving incomplete rows to clean up.
+Hosted over on-init - nothing is created on Stripe until the session completes, so anyone who lands and leaves costs you a session record that expires itself. On-init opens a real subscription for every visitor, leaving incomplete rows to clean up.
 
-Hosted over [deferred](create-deferred.md) - no amount to keep in sync. Stripe computes tax and discounts live inside its own UI, so there is no recalculated total to fetch, no `elements.update`, and no `IntegrationError` class of failure at confirm.
+Hosted over deferred - no amount to keep in sync. Stripe computes tax and discounts live inside its own UI, so there is no recalculated total to fetch, no `elements.update`, and no `IntegrationError` class of failure at confirm.
 
 Cost of the choice: the user visibly leaves your site, and you get no control over the payment UI beyond branding settings.

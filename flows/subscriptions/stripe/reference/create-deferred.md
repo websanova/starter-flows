@@ -1,4 +1,4 @@
-# Subscription Create - Stripe Payment Element, Deferred Intent
+# Subscription Create - Stripe (Payment Element, deferred intent)
 
 Status: reference
 Updated: 2026-08-16
@@ -127,7 +127,7 @@ Allowed transitions
 | incomplete | trialing | Webhook, trial was eligible |
 | incomplete | incomplete | Confirm declined or `IntegrationError`. Row stays, resubscribe must reuse it |
 
-Unlike [on-init](create-on-init.md), the row is only created for users who actually click subscribe. Failed confirms still leave one behind.
+Unlike on-init, the row is only created for users who actually click subscribe. Failed confirms still leave one behind.
 
 ## Rules
 
@@ -166,8 +166,8 @@ Unlike [on-init](create-on-init.md), the row is only created for users who actua
 
 ## Decisions
 
-Deferred over [on-init](create-on-init.md) - nothing is created on Stripe until the user actually commits, so visitors who land and leave cost nothing and there are no abandoned incomplete rows to clean up. Promo codes and address changes can also be applied while the element is mounted, since the intent does not exist yet, instead of forcing a teardown that wipes the typed card.
+Deferred over on-init - nothing is created on Stripe until the user actually commits, so visitors who land and leave cost nothing and there are no abandoned incomplete rows to clean up. Promo codes and address changes can also be applied while the element is mounted, since the intent does not exist yet, instead of forcing a teardown that wipes the typed card.
 
-Deferred over [hosted](create-hosted.md) and [embedded](create-embedded.md) - the payment UI is the Payment Element on your own page, styleable with the Appearance API. Checkout gives you Dashboard branding and nothing more.
+Deferred over hosted and embedded - the payment UI is the Payment Element on your own page, styleable with the Appearance API. Checkout gives you Dashboard branding and nothing more.
 
 Cost of the choice: the amount has to be kept in sync by hand against an API that is the source of truth, and a mismatch surfaces as an `IntegrationError` only at confirm, after the user clicked pay and after the subscription was created. Trial eligibility has to be known client side before mount. The 3DS cold return cannot use deferred mounting, so both mount modes have to be supported.

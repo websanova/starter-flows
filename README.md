@@ -4,10 +4,12 @@ Feature flow specs for the starter projects.
 
 | Flow | Status | Updated |
 | ---- | ------ | ------- |
-| [Subscription Create - Stripe Hosted Checkout](flows/subscriptions/stripe/reference/create-hosted.md) | reference | 2026-08-16 |
-| [Subscription Create - Stripe Embedded Checkout](flows/subscriptions/stripe/reference/create-embedded.md) | reference | 2026-08-16 |
-| [Subscription Create - Stripe Payment Element, Intent On Init](flows/subscriptions/stripe/reference/create-on-init.md) | reference | 2026-08-16 |
-| [Subscription Create - Stripe Payment Element, Deferred Intent](flows/subscriptions/stripe/reference/create-deferred.md) | reference | 2026-08-16 |
+| [Subscription Create - Stripe (Payment Element, intent on init)](flows/subscriptions/stripe/create.md) | draft | 2026-08-16 |
+| [Subscription Create - Stripe (Hosted Checkout)](flows/subscriptions/stripe/reference/create-hosted.md) | reference | 2026-08-16 |
+| [Subscription Create - Stripe (Embedded Checkout)](flows/subscriptions/stripe/reference/create-embedded.md) | reference | 2026-08-16 |
+| [Subscription Create - Stripe (Payment Element, deferred intent)](flows/subscriptions/stripe/reference/create-deferred.md) | reference | 2026-08-16 |
+
+A `reference/` directory holds strategies that were evaluated and not taken. The chosen one is the flow file beside it.
 
 ## Projects
 

@@ -1,4 +1,4 @@
-# Subscription Create - Stripe Embedded Checkout
+# Subscription Create - Stripe (Embedded Checkout)
 
 Status: reference
 Updated: 2026-08-16
@@ -118,10 +118,10 @@ There is no `incomplete` state here. Nothing exists locally until the session co
 
 ## Decisions
 
-Embedded over [hosted](create-hosted.md) - the iframe stays on your page, so the user never visibly leaves your domain. That is the only difference. Styling is identical between the two, and hosted is less to build, so this is worth it only if the domain change matters.
+Embedded over hosted - the iframe stays on your page, so the user never visibly leaves your domain. That is the only difference. Styling is identical between the two, and hosted is less to build, so this is worth it only if the domain change matters.
 
-Embedded over [on-init](create-on-init.md) - nothing is created on Stripe until the session completes, so anyone who lands and leaves costs you a session record that expires itself. On-init opens a real subscription for every visitor, leaving incomplete rows to clean up.
+Embedded over on-init - nothing is created on Stripe until the session completes, so anyone who lands and leaves costs you a session record that expires itself. On-init opens a real subscription for every visitor, leaving incomplete rows to clean up.
 
-Embedded over [deferred](create-deferred.md) - no amount to keep in sync. Stripe computes tax and discounts live inside the iframe, so there is no recalculated total to fetch, no `elements.update`, and no `IntegrationError` class of failure at confirm.
+Embedded over deferred - no amount to keep in sync. Stripe computes tax and discounts live inside the iframe, so there is no recalculated total to fetch, no `elements.update`, and no `IntegrationError` class of failure at confirm.
 
 Cost of the choice: you get Stripe's UI, styled only by Dashboard branding. If the checkout has to look like the rest of the app, on-init or deferred are the only options.
