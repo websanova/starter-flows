@@ -1,0 +1,10 @@
+#!/bin/bash
+
+case "$1" in
+    up) docker compose up -d --force-recreate ;;
+    down) docker compose down ;;
+    restart) docker compose down && docker compose up -d --force-recreate ;;
+    logs) docker compose logs -f flows ;;
+    sh) docker compose exec flows sh ;;
+    *) echo "Usage: ./dev {up|down|restart|logs|sh}" ;;
+esac
