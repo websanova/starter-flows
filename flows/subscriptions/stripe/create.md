@@ -41,14 +41,14 @@ Entities
    3. If tax is to be applied the Stripe customer MUST have a billing address on it. This is the first problem with doing it on init, at page load the user hasn't filled anything in yet, so there is nothing to push up.
    4. Work out trial eligibility on the API side, since it already knows whether this user has burned a trial before.
    5. If a promo code came through it gets resolved into a Stripe promo code object. The field is optional, no code means this step is skipped entirely.
-   6. Create the Subscription on Stripe with customer (stripe id), the plan's price id, `discounts: [{ promotion_code: 'promo_xxx' }]` if there was a code, `trial_period_days` if eligible, `payment_behavior: 'default_incomplete'`, `automatic_tax: { enabled: true }`, `expand: ['latest_invoice.payment_intent', 'pending_setup_intent']`.
+   6. Create the Subscription on Stripe with customer (stripe id), the plan's price id, `discounts: [{ promotion_code: 'promo_xxx' }]` if there was a code, `trial_period_days` if eligible, `payment_behavior: 'default_incomplete'`, `automatic_tax: { enabled: true }`, `expand: ['latest_invoice.confirmation_secret', 'pending_setup_intent']`. `confirmation_secret` is not expanded by default, it has to be named explicitly or it comes back absent.
    7. That single call creates the Subscription on Stripe at status `incomplete` (or `trialing`), plus one of two things depending on the trial:
-      - No trial - a first Invoice for the full amount, and a PaymentIntent against that invoice.
+      - No trial - a first Invoice for the full amount, and a PaymentIntent against that invoice. The secret is read off `latest_invoice.confirmation_secret.client_secret`, not off the intent itself.
       - Trial - the first invoice is `$0`, so there is nothing to charge. Stripe opens a SetupIntent on `pending_setup_intent` instead, which stores the card for when the trial ends.
    8. The amount is computed by Stripe from price + tax. You never send one, and nothing on the client has to match it.
    9. If it errors out, that error needs to get sent back to the client for display.
    10. On success, write your local subscription row now that the Stripe id exists - stripe sub id, plan, interval, status.
-   11. Return the client secret to the client app, along with a `type` of `payment` or `setup` so the client knows which confirm to call later.
+   11. Return the client secret to the client app, along with a `type` of `payment` or `setup` so the client knows which confirm to call later. On the payment path `confirmation_secret.type` carries the intent type, so the `type` comes off that rather than being inferred from which field came back populated. The trial path still keys off `pending_setup_intent`.
 3. Element mounts against that secret with `elements({ clientSecret })`. No mode, no amount, no currency, and no trial handling, Stripe reads all of that off the intent. The `type` is not used here at all, only at confirm.
    1. Load stripe.js if it isn't already on the page.
    2. `elements({ clientSecret })` builds the Elements object locally. No network calls here.
