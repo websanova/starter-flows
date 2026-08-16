@@ -2,8 +2,6 @@
 
 Feature flow specs for the starter projects.
 
-## Flows
-
 | Flow | Status | Updated |
 | ---- | ------ | ------- |
 | -    | -      | -       |
