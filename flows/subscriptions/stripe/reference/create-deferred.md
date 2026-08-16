@@ -1,6 +1,6 @@
 # Subscription Create - Stripe Payment Element, Deferred Intent
 
-Status: draft
+Status: reference
 Updated: 2026-08-16
 
 ## Purpose & Scope
@@ -171,21 +171,3 @@ Deferred over [on-init](create-on-init.md) - nothing is created on Stripe until 
 Deferred over [hosted](create-hosted.md) and [embedded](create-embedded.md) - the payment UI is the Payment Element on your own page, styleable with the Appearance API. Checkout gives you Dashboard branding and nothing more.
 
 Cost of the choice: the amount has to be kept in sync by hand against an API that is the source of truth, and a mismatch surfaces as an `IntegrationError` only at confirm, after the user clicked pay and after the subscription was created. Trial eligibility has to be known client side before mount. The 3DS cold return cannot use deferred mounting, so both mount modes have to be supported.
-
-## TODO
-
-Now
-
-- Decide how trial eligibility reaches the client before mount without the API disagreeing later.
-- Decide whether the amount is fetched once up front or resynced with `elements.update` after each change.
-
-Later
-
-- Reuse path for an in flight incomplete subscription on resubscribe.
-- Manual sync command to reconcile against Stripe when a webhook is dropped.
-- Polling ceiling value and what the pending state looks like.
-
-Out of scope
-
-- Cancel, resume, plan change.
-- Renewal failures and dunning.

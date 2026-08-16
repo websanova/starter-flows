@@ -1,6 +1,6 @@
 # Subscription Create - Stripe Embedded Checkout
 
-Status: draft
+Status: reference
 Updated: 2026-08-16
 
 ## Purpose & Scope
@@ -125,20 +125,3 @@ Embedded over [on-init](create-on-init.md) - nothing is created on Stripe until 
 Embedded over [deferred](create-deferred.md) - no amount to keep in sync. Stripe computes tax and discounts live inside the iframe, so there is no recalculated total to fetch, no `elements.update`, and no `IntegrationError` class of failure at confirm.
 
 Cost of the choice: you get Stripe's UI, styled only by Dashboard branding. If the checkout has to look like the rest of the app, on-init or deferred are the only options.
-
-## TODO
-
-Now
-
-- Decide whether to pre-create the Stripe customer or pass `customer_email` and read the id off the completed session.
-- Decide `redirect_on_completion` default vs never.
-
-Later
-
-- Manual sync command to reconcile against Stripe when a webhook is dropped.
-- Polling ceiling value and what the pending state looks like.
-
-Out of scope
-
-- Cancel, resume, plan change.
-- Renewal failures and dunning.

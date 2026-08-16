@@ -4,10 +4,10 @@ Feature flow specs for the starter projects.
 
 | Flow | Status | Updated |
 | ---- | ------ | ------- |
-| [Subscription Create - Stripe Hosted Checkout](flows/subscriptions/stripe/create-hosted.md) | draft | 2026-08-16 |
-| [Subscription Create - Stripe Embedded Checkout](flows/subscriptions/stripe/create-embedded.md) | draft | 2026-08-16 |
-| [Subscription Create - Stripe Payment Element, Intent On Init](flows/subscriptions/stripe/create-on-init.md) | draft | 2026-08-16 |
-| [Subscription Create - Stripe Payment Element, Deferred Intent](flows/subscriptions/stripe/create-deferred.md) | draft | 2026-08-16 |
+| [Subscription Create - Stripe Hosted Checkout](flows/subscriptions/stripe/reference/create-hosted.md) | reference | 2026-08-16 |
+| [Subscription Create - Stripe Embedded Checkout](flows/subscriptions/stripe/reference/create-embedded.md) | reference | 2026-08-16 |
+| [Subscription Create - Stripe Payment Element, Intent On Init](flows/subscriptions/stripe/reference/create-on-init.md) | reference | 2026-08-16 |
+| [Subscription Create - Stripe Payment Element, Deferred Intent](flows/subscriptions/stripe/reference/create-deferred.md) | reference | 2026-08-16 |
 
 ## Projects
 
@@ -29,7 +29,7 @@ Work the flow out here first, then paste it into a session in the target code re
 * `Review this flow for missing parts to add to our code.`
 * `Review this flow against the code and report what needs updating.`
 
-Status: `draft` (being worked out), `approved` (ready to execute), `implemented` (executed in at least one repo). Section template in [CLAUDE.md](CLAUDE.md).
+Status: `draft` (being worked out), `approved` (ready to execute), `implemented` (executed in at least one repo), `reference` (research, not executable). Section template in [CLAUDE.md](CLAUDE.md).
 
 ## Docker
 

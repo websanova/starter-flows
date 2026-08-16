@@ -17,7 +17,7 @@
 ## Flow File Structure
 - Location: `flows/<feature>.md`, hyphenated (e.g. `flows/subscriptions-stripe.md`). Flat for now, revisit past ~20 files.
 - Header lines at top of every flow:
-  - `Status: draft | approved | implemented`
+  - `Status: draft | approved | implemented | reference`
   - `Updated: YYYY-MM-DD`
 - Fixed section order, every file:
   1. `Purpose & Scope` - what it covers, what it explicitly does not

@@ -1,6 +1,6 @@
 # Subscription Create - Stripe Payment Element, Intent On Init
 
-Status: draft
+Status: reference
 Updated: 2026-08-16
 
 ## Purpose & Scope
@@ -161,21 +161,3 @@ On-init over [deferred](create-deferred.md) - the element mounts against a real 
 On-init over [hosted](create-hosted.md) and [embedded](create-embedded.md) - the payment UI is the Payment Element on your own page, styleable with the Appearance API. Checkout gives you Dashboard branding and nothing more.
 
 Cost of the choice: a subscription is opened on Stripe for every visitor to the page, which needs a cleanup job on your side. Tax and promo codes have to be collected before the element mounts, and changing either afterwards means a full teardown that wipes the card the user typed.
-
-## TODO
-
-Now
-
-- Decide whether tax and promo codes are in play at all. With `automatic_tax` off and no promo codes, the address and promo step disappears and the element mounts on page load.
-- Lay out how the address and promo code get collected before mount.
-
-Later
-
-- Cleanup job for abandoned incomplete rows.
-- Manual sync command to reconcile against Stripe when a webhook is dropped.
-- Polling ceiling value and what the pending state looks like.
-
-Out of scope
-
-- Cancel, resume, plan change.
-- Renewal failures and dunning.
