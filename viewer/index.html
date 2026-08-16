@@ -138,10 +138,17 @@
             background: #1a7f3722;
         }
 
+        .badge.reference {
+            color: #656d76;
+            border-color: #656d7666;
+            background: #656d7622;
+        }
+
         @media (prefers-color-scheme: dark) {
             .badge.draft { color: #d29922; }
             .badge.approved { color: #4493f8; }
             .badge.implemented { color: #3fb950; }
+            .badge.reference { color: #8b949e; }
         }
 
         /* Content */
@@ -306,7 +313,7 @@
             el.innerHTML = '<div class="error"><strong>' + title + '</strong><p>' + detail + '</p></div>';
         };
 
-        const readStatus = text => (text.match(/^Status:\s*(draft|approved|implemented)/mi) || [])[1] || '';
+        const readStatus = text => (text.match(/^Status:\s*(draft|approved|implemented|reference)/mi) || [])[1] || '';
 
         const encodePath = path => path.split('/').map(encodeURIComponent).join('/');
 
