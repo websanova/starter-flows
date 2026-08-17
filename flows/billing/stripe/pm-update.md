@@ -1,4 +1,4 @@
-# Billing Update - Stripe (Payment Element)
+# Billing Payment Method Update - Stripe (Payment Element)
 
 Status: draft
 Updated: 2026-08-17
@@ -10,6 +10,24 @@ Replacing the card on file with the Payment Element. The user already entered a 
 The page is dedicated to this one job, so arriving on it is already the user declaring intent. The element is mounted and ready on arrival rather than sitting behind an additional button, which would ask for the same declaration twice.
 
 The cost is a SetupIntent opened for every visitor. Unlike create there is no subscription and no local row behind it, an unconfirmed SetupIntent goes stale on Stripe on its own, so there is nothing to clean up.
+
+## Actors & Entities
+
+Actors
+
+- User - enters the new card in the Payment Element.
+- Client App - requests the setup intent on load, mounts the element, confirms, polls after success.
+- API - creates the SetupIntent, receives the webhook, repoints the defaults, detaches the old card, writes the local row.
+- Stripe - issues the SetupIntent, runs 3DS, attaches the card, fires the webhook.
+
+Entities
+
+- User record - holds the Stripe customer id. Must already exist, the card being replaced was entered during subscribe.
+- Stripe Customer - carries `invoice_settings.default_payment_method`, the customer level default.
+- Subscription - carries its own `default_payment_method`, which overrides the customer level one.
+- SetupIntent - created on page load with `usage: off_session`. No amount, no price, nothing about the subscription.
+- PaymentMethod - old one detached, new one attached and defaulted. Two separate operations.
+- Local billing row - brand, last4, expiry. Display only.
 
 ## Flow
 
@@ -67,8 +85,84 @@ flowchart LR
     R --> S["Next renewal invoice<br/>charges the new card"]
 ```
 
+## States
+
+SetupIntent. The local row has no status here, only card fields.
+
+| State | Meaning |
+| ----- | ------- |
+| requires_payment_method | Created on page load, element mounted against it, no card entered |
+| requires_action | 3DS, either a dialog or a bank redirect |
+| succeeded | Card attached to the customer. Not default, nothing repointed, nothing will charge it |
+| repointed | Webhook processed. Customer and subscription defaults moved, old card detached, local row written |
+
+Allowed transitions
+
+| From | To | Trigger |
+| ---- | -- | ------- |
+| none | requires_payment_method | Page load, SetupIntent created |
+| requires_payment_method | requires_action | confirmSetup, bank wants the card verified |
+| requires_payment_method | succeeded | confirmSetup, no challenge |
+| requires_action | succeeded | Challenge passed inline or at the return url |
+| requires_payment_method | requires_payment_method | Declined. Same secret stays confirmable, user retries |
+| succeeded | repointed | `setup_intent.succeeded` processed |
+| requires_payment_method | stale | User abandons. Stripe ages it out, nothing local to clean |
+
+## Rules
+
+- Authenticated user required.
+- A Stripe customer must already exist. No customer id is an error, not a create.
+- `usage: off_session` is mandatory. The renewal charges with nobody at the keyboard, that is what the mandate is for.
+- Attaching is not defaulting. Success on the SetupIntent alone changes nothing about what gets billed.
+- Both defaults have to be handled. The subscription level default overrides the customer level one, so repointing only the customer leaves the old card billing at the next renewal.
+- Detach the old payment method, or every update leaves another card on the customer.
+- Skip the detach when the new payment method id equals the old one.
+- Only the webhook repoints and writes. A resolved confirm is not proof.
+- Webhook handling is idempotent, the same setup intent can arrive twice.
+- Polling has a ceiling. Past it, show a pending state rather than spinning.
+- Nothing is charged. The current cycle is already paid.
+
+## Edge & Error Cases
+
+| Case | Cause | Expected behavior |
+| ---- | ----- | ----------------- |
+| No Stripe customer id | User never subscribed, or the id was never saved | Error back to the client. There is no card to replace and this flow does not create one |
+| Card declined | Bank refused | Element stays mounted against the same secret, user corrects and submits again. No new secret needed |
+| 3DS sends the browser away | Bank requires a challenge page | User returns to a cold page. Read `setup_intent_client_secret` off the url and `retrieveSetupIntent` rather than restarting |
+| Abandoned page | SetupIntent opened for every visitor | Unconfirmed intent goes stale on Stripe on its own. No local row behind it, nothing to clean up |
+| Subscription default left pinned | Only the customer level default repointed | Renewal charges the old card. Nothing fails at update time, it surfaces a month later |
+| Old payment method not detached | Detach step skipped | Cards pile up on the customer, one per update |
+| New card is the card already on file | User re-enters the same numbers | Stripe issues a new payment method id. Repoint and detach the old one as normal |
+| Webhook lands late | Asynchronous, can arrive before confirm resolves | Poll the card on file, show pending until last4 changes |
+| Webhook never arrives | API dropped or failed the attempts | Card is attached at Stripe but nothing is defaulted and the row still shows the old card. The renewal charges the old card. Needs a manual sync |
+| Same setup intent delivered twice | Stripe retries | Handler is idempotent, second pass is a no-op |
+| Repoint succeeds, local row write fails | Partial failure mid webhook | Stripe is correct, display is stale, client polls to the ceiling. Needs a manual sync |
+
 ## Decisions
 
 Dedicated page over an inline form or a dialog. 3DS can send the browser to the bank and back to a cold url with the secret on it. The dedicated page comes back up as itself, reads the secret and retrieves the intent. A dialog or an inline section has to work out it is mid flow and rebuild the state it was in before the redirect. Same result, more work.
 
 The dedicated page fetches the intent on load. There is no need for additional setup or buttons here since hitting the page is the intent already. Gating it behind an additional button would only lower the count of stale SetupIntents, not remove them.
+
+The repoint runs off the webhook, not off the confirm response. The browser can be closed or sent to the bank at that moment, so the confirm may never resolve on the page that started it. The webhook is the only path that always arrives.
+
+Detach the old card rather than keeping a list. One card on file is the model everywhere else in the flow, and the local row holds a single brand, last4 and expiry.
+
+## TODO
+
+Now
+
+- Decide whether the subscription level default gets set to the new payment method or cleared. Clearing leans on the customer default, setting it is explicit. Pick one and use it everywhere.
+- Decide the polling ceiling and what the pending state shows.
+- Decide the behavior when a card exists with no subscription. The repoint has no subscription to touch.
+
+Later
+
+- Manual sync command to reconcile the card on file against Stripe when a webhook is dropped.
+- Multiple cards on file. The flow assumes exactly one throughout.
+
+Out of scope
+
+- First card capture. That is the create flow.
+- Card removal. See the delete flow.
+- Dunning and failed renewals.
