@@ -1,7 +1,7 @@
 # Subscription Create - Stripe (Hosted Checkout)
 
 Status: reference
-Updated: 2026-08-16
+Updated: 2026-08-17
 
 ## Purpose & Scope
 
@@ -10,8 +10,6 @@ Creating a subscription with a Stripe hosted Checkout Session. The API creates t
 There is no stripe.js on your page at all. Nothing to load, nothing to mount, no client secret, no element. The entire card surface lives off your domain, which is the smallest PCI footprint of any of the create variants.
 
 Styling is logo, colors, fonts and border radius from the Dashboard branding settings. Beyond that it looks like Stripe, and the user can see they left your site.
-
-Not covered: cancel, resume, plan change, dunning, failed renewals. The other three create variants are siblings - see [Decisions](#decisions).
 
 ## Actors & Entities
 

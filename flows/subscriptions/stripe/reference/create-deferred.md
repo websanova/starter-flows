@@ -1,7 +1,7 @@
 # Subscription Create - Stripe (Payment Element, deferred intent)
 
 Status: reference
-Updated: 2026-08-16
+Updated: 2026-08-17
 
 ## Purpose & Scope
 
@@ -10,8 +10,6 @@ Creating a subscription with the Payment Element mounted in deferred mode, where
 Trials work here too, but the mode has to be decided before mounting, so the client has to know trial eligibility up front rather than being told by the server. Stripe validates that mode against the intent it eventually gets, so if the client and the API disagree you get an `IntegrationError` after the user has already clicked pay.
 
 The gist of it is that whatever you set up, trial or no trial, promo, tax, whatever, the intent and the local payment element have to match. Mode, amount and currency all get compared at confirm, and if any of them disagree it throws.
-
-Not covered: cancel, resume, plan change, dunning, failed renewals. The other three create variants are siblings - see [Decisions](#decisions).
 
 ## Actors & Entities
 

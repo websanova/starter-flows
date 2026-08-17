@@ -1,7 +1,7 @@
 # Subscription Create - Stripe (Payment Element, intent on init)
 
 Status: draft
-Updated: 2026-08-16
+Updated: 2026-08-17
 
 ## Purpose & Scope
 
@@ -10,8 +10,6 @@ Creating a subscription with the Payment Element, where the intent gets created 
 The tradeoff is that a subscription gets opened on Stripe for anyone who so much as lands on the page, and anything that changes the amount afterwards, a promo code or a billing address that changes the tax, means tearing it down and building a new one.
 
 If you go with tax or promo codes, both have to be captured before the element mounts, however you want to lay the steps out. The intent cannot be created until every input to the amount is known, and once it is created the first invoice is finalized and its amount does not change, so neither can be applied after the fact. Re-pointing the mounted element at a new secret is not an option either, `clientSecret` is fixed when `elements()` is created. That also means letting the user go back and change the address or promo code costs a fresh intent and a fresh mount, which wipes the card they typed. With `automatic_tax: { enabled: false }` and no promo codes none of this applies, there is nothing to settle and the element can mount straight away.
-
-Not covered: cancel, resume, plan change, dunning, failed renewals.
 
 ## Actors & Entities
 

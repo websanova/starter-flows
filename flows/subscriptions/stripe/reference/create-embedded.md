@@ -1,7 +1,7 @@
 # Subscription Create - Stripe (Embedded Checkout)
 
 Status: reference
-Updated: 2026-08-16
+Updated: 2026-08-17
 
 ## Purpose & Scope
 
@@ -10,8 +10,6 @@ Creating a subscription with a Stripe Checkout Session rendered in an iframe on 
 The catch is styling. You get logo, colors, fonts and border radius from the Dashboard branding settings and nothing else. The Appearance API that the Payment Element uses does not apply here.
 
 Nothing exists on Stripe until the session completes. Someone who lands on the page and leaves has cost you nothing but a session record, and those expire on their own after 24 hours.
-
-Not covered: cancel, resume, plan change, dunning, failed renewals. The other three create variants are siblings - see [Decisions](#decisions).
 
 ## Actors & Entities
 
