@@ -36,7 +36,7 @@ Entities
    1. Load stripe.js if it isn't already on the page.
    2. `elements({ mode, amount, currency })` builds the Elements object locally. No network calls here.
    3. `paymentElement.mount(target)` creates the iframe.
-2. If there is a tax amount, fetch the proper total from the API and update it with `elements.update({ amount: <new price> })`. Or do the call before the `elements` call as a first step to avoid the update. Getting the tax amount can be quite complicated and will likely require a call to Stripe since it depends on multiple factors (see Rules).
+2. If there is a tax amount, fetch the proper total from the API and update it with `elements.update({ amount: <new price> })`. Or do the call before the `elements` call as a first step to avoid the update. Getting the tax amount can be quite complicated and will likely require a call to Stripe since it depends on multiple factors (see Rules). That call is a tax calculation and it takes the address, so it doubles as the address check. A location that won't resolve errors here, before anything exists on Stripe.
 3. Same for promo codes. The code gets entered and validated on the API side, with the plan and interval included in the request. The response includes the updated amount with tax, then call `elements.update({ amount: 3300 })`.
 4. A promo code still applies on a trial, it just does nothing today since there is nothing to discount. It sits on the subscription and comes off the first real invoice once the trial ends. Setup mode carries no amount so there is nothing to keep in sync either.
 5. At this point no intent, no subscription, nothing has been created on the API side. Everything gets initiated when the user hits subscribe.
@@ -45,7 +45,7 @@ Entities
 8. Then hit the API for the intent, sending `{ plan, interval, promo_code, etc }`.
    1. Load the user's Stripe customer id from your DB.
    2. If there isn't one, create the customer on Stripe. Save the returned customer id to your users table.
-   3. If tax is to be applied the Stripe customer MUST also have a billing address on it, so the address gets pushed up with a customer update on Stripe here. This means your app has to have collected it already, which could be part of the subscribe button step but adds complications.
+   3. If tax is to be applied the Stripe customer MUST also have a billing address on it, so the address gets pushed up with a customer update on Stripe here. This means your app has to have collected it already, which could be part of the subscribe button step but adds complications. Push it with `tax[validate_location]` set to `immediately`. By this point the address already resolved on the amount call, so this only catches one changed in between. See the [address update flow](../../../billing/stripe/address-update.md).
    4. If there is a promo code, resolve a Stripe promo code object from Stripe directly. The string the user typed is not what the create accepts.
    5. Create the Subscription on Stripe with customer (stripe id), the plan's price id, `discounts: [{ promotion_code: 'promo_xxx' }]` (the resolved promo code object), `trial_period_days` if eligible, `payment_behavior: 'default_incomplete'`, `automatic_tax: { enabled: true }`, `expand: ['latest_invoice.confirmation_secret', 'pending_setup_intent']`. `confirmation_secret` is not expanded by default, it has to be named explicitly or it comes back absent.
    6. That single call creates three things on Stripe - the Subscription at status `incomplete`, its first Invoice, and a PaymentIntent against that invoice. All three come back in the one response.
@@ -84,7 +84,7 @@ flowchart LR
     H -->|validation error| G
     H -->|ok| I["POST /subscription/intent<br/>{plan, interval, promo_code?}"]
 
-    I --> J["Load or create Stripe customer<br/>push billing address<br/>resolve promo code"]
+    I --> J["Load or create Stripe customer<br/>push address, validate_location<br/>resolve promo code"]
     J --> K["subscriptions.create<br/>default_incomplete<br/>write local row"]
     K --> L[Return client_secret + type]
 
@@ -134,7 +134,7 @@ Unlike on-init, the row is only created for users who actually click subscribe. 
 - Mode, amount and currency on the element must match the intent at confirm. Any disagreement throws.
 - Trial eligibility has to be known client side before mount, since it decides the mode. The client and API must not disagree.
 - `elements.submit()` must be the first statement in the click handler, before any `await`, or popup based methods break.
-- If tax is enabled the Stripe customer must carry a billing address before the subscription is created.
+- If tax is enabled the Stripe customer must carry a billing address before the subscription is created. Pushed with `tax[validate_location]` set to `immediately`, see the [address update flow](../../../billing/stripe/address-update.md).
 - Tax is computed from three inputs, all of which must be set up:
   - Your registrations - which jurisdictions you have told Stripe you collect tax in, set in the Dashboard.
   - The customer's location - address on the Stripe customer object. Stripe can also infer from IP (`customer.tax.ip_address`) when there is no address, but that is a weaker signal and some jurisdictions will not accept it.
@@ -155,6 +155,7 @@ Unlike on-init, the row is only created for users who actually click subscribe. 
 | Resubscribe after a failed confirm | Hitting subscribe runs the whole create again | API must hand back the in flight subscription for the same plan and interval rather than opening a second one |
 | 3DS sends the browser away | Bank requires a challenge page | User returns to a cold page with no state. Read the secret off the query, mount with `clientSecret` not deferred mode, and retrieve the intent. Both mount modes have to be supported |
 | Trial hits 3DS | Bank wants the card verified even though nothing is charged | Handle the SetupIntent path too. Stripe appends `setup_intent_client_secret` instead |
+| Address resolves to no tax jurisdiction | Stripe cannot place it | The amount call errors before mount. Nothing exists on Stripe, the user corrects and retries |
 | Tax not computable | Missing registration, no customer address, or no product tax code | Error back to the client for display. Subscription create fails |
 | Invalid promo code | Code does not resolve to a Stripe promo object | Error back to the client for display |
 | Promo code on a trial | Nothing to discount today | Code sits on the subscription and comes off the first real invoice once the trial ends. Setup mode has no amount to sync |

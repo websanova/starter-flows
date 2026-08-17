@@ -36,7 +36,7 @@ Entities
 2. Hit the API for the intent, sending `{ plan, interval, promo_code? }`.
    1. Load the user's Stripe customer id from your DB.
    2. If there isn't one, create the customer on Stripe. Save the returned customer id to your users table.
-   3. If tax is to be applied the Stripe customer MUST have a billing address on it. This is the first problem with doing it on init, at page load the user hasn't filled anything in yet, so there is nothing to push up.
+   3. If tax is to be applied the Stripe customer MUST have a billing address on it. This is the first problem with doing it on init, at page load the user hasn't filled anything in yet, so there is nothing to push up. Push it with `tax[validate_location]` set to `immediately` so an address that resolves to no tax jurisdiction fails here, before the intent exists and the first invoice is finalized. See the [address update flow](../../billing/stripe/address-update.md).
    4. Work out trial eligibility on the API side, since it already knows whether this user has burned a trial before.
    5. If a promo code came through it gets resolved into a Stripe promo code object. The field is optional, no code means this step is skipped entirely.
    6. Create the Subscription on Stripe with customer (stripe id), the plan's price id, `discounts: [{ promotion_code: 'promo_xxx' }]` if there was a code, `trial_period_days` if eligible, `payment_behavior: 'default_incomplete'`, `automatic_tax: { enabled: true }`, `expand: ['latest_invoice.confirmation_secret', 'pending_setup_intent']`. `confirmation_secret` is not expanded by default, it has to be named explicitly or it comes back absent.
@@ -70,7 +70,7 @@ flowchart LR
     B -->|yes| B1[Collect address and<br/>promo code first]
     B1 --> C
 
-    C["POST /subscription/intent<br/>{plan, interval, promo_code?}"] --> D["Load or create Stripe customer<br/>push billing address"]
+    C["POST /subscription/intent<br/>{plan, interval, promo_code?}"] --> D["Load or create Stripe customer<br/>push address, validate_location"]
     D --> E["Resolve promo code<br/>(if sent)"]
     E --> F["subscriptions.create<br/>default_incomplete"]
     F --> G{Trial?}
@@ -128,7 +128,7 @@ Unlike hosted and embedded, a local row exists before any payment. That row is t
 
 - Authenticated user required.
 - Trial eligibility is decided on the API side only. The client never asserts it - it is told the `type` to confirm with.
-- If tax is enabled the Stripe customer must carry a billing address before the subscription is created.
+- If tax is enabled the Stripe customer must carry a billing address before the subscription is created. Pushed with `tax[validate_location]` set to `immediately`, see the [address update flow](../../billing/stripe/address-update.md).
 - Every input to the amount - address and promo code - must be captured before the element mounts. Nothing can be applied after.
 - One in-flight subscription per user, plan and interval. Revisiting the page must hand back the existing incomplete subscription rather than opening another.
 - The subscribed flag must treat `trialing` as subscribed, otherwise a trial signup polls forever.
@@ -146,6 +146,7 @@ Unlike hosted and embedded, a local row exists before any payment. That row is t
 | Card declined | Bank refused | Element stays mounted against the same secret, user corrects the card and submits again. The intent is still confirmable, no new secret needed |
 | 3DS sends the browser away | Bank requires a challenge page | User returns to a cold page with no state. Stripe appends the secret to the return url, and the key name tells you the type. Retrieve the intent rather than restarting the flow |
 | Trial hits 3DS | Bank wants the card verified even though nothing is charged | Handle 3DS on the SetupIntent path too, not just payment |
+| Address resolves to no tax jurisdiction | Stripe cannot place it | The customer update errors before the intent is created. Nothing to tear down, the user corrects and retries |
 | Tax not computable | Missing registration, no customer address, or no product tax code | Error back to the client for display. Subscription create fails |
 | Invalid promo code | Code does not resolve to a Stripe promo object | Error back to the client for display |
 | 100% promo zeroes the invoice | Nothing to charge, so there is no intent and no secret to return | Not worked out yet. Also affects a trial, where a `once` code is consumed by the `$0` trial invoice. See TODO |
