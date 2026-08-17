@@ -5,19 +5,15 @@ Updated: 2026-08-17
 
 ## Purpose & Scope
 
-Replacing the card on file with the Payment Element, and removing it once the subscription can no longer be charged. The user already entered a valid card during subscribe, so a customer and a payment method exist. This is a swap, not a first capture. A SetupIntent is created on page load and the element mounts straight off its secret. Nothing is charged, the current cycle is already paid, the new card is what the next renewal invoice bills.
+Replacing the card on file with the Payment Element. The user already entered a valid card during subscribe, so a customer and a payment method exist. This is a swap, not a first capture. A SetupIntent is created on page load and the element mounts straight off its secret. Nothing is charged, the current cycle is already paid, the new card is what the next renewal invoice bills.
 
 The page is dedicated to this one job, so arriving on it is already the user declaring intent. The element is mounted and ready on arrival rather than sitting behind an additional button, which would ask for the same declaration twice.
 
 The cost is a SetupIntent opened for every visitor. Unlike create there is no subscription and no local row behind it, an unconfirmed SetupIntent goes stale on Stripe on its own, so there is nothing to clean up.
 
-Not covered: subscribe, cancel, resume, plan change, dunning, failed renewals.
-
 ## Flow
 
-### Update
-
-1. User lands on the dedicated billing update page. It shows the card currently on file (brand, last4, expiry) off the local row, the Payment Element to replace it, and a delete control that is only live when the subscription can no longer be charged (see Delete below). The element is mounted and ready on arrival, there is no intermediate step to reveal it.
+1. User lands on the dedicated billing update page. It shows the card currently on file (brand, last4, expiry) off the local row.
 2. On page load, without waiting for any user action, the client hits the API for a setup intent. Nothing to send, the customer is the authenticated user. The element cannot mount without a secret, so this fires before the form is usable rather than behind a save or a change card button.
    1. Load the user's Stripe customer id from your DB. It has to already exist, the card being replaced was entered during subscribe. No customer id means there is nothing to update, error back.
    2. Create a SetupIntent on Stripe with `customer` and `usage: 'off_session'`. The `off_session` part matters, the card gets charged by the renewal with nobody at the keyboard, and that is what sets the mandate up for it.
@@ -41,23 +37,7 @@ Not covered: subscribe, cancel, resume, plan change, dunning, failed renewals.
 11. Take the success action, redirect back to billing, wherever.
 12. Nothing is charged by any of this. The current cycle is already paid, the new card gets used by the next renewal invoice.
 
-### Delete
-
-1. Delete is gated on the subscription no longer being chargeable. Allowed once the subscription has ended, or while it is cancelled and running out a grace period to the end of the paid term. In both cases no further invoice is coming. Refused while a subscription is live and will renew, pulling the card there just books a failed renewal.
-2. The gate is decided on the API side. The client hides or disables the control off the same subscription state, but that is display only, the API re-checks it.
-3. Client hits the delete endpoint.
-   1. Re-check the gate against the local subscription row. Refuse if anything is still going to be charged.
-   2. Detach the payment method from the Stripe customer.
-   3. What detaching does to the defaults is the open bit. It should null `invoice_settings.default_payment_method` on the customer, but whether it also clears `default_payment_method` on a subscription that is still live through a grace period is not confirmed. If it does not, the subscription is left pointing at a detached card. Needs checking against Stripe before this gets built.
-   4. Clear the card fields on the local row.
-   5. Return.
-4. No element, no confirm, no 3DS, so there is nothing asynchronous to wait on. The response is the answer, no polling.
-5. `payment_method.detached` lands afterwards. Idempotent, the local row is already clear by then.
-6. Subscribing again later goes through the create flow, which collects a card from scratch.
-
 ## Diagram
-
-Update.
 
 ```mermaid
 flowchart LR
@@ -85,23 +65,6 @@ flowchart LR
     P --> Q[Client polls until last4 changes]
     Q --> R[Success action]
     R --> S["Next renewal invoice<br/>charges the new card"]
-```
-
-Delete.
-
-```mermaid
-flowchart LR
-    A[User hits delete] --> B{Subscription still<br/>chargeable?}
-
-    B -->|active and renewing| C[Refuse]
-    B -->|ended or grace period| D["DELETE /billing/card"]
-
-    D --> E[Re-check gate API side]
-    E --> F[paymentMethods.detach]
-    F --> G["Customer default cleared<br/>sub default: open question"]
-    G --> H[Clear card fields on local row]
-    H --> I[Return, nothing to poll]
-    I --> J["payment_method.detached<br/>lands later, no-op"]
 ```
 
 ## Decisions
