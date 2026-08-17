@@ -42,6 +42,10 @@
 - Pseudocode only where code is unavoidable. No syntax from any language.
 - Every flow must cover failure paths, not just the happy path.
 - Record rejected alternatives in `Decisions`. The "why not" is the value.
+- `Decisions` holds forks only: two viable options existed and one was picked, and the other one had a real cost. Validation, error handling, and anything that follows from how the provider works are not decisions. Most flows have zero or one.
+- Do not manufacture a rejected alternative. If the "why not" is "that option was never possible", there is no decision.
+- A section only exists if it has real content. If there is nothing for it, omit it and say so. Never fill a section to satisfy the template.
+- Before writing any bullet, check it says something not already in the file. If it survives only as rephrasing, cut it.
 - Split a flow when its diagram exceeds one screen. Link to the sibling flow, do not nest.
 - Shared concerns (auth policy, plan limits) are restated per flow for now. Extract to shared files only when told to.
 - Do not implement anything here. Do not scaffold code, configs, or migrations.
