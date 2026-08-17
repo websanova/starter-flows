@@ -45,6 +45,9 @@
 - Split a flow when its diagram exceeds one screen. Link to the sibling flow, do not nest.
 - Shared concerns (auth policy, plan limits) are restated per flow for now. Extract to shared files only when told to.
 - Do not implement anything here. Do not scaffold code, configs, or migrations.
+- Flow prose leads with the point. No setup sentence, no restating the scenario before it.
+- Cut any sentence that adds no information. Shortest version that stays clear wins.
+- No hedging, no qualifiers, no repeating a point already made in another section.
 
 ## Responses
 - Answer the question that was asked. Nothing else. Length follows the question.
@@ -52,7 +55,8 @@
 - Never restate what I just said back to me.
 
 ## Typography - ASCII Only
-- No em dashes (-) - use hyphens (-)
+- No em dashes and no hyphens as clause joiners. Use a comma, a semicolon, or a new sentence.
+- Hyphens only inside compound words (off-session, mid-flow) and list bullets.
 - No smart/curly quotes - use straight quotes (" ')
 - No ellipsis character - use three dots (...)
 - No Unicode bullets - use hyphens (-) or asterisks (*)
