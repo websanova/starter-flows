@@ -32,11 +32,11 @@ Entities
 
 ## Flow
 
-1. On page load, if tax or promo codes are in play, collect the billing address and promo code first. The intent cannot be created until every input to the amount is known.
+1. On page load, collect the billing address first, always, and the promo code too if codes are in play. The intent cannot be created until every input to the amount is known.
 2. Hit the API for the intent, sending `{ plan, interval, promo_code? }`.
    1. Load the user's Stripe customer id from your DB.
    2. If there isn't one, create the customer on Stripe. Save the returned customer id to your users table.
-   3. If tax is to be applied the Stripe customer MUST have a billing address on it. This is the first problem with doing it on init, at page load the user hasn't filled anything in yet, so there is nothing to push up. Push it with `tax[validate_location]` set to `immediately` so an address that resolves to no tax jurisdiction fails here, before the intent exists and the first invoice is finalized. See the [address update flow](../../billing/stripe/address-update.md).
+   3. Push the billing address to the Stripe customer with `tax[validate_location]` set to `immediately`, whether or not tax is enabled. Has to be done before the intent is created, see Decisions and the [address update flow](../../billing/stripe/address-update.md) for details.
    4. Work out trial eligibility on the API side, since it already knows whether this user has burned a trial before.
    5. If a promo code came through it gets resolved into a Stripe promo code object. The field is optional, no code means this step is skipped entirely.
    6. Create the Subscription on Stripe with customer (stripe id), the plan's price id, `discounts: [{ promotion_code: 'promo_xxx' }]` if there was a code, `trial_period_days` if eligible, `payment_behavior: 'default_incomplete'`, `automatic_tax: { enabled: true }`, `expand: ['latest_invoice.confirmation_secret', 'pending_setup_intent']`. `confirmation_secret` is not expanded by default, it has to be named explicitly or it comes back absent.
@@ -64,10 +64,7 @@ Entities
 
 ```mermaid
 flowchart LR
-    A[Page load] --> B{tax or<br/>promo codes?}
-
-    B -->|no| C
-    B -->|yes| B1[Collect address and<br/>promo code first]
+    A[Page load] --> B1["Collect address always,<br/>promo code if on"]
     B1 --> C
 
     C["POST /subscription/intent<br/>{plan, interval, promo_code?}"] --> D["Load or create Stripe customer<br/>push address, validate_location"]
@@ -128,8 +125,8 @@ Unlike hosted and embedded, a local row exists before any payment. That row is t
 
 - Authenticated user required.
 - Trial eligibility is decided on the API side only. The client never asserts it - it is told the `type` to confirm with.
-- If tax is enabled the Stripe customer must carry a billing address before the subscription is created. Pushed with `tax[validate_location]` set to `immediately`, see the [address update flow](../../billing/stripe/address-update.md).
-- Every input to the amount - address and promo code - must be captured before the element mounts. Nothing can be applied after.
+- The Stripe customer must carry a validated billing address before the subscription is created, tax on or off. Pushed with `tax[validate_location]` set to `immediately`, see the [address update flow](../../billing/stripe/address-update.md).
+- The address is always captured before the element mounts, and the promo code too when codes are on. Nothing can be applied after.
 - One in-flight subscription per user, plan and interval. Revisiting the page must hand back the existing incomplete subscription rather than opening another.
 - The subscribed flag must treat `trialing` as subscribed, otherwise a trial signup polls forever.
 - Only the webhook flips the row to active or trialing. A resolved confirm is not proof.
@@ -164,15 +161,15 @@ On-init over hosted and embedded - the payment UI is the Payment Element on your
 
 Cost of the choice: a subscription is opened on Stripe for every visitor to the page, which needs a cleanup job on your side. Tax and promo codes have to be collected before the element mounts, and changing either afterwards means a full teardown that wipes the card the user typed.
 
+The billing address is collected and validated on every subscribe, tax on or off. Collecting it only when tax is on saves a step in the subscription flow but ends up with all the users having missing or unvalidated addresses for tax purposes. This can lead to headaches and tax liability, and takes some work to then backfill the enforcement. This must be done before the intent is created. An address pushed afterwards won't work, it's either missing from the intent calculation when tax is on or it fails after the subscribe already went through. That leaves `automatic_tax` as a backend flag, it decides what goes on the subscription create and nothing else.
+
 ## TODO
 
 Now
 
-- Tax and promo codes are each a configurable on/off field. The API owns both and is the source of truth - the client is told what is on, it never decides. Whether each is on determines the flow on both sides:
-  - Both off - nothing to settle before mount. No address step, no promo step, the element mounts on page load.
-  - Tax on - a billing address has to be collected and pushed to the customer before the subscription is created.
-  - Promo on - a code field is shown and resolved before the subscription is created.
-  - Either on - the amount is only known after that step, so the mount waits on it.
+- Tax and promo codes are each a configurable on/off field. The API owns both and is the source of truth - the client is told what is on, it never decides. The address step runs either way, so what is left to decide is:
+  - Promo off - the address is collected, pushed, and the element mounts behind it.
+  - Promo on - a code field is shown alongside the address and resolved before the subscription is created.
 - Decide how the client learns the two flags (config payload at page load vs baked into the plan response).
 - Decide how subscribe failures get diagnosed. When Stripe rejects the create (tax misconfigured, bad address, invalid promo), the API returns a generic "provider unavailable" and the real reason is only attached when app.debug is on. In production it is discarded, so a user reports a failed subscribe and there is nothing to go on.
 - Lay out how the address and promo code get collected before mount.
