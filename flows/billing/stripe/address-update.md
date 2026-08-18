@@ -33,7 +33,7 @@ Entities
    4. If the response is a success we can proceed to write the local row otherwise relay the error to the front end to display for the user.
 3. Nothing is charged and no invoice is created. The current cycle is already finalized and its tax is locked at the rate that applied when it was issued.
 4. The change applies from the next renewal invoice. Stripe recomputes tax off the customer address every time it creates one, so nothing on the subscription has to be re-pointed.
-5. The payment method's `billing_details.address` is a separate field and is not touched by this. That one is AVS data the bank checks against the card, tax reads the customer address. Editing the address here does not change it, and editing the card does not change the tax address.
+5. The payment method's `billing_details.address` is a separate field and is not touched by this. That one is AVS data the bank checks against the card. Stripe only falls back to it for tax when the customer carries no address, which cannot happen here. Editing the address here does not change it, and editing the card does not change the tax address.
 6. The response is the answer. Nothing asynchronous, no webhook, no polling.
 
 ## Diagram
@@ -64,7 +64,7 @@ flowchart LR
 - Validation is basic shape only. Stripe does the real check.
 - No Stripe customer id means the user never subscribed. Write locally, push nothing.
 - Push to Stripe first. The local row is written only on a successful update.
-- Never write `billing_details.address` on the payment method. Tax reads the customer address, AVS reads the card address.
+- Never write `billing_details.address` on the payment method. Tax reads the customer address while one is set, AVS reads the card address.
 - Nothing is charged, no invoice is created, no proration.
 - The current cycle is not recomputed. Its tax is locked at finalization.
 - The response is the answer. Nothing asynchronous, no webhook, no polling.
@@ -81,7 +81,7 @@ flowchart LR
 
 ## Decisions
 
-- To further enforce a taxable address, Stripe does support checking some amount with address, tax, etc, to see what the total would be, which could be used as a test for a taxable address. However, `tax[validate_location]` should handle this for us, so we'll leave that out assuming it works as intended.
+- To further enforce a taxable address, Stripe has tools that could test one before saving. A tax calculation takes the address and errors when it cannot be placed, and there may be dedicated address endpoints, though not fully released or behind a waitlist. However, `tax[validate_location]` should handle this for us, so we'll leave that out assuming it works as intended.
 
 ## TODO
 

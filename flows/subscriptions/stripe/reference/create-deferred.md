@@ -33,7 +33,7 @@ Entities
 ## Flow
 
 1. The billing address is collected up front, always, whether or not tax is enabled.
-2. Element mounts with amount and currency in payment mode, for example `elements({ mode: 'payment', amount: 3000, currency: 'usd' })`. On a trial it mounts as `elements({ mode: 'setup', currency: 'usd' })` instead, no amount at all, which means none of the amount syncing below applies.
+2. Element mounts with amount and currency in payment mode, for example `elements({ mode: 'payment', amount: 3000, currency: 'usd' })`. On a trial it mounts as `elements({ mode: 'setup', currency: 'usd' })` instead, no amount at all, so steps 3, 4 and 7 are skipped.
    1. Load stripe.js if it isn't already on the page.
    2. `elements({ mode, amount, currency })` builds the Elements object locally. No network calls here.
    3. `paymentElement.mount(target)` creates the iframe.
@@ -158,7 +158,7 @@ Unlike on-init, the row is only created for users who actually click subscribe. 
 | 3DS sends the browser away | Bank requires a challenge page | User returns to a cold page with no state. Read the secret off the query, mount with `clientSecret` not deferred mode, and retrieve the intent. Both mount modes have to be supported |
 | Trial hits 3DS | Bank wants the card verified even though nothing is charged | Handle the SetupIntent path too. Stripe appends `setup_intent_client_secret` instead |
 | Address resolves to no tax jurisdiction | Stripe cannot place it | With tax on the amount call errors before mount. With tax off it errors at subscribe, after `elements.submit()` and before the subscription is created. Nothing exists on Stripe either way |
-| Tax not computable | Missing registration, no customer address, or no product tax code | Error back to the client for display. Subscription create fails |
+| Tax not computable | Missing registration or no product tax code | Error back to the client for display. Subscription create fails |
 | Invalid promo code | Code does not resolve to a Stripe promo object | Error back to the client for display |
 | Promo code on a trial | Nothing to discount today | Code sits on the subscription and comes off the first real invoice once the trial ends. Setup mode has no amount to sync |
 | Webhook lands late | Asynchronous, can arrive before confirm resolves | Poll the auth user, show pending until the flag flips |

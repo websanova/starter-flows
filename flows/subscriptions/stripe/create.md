@@ -9,7 +9,7 @@ Creating a subscription with the Payment Element, where the intent gets created 
 
 The tradeoff is that a subscription gets opened on Stripe for anyone who so much as lands on the page, and anything that changes the amount afterwards, a promo code or a billing address that changes the tax, means tearing it down and building a new one.
 
-If you go with tax or promo codes, both have to be captured before the element mounts, however you want to lay the steps out. The intent cannot be created until every input to the amount is known, and once it is created the first invoice is finalized and its amount does not change, so neither can be applied after the fact. Re-pointing the mounted element at a new secret is not an option either, `clientSecret` is fixed when `elements()` is created. That also means letting the user go back and change the address or promo code costs a fresh intent and a fresh mount, which wipes the card they typed. With `automatic_tax: { enabled: false }` and no promo codes none of this applies, there is nothing to settle and the element can mount straight away.
+The billing address is captured before the element mounts either way, and a promo code too when codes are on. The intent cannot be created until every input to the amount is known, and once it is created the first invoice is finalized and its amount does not change, so neither can be applied after the fact. Re-pointing the mounted element at a new secret is not an option either, `clientSecret` is fixed when `elements()` is created. That also means letting the user go back and change the address or promo code costs a fresh intent and a fresh mount, which wipes the card they typed.
 
 ## Actors & Entities
 
@@ -23,7 +23,7 @@ Actors
 Entities
 
 - User record - holds the Stripe customer id and the billing address that gets pushed up.
-- Stripe Customer - must carry a billing address if tax is enabled.
+- Stripe Customer - must carry a validated billing address, tax on or off.
 - Subscription - created at `incomplete` (or `trialing`) before any payment.
 - Invoice - first invoice, finalized at creation. `$0` on a trial.
 - PaymentIntent - on the invoice when there is no trial.
@@ -144,7 +144,7 @@ Unlike hosted and embedded, a local row exists before any payment. That row is t
 | 3DS sends the browser away | Bank requires a challenge page | User returns to a cold page with no state. Stripe appends the secret to the return url, and the key name tells you the type. Retrieve the intent rather than restarting the flow |
 | Trial hits 3DS | Bank wants the card verified even though nothing is charged | Handle 3DS on the SetupIntent path too, not just payment |
 | Address resolves to no tax jurisdiction | Stripe cannot place it | The customer update errors before the intent is created. Nothing to tear down, the user corrects and retries |
-| Tax not computable | Missing registration, no customer address, or no product tax code | Error back to the client for display. Subscription create fails |
+| Tax not computable | Missing registration or no product tax code | Error back to the client for display. Subscription create fails |
 | Invalid promo code | Code does not resolve to a Stripe promo object | Error back to the client for display |
 | 100% promo zeroes the invoice | Nothing to charge, so there is no intent and no secret to return | Not worked out yet. Also affects a trial, where a `once` code is consumed by the `$0` trial invoice. See TODO |
 | Webhook lands late | Asynchronous, can arrive before confirm resolves | Poll the auth user, show pending until the flag flips |
