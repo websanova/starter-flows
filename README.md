@@ -9,6 +9,7 @@ Feature flow specs for the starter projects.
 | [Subscription Create - Stripe (Embedded Checkout)](flows/subscriptions/stripe/reference/create-embedded.md) | reference | 2026-08-17 |
 | [Subscription Create - Stripe (Payment Element, deferred intent)](flows/subscriptions/stripe/reference/create-deferred.md) | reference | 2026-08-17 |
 | [Subscription Cancel - Stripe](flows/subscriptions/stripe/cancel.md) | draft | 2026-08-17 |
+| [Subscription Resume - Stripe](flows/subscriptions/stripe/resume.md) | draft | 2026-08-17 |
 | [Billing Payment Method Update - Stripe (Payment Element)](flows/billing/stripe/pm-update.md) | draft | 2026-08-17 |
 | [Billing Payment Method Delete - Stripe](flows/billing/stripe/pm-delete.md) | draft | 2026-08-17 |
 | [Billing Address Update - Stripe](flows/billing/stripe/address-update.md) | draft | 2026-08-17 |
