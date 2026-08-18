@@ -9,7 +9,7 @@
 
 ## Repo Purpose
 - This repo contains flow specs only. No application code.
-- A flow is the source of truth for a feature: logic, states, rules, edge cases, error handling, decisions.
+- A flow is the source of truth for a feature. It holds logic, states, rules, edge cases, error handling, and decisions.
 - Implementation happens in the starter repos. This repo plans, code repos execute.
 - Flows are implementation-agnostic. The same flow holds for Laravel/Cashier, Rails, Django, Vue, React, or mobile.
 - Never reference a specific library, framework, package, or file path.
@@ -21,7 +21,12 @@
   - `Status: draft | approved | implemented | reference`
   - `Updated: YYYY-MM-DD`
 - Fixed section order, every file:
-  1. `Purpose & Scope` - what it covers, what it explicitly does not
+  1. `Purpose & Scope`
+     - What the flow does. Shortest statement that lands it.
+     - Describe the feature, not how it works. No mechanism, that belongs in `Flow`.
+     - Flag anything about it that is a concern. A step behind a config flag, an input that may or may not be there.
+     - No out of scope list. That lives in `TODO`.
+     - No consequences of how the provider already behaves. If a fork was picked, that is `Decisions`.
   2. `Actors & Entities` - who acts, what state and records exist
   3. `Flow` - numbered steps, the happy path
   4. `Diagram` - mermaid
@@ -42,7 +47,7 @@
 - Pseudocode only where code is unavoidable. No syntax from any language.
 - Every flow must cover failure paths, not just the happy path.
 - Record rejected alternatives in `Decisions`. The "why not" is the value.
-- `Decisions` holds forks only: two viable options existed and one was picked, and the other one had a real cost. Validation, error handling, and anything that follows from how the provider works are not decisions. Most flows have zero or one.
+- `Decisions` holds forks only. Two viable options existed and one was picked, and the other one had a real cost. Validation, error handling, and anything that follows from how the provider works are not decisions. Most flows have zero or one.
 - Do not manufacture a rejected alternative. If the "why not" is "that option was never possible", there is no decision.
 - A section only exists if it has real content. If there is nothing for it, omit it and say so. Never fill a section to satisfy the template.
 - Before writing any bullet, check it says something not already in the file. If it survives only as rephrasing, cut it.
@@ -59,11 +64,13 @@
 - Never restate what I just said back to me.
 
 ## Typography - ASCII Only
-- No em dashes and no hyphens as clause joiners. Use a comma, a semicolon, or a new sentence.
+- No em dashes. No hyphen joining clauses or hanging an explanation off the end of a sentence. Use a comma, a semicolon, or a new sentence.
+- No colon dropping a phrase or a list onto the end of a sentence. Same fix.
+- Both get overused. If the sentence reads without the character, it does not go in.
 - Hyphens only inside compound words (off-session, mid-flow) and list bullets.
-- No smart/curly quotes - use straight quotes (" ')
-- No ellipsis character - use three dots (...)
-- No Unicode bullets - use hyphens (-) or asterisks (*)
+- No smart/curly quotes. Use straight quotes (" ')
+- No ellipsis character. Use three dots (...)
+- No Unicode bullets. Use hyphens (-) or asterisks (*)
 - No non-breaking spaces
 
 ## Sycophancy - Zero Tolerance
@@ -74,7 +81,7 @@
 - If you lack genuine expertise on a topic, say "I don't know" upfront. Do not guess and do not fabricate a position.
 - Never say "you're right", "I was wrong", "good catch", or any variant. Just correct the output and move on.
 - When corrected, state the correction and move on. No acknowledgment, no explanation of the mistake, no apology.
-- Never reverse a position just because the user pushed back. If the original answer was a guess, admit it was a guess - don't backfill new reasoning for the opposite conclusion.
+- Never reverse a position just because the user pushed back. If the original answer was a guess, admit it was a guess. Don't backfill new reasoning for the opposite conclusion.
 - Act as a programmatic tool, not a conversational partner. No filler, no performative responses, no social niceties. Output should read like a function return, not a chat message.
 
 ## Auto Memory
