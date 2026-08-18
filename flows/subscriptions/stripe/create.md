@@ -9,13 +9,13 @@ Creating a subscription with the Payment Element, where the intent gets created 
 
 The tradeoff is that a subscription gets opened on Stripe for anyone who so much as lands on the page, and anything that changes the amount afterwards, a promo code or a billing address that changes the tax, means tearing it down and building a new one.
 
-The billing address is captured before the element mounts either way, and a promo code too when codes are on. The intent cannot be created until every input to the amount is known, and once it is created the first invoice is finalized and its amount does not change, so neither can be applied after the fact. Re-pointing the mounted element at a new secret is not an option either, `clientSecret` is fixed when `elements()` is created. That also means letting the user go back and change the address or promo code costs a fresh intent and a fresh mount, which wipes the card they typed.
+The billing address is captured before the element mounts either way, and a promo code too when codes are on. The intent cannot be created until every input to the amount is known, and once it is created the first invoice is finalized and its amount does not change, so neither can be applied after the fact. Re-pointing the mounted element at a new secret is not an option either, `clientSecret` is fixed when `elements()` is created. That also means letting the user go back and change the address or promo code costs a fresh intent and a fresh mount, which wipes the details they typed.
 
 ## Actors & Entities
 
 Actors
 
-- User - enters card details in the Payment Element on your page.
+- User - enters payment details in the Payment Element on your page.
 - Client App - requests the intent, mounts the element, confirms, polls after success.
 - API - creates the customer and the subscription, writes the local row, receives the webhook.
 - Stripe - issues the intent, runs 3DS, settles the charge, fires the webhook.
@@ -42,7 +42,7 @@ Entities
    6. Create the Subscription on Stripe with customer (stripe id), the plan's price id, `discounts: [{ promotion_code: 'promo_xxx' }]` if there was a code, `trial_period_days` if eligible, `payment_behavior: 'default_incomplete'`, `automatic_tax: { enabled: true }`, `expand: ['latest_invoice.confirmation_secret', 'pending_setup_intent']`. `confirmation_secret` is not expanded by default, it has to be named explicitly or it comes back absent.
    7. That single call creates the Subscription on Stripe at status `incomplete` (or `trialing`), plus one of two things depending on the trial:
       - No trial - a first Invoice for the full amount, and a PaymentIntent against that invoice. The secret is read off `latest_invoice.confirmation_secret.client_secret`, not off the intent itself.
-      - Trial - the first invoice is `$0`, so there is nothing to charge. Stripe opens a SetupIntent on `pending_setup_intent` instead, which stores the card for when the trial ends.
+      - Trial - the first invoice is `$0`, so there is nothing to charge. Stripe opens a SetupIntent on `pending_setup_intent` instead, which stores the payment method for when the trial ends.
    8. The amount is computed by Stripe from price + tax. You never send one, and nothing on the client has to match it.
    9. If it errors out, that error needs to get sent back to the client for display.
    10. On success, write your local subscription row now that the Stripe id exists - stripe sub id, plan, interval, status.
@@ -105,8 +105,8 @@ Local subscription row.
 
 | State | Meaning |
 | ----- | ------- |
-| incomplete | Written at intent creation. Subscription exists on Stripe, nothing charged, card may never be entered. |
-| trialing | Webhook landed, trial running, card stored via SetupIntent. Counts as subscribed. |
+| incomplete | Written at intent creation. Subscription exists on Stripe, nothing charged, payment method may never be entered. |
+| trialing | Webhook landed, trial running, payment method stored via SetupIntent. Counts as subscribed. |
 | active | Webhook landed, first invoice paid. |
 
 Allowed transitions
@@ -136,13 +136,13 @@ Unlike hosted and embedded, a local row exists before any payment. That row is t
 
 | Case | Cause | Expected behavior |
 | ---- | ----- | ----------------- |
-| Promo code entered after mount | First invoice is already finalized. A discount applied now only affects future invoices | Cancel the subscription on Stripe, create a new one with the promo attached, mount a fresh element against the new secret. The typed card is lost |
-| Billing address changes the tax after init | Same as above, the amount is locked once the intent exists | Same teardown and remount. The typed card is lost |
+| Promo code entered after mount | First invoice is already finalized. A discount applied now only affects future invoices | Cancel the subscription on Stripe, create a new one with the promo attached, mount a fresh element against the new secret. The typed details are lost |
+| Billing address changes the tax after init | Same as above, the amount is locked once the intent exists | Same teardown and remount. The typed details are lost |
 | Abandoned page | Subscription opened for anyone who lands | Incomplete subscription on Stripe and an incomplete row in your DB. Stripe expires its side after 23 hours, your rows need a cleanup job |
 | Revisit while incomplete | User comes back to the page | Hand back the in flight subscription for the same plan and interval rather than opening a second one |
-| Card declined | Bank refused | Element stays mounted against the same secret, user corrects the card and submits again. The intent is still confirmable, no new secret needed |
+| Payment method declined | Bank refused | Element stays mounted against the same secret, user corrects the details and submits again. The intent is still confirmable, no new secret needed |
 | 3DS sends the browser away | Bank requires a challenge page | User returns to a cold page with no state. Stripe appends the secret to the return url, and the key name tells you the type. Retrieve the intent rather than restarting the flow |
-| Trial hits 3DS | Bank wants the card verified even though nothing is charged | Handle 3DS on the SetupIntent path too, not just payment |
+| Trial hits 3DS | Bank wants the payment method verified even though nothing is charged | Handle 3DS on the SetupIntent path too, not just payment |
 | Address resolves to no tax jurisdiction | Stripe cannot place it | The customer update errors before the intent is created. Nothing to tear down, the user corrects and retries |
 | Tax not computable | Missing registration or no product tax code | Error back to the client for display. Subscription create fails |
 | Invalid promo code | Code does not resolve to a Stripe promo object | Error back to the client for display |
@@ -159,7 +159,7 @@ On-init over deferred - the element mounts against a real client secret, so ther
 
 On-init over hosted and embedded - the payment UI is the Payment Element on your own page, styleable with the Appearance API. Checkout gives you Dashboard branding and nothing more.
 
-Cost of the choice: a subscription is opened on Stripe for every visitor to the page, which needs a cleanup job on your side. Tax and promo codes have to be collected before the element mounts, and changing either afterwards means a full teardown that wipes the card the user typed.
+Cost of the choice: a subscription is opened on Stripe for every visitor to the page, which needs a cleanup job on your side. Tax and promo codes have to be collected before the element mounts, and changing either afterwards means a full teardown that wipes the details the user typed.
 
 The billing address is collected and validated on every subscribe, tax on or off. Collecting it only when tax is on saves a step in the subscription flow but ends up with all the users having missing or unvalidated addresses for tax purposes. This can lead to headaches and tax liability, and takes some work to then backfill the enforcement. This must be done before the intent is created. An address pushed afterwards won't work, it's either missing from the intent calculation when tax is on or it fails after the subscribe already went through. That leaves `automatic_tax` as a backend flag, it decides what goes on the subscription create and nothing else.
 

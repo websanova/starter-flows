@@ -15,7 +15,7 @@ The gist of it is that whatever you set up, trial or no trial, promo, tax, whate
 
 Actors
 
-- User - enters card details in the Payment Element on your page.
+- User - enters payment details in the Payment Element on your page.
 - Client App - mounts the element with an amount, keeps that amount in sync, submits and confirms.
 - API - source of truth for the amount, creates the customer and the subscription, writes the local row, receives the webhook.
 - Stripe - issues the intent at submit time, validates the element against it, runs 3DS, settles the charge, fires the webhook.
@@ -42,7 +42,7 @@ Entities
 5. A promo code still applies on a trial, it just does nothing today since there is nothing to discount. It sits on the subscription and comes off the first real invoice once the trial ends. Setup mode carries no amount so there is nothing to keep in sync either.
 6. At this point no intent, no subscription, nothing has been created on the API side. Everything gets initiated when the user hits subscribe.
 7. You can get as fancy as you like with how the amount gets updated. For instance, do a single "get amount" call with any promo codes or other modifiers, do the `elements.update`, then get the intent with the same amount. Regardless, they have to match.
-8. On subscribe, `elements.submit()` runs first, before anything else. This sends the card data to Stripe's servers and returns ok or an error. If it errors, stop here, nothing else runs. It has to be the first thing in the click handler, before any `await`, because browsers only allow popups to open inside the user gesture and some methods (PayPal, certain 3DS) need one.
+8. On subscribe, `elements.submit()` runs first, before anything else. This sends the payment data to Stripe's servers and returns ok or an error. If it errors, stop here, nothing else runs. It has to be the first thing in the click handler, before any `await`, because browsers only allow popups to open inside the user gesture and some methods (PayPal, certain 3DS) need one.
 9. Then hit the API for the intent, sending `{ plan, interval, promo_code, etc }`.
    1. Load the user's Stripe customer id from your DB.
    2. If there isn't one, create the customer on Stripe. Save the returned customer id to your users table.
@@ -114,7 +114,7 @@ Local subscription row.
 | ----- | ------- |
 | none | Element is mounted, nothing exists on Stripe or locally. The user can leave at no cost. |
 | incomplete | Written after subscribe is hit and the subscription is created. Nothing charged yet. |
-| trialing | Webhook landed, trial running, card stored via SetupIntent. Counts as subscribed. |
+| trialing | Webhook landed, trial running, payment method stored via SetupIntent. Counts as subscribed. |
 | active | Webhook landed, first invoice paid. |
 
 Allowed transitions
@@ -153,10 +153,10 @@ Unlike on-init, the row is only created for users who actually click subscribe. 
 | Amount mismatch | Element amount does not equal the intent amount Stripe computed | `IntegrationError` thrown at confirm, after the user already clicked pay. Subscription is already created, nothing charged. Keep the element amount synced from the API |
 | Mode mismatch | Client decided trial eligibility differently to the API | Same `IntegrationError` at confirm. Trial eligibility must agree on both sides |
 | `elements.submit()` not first | An `await` runs before it in the click handler | Browsers block the popup, PayPal and some 3DS methods break. Must be the first statement |
-| Card declined | Bank refused | Incomplete subscription on Stripe and an incomplete row locally. User can correct the card and submit again |
+| Payment method declined | Bank refused | Incomplete subscription on Stripe and an incomplete row locally. User can correct the details and submit again |
 | Resubscribe after a failed confirm | Hitting subscribe runs the whole create again | API must hand back the in flight subscription for the same plan and interval rather than opening a second one |
 | 3DS sends the browser away | Bank requires a challenge page | User returns to a cold page with no state. Read the secret off the query, mount with `clientSecret` not deferred mode, and retrieve the intent. Both mount modes have to be supported |
-| Trial hits 3DS | Bank wants the card verified even though nothing is charged | Handle the SetupIntent path too. Stripe appends `setup_intent_client_secret` instead |
+| Trial hits 3DS | Bank wants the payment method verified even though nothing is charged | Handle the SetupIntent path too. Stripe appends `setup_intent_client_secret` instead |
 | Address resolves to no tax jurisdiction | Stripe cannot place it | With tax on the amount call errors before mount. With tax off it errors at subscribe, after `elements.submit()` and before the subscription is created. Nothing exists on Stripe either way |
 | Tax not computable | Missing registration or no product tax code | Error back to the client for display. Subscription create fails |
 | Invalid promo code | Code does not resolve to a Stripe promo object | Error back to the client for display |
@@ -167,7 +167,7 @@ Unlike on-init, the row is only created for users who actually click subscribe. 
 
 ## Decisions
 
-Deferred over on-init - nothing is created on Stripe until the user actually commits, so visitors who land and leave cost nothing and there are no abandoned incomplete rows to clean up. Promo codes and address changes can also be applied while the element is mounted, since the intent does not exist yet, instead of forcing a teardown that wipes the typed card.
+Deferred over on-init - nothing is created on Stripe until the user actually commits, so visitors who land and leave cost nothing and there are no abandoned incomplete rows to clean up. Promo codes and address changes can also be applied while the element is mounted, since the intent does not exist yet, instead of forcing a teardown that wipes the typed details.
 
 Deferred over hosted and embedded - the payment UI is the Payment Element on your own page, styleable with the Appearance API. Checkout gives you Dashboard branding and nothing more.
 

@@ -7,7 +7,7 @@ Updated: 2026-08-17
 
 Creating a subscription with a Stripe hosted Checkout Session. The API creates the session and hands back a URL, the browser navigates to `checkout.stripe.com`, and the user completes the entire payment on Stripe's domain. Address collection, promo codes, tax, payment methods, 3DS and the trial are all Stripe's UI.
 
-There is no stripe.js on your page at all. Nothing to load, nothing to mount, no client secret, no element. The entire card surface lives off your domain, which is the smallest PCI footprint of any of the create variants.
+There is no stripe.js on your page at all. Nothing to load, nothing to mount, no client secret, no element. The entire payment surface lives off your domain, which is the smallest PCI footprint of any of the create variants.
 
 Styling is logo, colors, fonts and border radius from the Dashboard branding settings. Beyond that it looks like Stripe, and the user can see they left your site.
 
@@ -18,7 +18,7 @@ Actors
 - User - hits subscribe, completes payment on Stripe's domain.
 - Client App - requests the session, navigates the browser, polls after return.
 - API - creates the customer and the session, receives the webhook, writes the local row.
-- Stripe - hosts the checkout page, creates the Subscription and Invoice, charges the card, fires the webhook.
+- Stripe - hosts the checkout page, creates the Subscription and Invoice, charges the payment method, fires the webhook.
 
 Entities
 
@@ -41,7 +41,7 @@ Entities
    8. Return the session's `url` to the client app.
 2. Client navigates the browser to that URL. That is the entire client side implementation.
 3. Everything from here happens on Stripe's domain. The user fills in their address, applies a promo code, picks a payment method, pays, and does 3DS if the bank asks. Stripe recalculates tax and totals live, with no calls to your API at any point.
-4. On completion Stripe creates the Subscription and the Invoice and charges the card, all on its own side.
+4. On completion Stripe creates the Subscription and the Invoice and charges the payment method, all on its own side.
 5. Stripe sends the browser to your `success_url` with `?session_id={CHECKOUT_SESSION_ID}` appended. If the user backs out instead they land on `cancel_url` and nothing was created.
 6. The success page is a cold page load with no state, so treat it as a landing page rather than a continuation of whatever the user was doing before.
 7. Your API still knows nothing at this point. Nothing in the chain above told it the payment landed, only the webhook does.
@@ -61,7 +61,7 @@ flowchart LR
     E --> F["Browser navigates to<br/>checkout.stripe.com"]
     F --> G["On Stripe's domain:<br/>address, promo code, tax,<br/>payment method, 3DS"]
 
-    G --> H1[Stripe creates Subscription<br/>and Invoice, charges card]
+    G --> H1[Stripe creates Subscription<br/>and Invoice, charges payment method]
     G -->|backs out| H2["cancel_url<br/>nothing created"]
 
     H1 --> I["Redirect to success_url<br/>?session_id="]
@@ -111,7 +111,7 @@ There is no `incomplete` state here. Nothing exists locally until the session co
 | Trial signup polls forever | Subscribed flag ignores `trialing` | Flag must count `trialing` as subscribed |
 | No address on file at renewal | `customer_update` omitted from session create | Stripe collected the address for tax but never wrote it back. Set `customer_update: { address: 'auto' }` |
 | Success page has no state | Cold page load after the redirect | Treat it as a landing page, not a continuation of the previous session |
-| Card declined | Happens entirely on Stripe's domain | Stripe handles the retry. No local effect, no session created |
+| Payment method declined | Happens entirely on Stripe's domain | Stripe handles the retry. No local effect, no session created |
 
 ## Decisions
 

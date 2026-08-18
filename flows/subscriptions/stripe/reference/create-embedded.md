@@ -18,7 +18,7 @@ Actors
 - User - fills in the form inside the iframe.
 - Client App - requests the session, mounts the embedded checkout, polls after completion.
 - API - creates the customer and the session, receives the webhook, writes the local row.
-- Stripe - renders the checkout iframe, creates the Subscription and Invoice, charges the card, fires the webhook.
+- Stripe - renders the checkout iframe, creates the Subscription and Invoice, charges the payment method, fires the webhook.
 
 Entities
 
@@ -41,7 +41,7 @@ Entities
    8. Return the session's `client_secret` to the client app.
 2. Client mounts it with `initEmbeddedCheckout({ clientSecret })` then `checkout.mount(target)`.
 3. Everything from here happens inside the iframe. The user fills in their address, applies a promo code, picks a payment method, pays, and does 3DS if the bank asks. Stripe recalculates tax and totals live as they type, with no calls to your API at any point.
-4. On completion Stripe creates the Subscription and the Invoice and charges the card, all on its own side.
+4. On completion Stripe creates the Subscription and the Invoice and charges the payment method, all on its own side.
 5. Then either it redirects to your `return_url` with `?session_id={CHECKOUT_SESSION_ID}` appended, or if you set `redirect_on_completion: 'never'` it fires an `onComplete` callback and stays on the page.
 6. Either way your API still knows nothing at this point. Nothing in the chain above told it the payment landed, only the webhook does.
 7. Stripe fires `checkout.session.completed`. Your backend reads the subscription id off the session and writes the local row. This is the first time anything lands in your DB. It is asynchronous and has no fixed timing, it can land before the browser even finishes redirecting, or seconds after.
@@ -59,7 +59,7 @@ flowchart LR
 
     E --> F["initEmbeddedCheckout({ clientSecret })<br/>checkout.mount()"]
     F --> G["Inside the iframe:<br/>address, promo code, tax,<br/>payment method, 3DS"]
-    G --> H[Stripe creates Subscription<br/>and Invoice, charges card]
+    G --> H[Stripe creates Subscription<br/>and Invoice, charges payment method]
 
     H --> I{redirect_on_completion}
     I -->|default| I1["Redirect to return_url<br/>?session_id="]
@@ -111,7 +111,7 @@ There is no `incomplete` state here. Nothing exists locally until the session co
 | Trial signup polls forever | Subscribed flag ignores `trialing` | Flag must count `trialing` as subscribed |
 | No address on file at renewal | `customer_update` omitted from session create | Stripe collected the address for tax but never wrote it back. Set `customer_update: { address: 'auto' }` |
 | Cold return after redirect | Default `redirect_on_completion` sends the browser to `return_url` | Read `session_id` off the query and treat the page as a landing page. Set `redirect_on_completion: 'never'` if you want to stay put and keep state |
-| Card declined | Happens inside the iframe | Stripe handles the retry. No local effect |
+| Payment method declined | Happens inside the iframe | Stripe handles the retry. No local effect |
 | Styling does not match the app | Appearance API does not apply to embedded checkout | Only Dashboard branding is available. If the payment UI must match the app, this is the wrong variant |
 
 ## Decisions
