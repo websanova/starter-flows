@@ -1,7 +1,7 @@
 # Billing Payment Method Update - Stripe (Payment Element)
 
 Status: draft
-Updated: 2026-08-17
+Updated: 2026-08-18
 
 ## Purpose & Scope
 
@@ -27,11 +27,11 @@ Entities
 - Subscription - carries its own `default_payment_method`, which overrides the customer level one.
 - SetupIntent - created on page load with `usage: off_session`. No amount, no price, nothing about the subscription.
 - PaymentMethod - old one detached, new one attached and defaulted. Two separate operations.
-- Local billing row - brand, last4, expiry. Display only.
+- Local billing row - brand and last4. Display only.
 
 ## Flow
 
-1. User lands on the dedicated billing update page. It shows the payment method currently on file (brand, last4, expiry) off the local row.
+1. User lands on the dedicated billing update page. It shows the payment method currently on file (brand, last4) off the local row.
 2. On page load, without waiting for any user action, the client hits the API for a setup intent. Nothing to send, the customer is the authenticated user. The element cannot mount without a secret, so this fires before the form is usable rather than behind a save or a change payment method button.
    1. Load the user's Stripe customer id from your DB. It has to already exist, the payment method being replaced was entered during subscribe. No customer id means there is nothing to update, error back.
    2. Create a SetupIntent on Stripe with `customer` and `usage: 'off_session'`. The `off_session` part matters, the payment method gets charged by the renewal with nobody at the keyboard, and that is what sets the mandate up for it.
@@ -49,7 +49,7 @@ Entities
    1. Set `invoice_settings.default_payment_method` on the Stripe customer to the new payment method. That is what a future invoice reads.
    2. Set `default_payment_method` on the subscription to the same payment method, or clear it. A subscription level default overrides the customer level one, so if the old payment method is still pinned on the subscription the renewal charges the old payment method no matter what the customer record says. Nothing fails now, it surfaces a month later on the renewal.
    3. Detach the old payment method, otherwise every update leaves another payment method sitting on the customer.
-   4. Write the new brand, last4 and expiry to the local row for display.
+   4. Write the new brand and last4 to the local row for display.
    5. Has to be idempotent, the same setup intent can arrive twice.
 10. Reload the auth user (or the billing endpoint) and check the payment method on file. Poll this, a hit on the new last4 means the webhook arrived and the API picked it up. Give up after a ceiling rather than spinning forever.
 11. Take the success action, redirect back to billing, wherever.
@@ -59,7 +59,7 @@ Entities
 
 ```mermaid
 flowchart LR
-    A[Billing update page] --> B["Show payment method on file<br/>brand, last4, exp"]
+    A[Billing update page] --> B["Show payment method on file<br/>brand, last4"]
     A -->|on load| C["POST /billing/intent"]
     C --> D[Load Stripe customer id]
     D --> E["setupIntents.create<br/>usage: off_session"]
@@ -79,7 +79,7 @@ flowchart LR
     L --> M["Customer invoice_settings<br/>default_payment_method = new pm"]
     M --> N["Subscription default_payment_method<br/>= new pm or cleared"]
     N --> O[Detach old pm]
-    O --> P["Local row -> new brand, last4, exp"]
+    O --> P["Local row -> new brand, last4"]
     P --> Q[Client polls until last4 changes]
     Q --> R[Success action]
     R --> S["Next renewal invoice<br/>charges the new payment method"]
@@ -146,7 +146,7 @@ The dedicated page fetches the intent on load. There is no need for additional s
 
 The repoint runs off the webhook, not off the confirm response. The browser can be closed or sent to the bank at that moment, so the confirm may never resolve on the page that started it. The webhook is the only path that always arrives.
 
-Detach the old payment method rather than keeping a list. One payment method on file is the model everywhere else in the flow, and the local row holds a single brand, last4 and expiry.
+Detach the old payment method rather than keeping a list. One payment method on file is the model everywhere else in the flow, and the local row holds a single brand and last4.
 
 ## TODO
 

@@ -1,7 +1,7 @@
 # Billing Payment Method Delete - Stripe
 
 Status: draft
-Updated: 2026-08-17
+Updated: 2026-08-18
 
 ## Purpose & Scope
 
@@ -25,7 +25,7 @@ Entities
 - Local subscription row - the gate is decided off its status and period end.
 - Stripe Customer - loses `invoice_settings.default_payment_method` along with the detach.
 - PaymentMethod - detached, not deleted. Stays retrievable, `customer` nulled, never re-attachable.
-- Local billing row - brand, last4, expiry, cleared on success.
+- Local billing row - brand and last4, cleared on success.
 
 ## Flow
 
@@ -61,7 +61,7 @@ Payment method on file.
 
 | State | Meaning |
 | ----- | ------- |
-| on file | Attached to the customer, brand, last4 and expiry on the local row |
+| on file | Attached to the customer, brand and last4 on the local row |
 | detached | Off the customer at Stripe, payment method fields cleared locally. Terminal for this payment method |
 
 Allowed transitions
