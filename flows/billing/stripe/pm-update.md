@@ -1,7 +1,7 @@
 # Billing Payment Method Update - Stripe (Payment Element)
 
 Status: draft
-Updated: 2026-08-18
+Updated: 2026-08-25
 
 ## Purpose & Scope
 
@@ -41,7 +41,7 @@ Entities
    6. A SetupIntent is opened for anyone who lands on the page. Unlike create there is no subscription and no local row behind it, an unconfirmed SetupIntent just goes stale on Stripe, so there is nothing to clean up.
 3. Element mounts against that secret with `elements({ clientSecret })`, then `paymentElement.mount(target)`. Same as create, no mode, no amount, no currency, Stripe reads it off the intent.
 4. User enters the new payment method and hits save.
-5. `confirmSetup({ elements, clientSecret, confirmParams: { return_url }, redirect: 'if_required' })`. The `return_url` is mandatory.
+5. Call `confirmSetup({ elements, clientSecret, confirmParams: { return_url }, redirect: 'if_required' })`. The `return_url` is mandatory.
 6. Response is success / error / 3DS. Nothing is being charged but the bank can still want the payment method verified, so 3DS is on the table exactly like create. It either runs in a dialog and resolves inline, or sends the browser away to the bank and back to your return url.
 7. If it redirected, the user comes back to a freshly loaded page with no state. Stripe appends `setup_intent_client_secret` to the return url. Read it and call `retrieveSetupIntent` to see how it landed rather than starting the flow over. Only one key to look for here, there is no payment variant.
 8. On success the payment method is attached to the Stripe customer and that is all. It is not the default and nothing will charge it. Attaching and defaulting are two separate things, and this is where the flow is easy to get wrong.
@@ -51,7 +51,7 @@ Entities
    3. Detach the old payment method, otherwise every update leaves another payment method sitting on the customer.
    4. Write the new brand and last4 to the local row for display.
    5. Has to be idempotent, the same setup intent can arrive twice.
-10. Reload the auth user (or the billing endpoint) and check the payment method on file. Poll this, a hit on the new last4 means the webhook arrived and the API picked it up. Give up after a ceiling rather than spinning forever.
+10. Reload the auth user (or the billing endpoint) and check the payment method on file. Poll this until it reflects the new payment method. Last4 is not a reliable signal on its own, re-entering the same card produces a new payment method id behind the same last4, so a same-card update polls to the ceiling on a success. Give up after a ceiling rather than spinning forever.
 11. Take the success action, redirect back to billing, wherever.
 12. Nothing is charged by any of this. The current cycle is already paid, the new payment method gets used by the next renewal invoice.
 
@@ -80,14 +80,14 @@ flowchart LR
     M --> N["Subscription default_payment_method<br/>= new pm or cleared"]
     N --> O[Detach old pm]
     O --> P["Local row -> new brand, last4"]
-    P --> Q[Client polls until last4 changes]
+    P --> Q[Client polls until the<br/>payment method on file changes]
     Q --> R[Success action]
     R --> S["Next renewal invoice<br/>charges the new payment method"]
 ```
 
 ## States
 
-SetupIntent. The local row has no status here, only payment method fields.
+SetupIntent, plus two states of this flow's own. `requires_payment_method`, `requires_action` and `succeeded` are Stripe's. `repointed` and `stale` are ours, Stripe has no such status. The local row has no status here, only payment method fields.
 
 | State | Meaning |
 | ----- | ------- |
@@ -112,11 +112,10 @@ Allowed transitions
 
 - Authenticated user required.
 - A Stripe customer must already exist. No customer id is an error, not a create.
-- `usage: off_session` is mandatory. The renewal charges with nobody at the keyboard, that is what the mandate is for.
+- Setting `usage: off_session` is mandatory. The renewal charges with nobody at the keyboard, that is what the mandate is for.
 - Attaching is not defaulting. Success on the SetupIntent alone changes nothing about what gets billed.
 - Both defaults have to be handled. The subscription level default overrides the customer level one, so repointing only the customer leaves the old payment method billing at the next renewal.
 - Detach the old payment method, or every update leaves another payment method on the customer.
-- Skip the detach when the new payment method id equals the old one.
 - Only the webhook repoints and writes. A resolved confirm is not proof.
 - Webhook handling is idempotent, the same setup intent can arrive twice.
 - Polling has a ceiling. Past it, show a pending state rather than spinning.
@@ -132,7 +131,7 @@ Allowed transitions
 | Abandoned page | SetupIntent opened for every visitor | Unconfirmed intent goes stale on Stripe on its own. No local row behind it, nothing to clean up |
 | Subscription default left pinned | Only the customer level default repointed | Renewal charges the old payment method. Nothing fails at update time, it surfaces a month later |
 | Old payment method not detached | Detach step skipped | Payment methods pile up on the customer, one per update |
-| New payment method is the one already on file | User re-enters the same details | Stripe issues a new payment method id. Repoint and detach the old one as normal |
+| New payment method is the one already on file | User re-enters the same details | Stripe issues a new payment method id. Repoint and detach the old one as normal. Last4 does not change, so the client has nothing to poll against and runs to the ceiling on a success |
 | Webhook lands late | Asynchronous, can arrive before confirm resolves | Poll the payment method on file, show pending until last4 changes |
 | Webhook never arrives | API dropped or failed the attempts | Payment method is attached at Stripe but nothing is defaulted and the row still shows the old payment method. The renewal charges the old payment method. Needs a manual sync |
 | Same setup intent delivered twice | Stripe retries | Handler is idempotent, second pass is a no-op |
@@ -154,6 +153,7 @@ Now
 
 - Decide whether the subscription level default gets set to the new payment method or cleared. Clearing leans on the customer default, setting it is explicit. Pick one and use it everywhere.
 - Decide the polling ceiling and what the pending state shows.
+- Decide what the poll compares against, since last4 does not change when the user re-enters the same card.
 - Decide the behavior when a payment method exists with no subscription. The repoint has no subscription to touch.
 
 Later

@@ -1,7 +1,7 @@
 # Billing Payment Method Delete - Stripe
 
 Status: draft
-Updated: 2026-08-18
+Updated: 2026-08-25
 
 ## Purpose & Scope
 
@@ -36,7 +36,7 @@ Entities
    2. Detach at Stripe. The payment method comes off the customer along with their default payment method (`invoice_settings.default_payment_method`). Stripe keeps the object itself on file for the charges and refunds that reference it, however it can never be attached to a customer again.
    3. Clear the payment method fields on the local row.
 4. No element, no confirm, no 3DS, so there is nothing asynchronous to wait on. The response is the answer, no polling.
-5. `payment_method.detached` lands afterwards. Idempotent, the local row is already clear by then.
+5. The `payment_method.detached` event lands afterwards. Idempotent, the local row is already clear by then.
 6. Subscribing again later goes through the create flow, which collects a payment method from scratch.
 
 ## Diagram
@@ -88,7 +88,7 @@ The gate, read off the subscription.
 - Detach clears the customer default with it. No separate unset call.
 - Detach is permanent. Re-adding the same payment method produces a new payment method with a new id.
 - The response is the answer. Nothing asynchronous, no polling.
-- `payment_method.detached` handling is idempotent and is a no-op by the time it lands.
+- The `payment_method.detached` handling is idempotent and is a no-op by the time it lands.
 
 ## Edge & Error Cases
 
@@ -98,7 +98,7 @@ The gate, read off the subscription.
 | Client shows the control when it should not | Client state stale against the subscription | API refuses. The hidden button was never the rule |
 | No payment method on file | Already removed, or never had one | Return success, nothing to detach |
 | Payment method already detached at Stripe | Removed in the Dashboard, or a retried request | Treat as done, clear the local row, return success |
-| Detach succeeds, local clear fails | Partial failure | Payment method is gone at Stripe and still displays. Nothing renews, so no billing impact. User retries and the already detached path clears the row, or a manual sync (admin |
+| Detach succeeds, local clear fails | Partial failure | Payment method is gone at Stripe and still displays. Nothing renews, so no billing impact. User retries and the already detached path clears the row, or the reconcile job picks it up |
 | Stripe errors on detach | Provider unavailable | Error back, local row untouched, user retries |
 | Grace period ends mid request | Subscription ends between render and the API check | Still allowed. The gate only gets more permissive with time |
 | Subscription resumed between render and request | User resumes in another tab, then deletes | API re-check refuses. The gate is evaluated at request time, not at render time |

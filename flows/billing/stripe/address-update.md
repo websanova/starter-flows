@@ -1,13 +1,13 @@
 # Billing Address Update - Stripe
 
 Status: draft
-Updated: 2026-08-17
+Updated: 2026-08-25
 
 ## Purpose & Scope
 
 Saving a billing address. If the user has a Stripe customer the address goes to Stripe first, and it only reaches the local record if Stripe accepts it. If it doesn't, the request errors and nothing changes. Without a customer it's just a local update.
 
-Note that Stripe may accept an address that is not necessarily taxable as it treats these operations as separate when saving an address. If it accepts a non taxable address, the billing will not fail, but instead a 0 for tax which you may still be liable for.
+Setting `tax[validate_location]` to `immediately` returns an error and leaves the customer unchanged when the address cannot be placed, so an unplaceable address never reaches the local record. What it does not check is registration. An address that resolves cleanly in a jurisdiction you are not registered in comes back with `automatic_tax` at `not_collecting` and bills zero tax, which you may still be liable for.
 
 ## Actors & Entities
 
@@ -33,7 +33,7 @@ Entities
    4. If the response is a success we can proceed to write the local row otherwise relay the error to the front end to display for the user.
 3. Nothing is charged and no invoice is created. The current cycle is already finalized and its tax is locked at the rate that applied when it was issued.
 4. The change applies from the next renewal invoice. Stripe recomputes tax off the customer address every time it creates one, so nothing on the subscription has to be re-pointed.
-5. The payment method's `billing_details.address` is a separate field and is not touched by this. That one is AVS data the bank checks against the payment method. Stripe only falls back to it for tax when the customer carries no address, which cannot happen here. Editing the address here does not change it, and editing the payment method does not change the tax address.
+5. The payment method's `billing_details.address` is a separate field and is not touched by this. That one is AVS data the bank checks against the payment method. Stripe only falls back to it for tax when the customer carries no address, which holds until the first successful save. Editing the address here does not change it, and editing the payment method does not change the tax address.
 6. The response is the answer. Nothing asynchronous, no webhook, no polling.
 
 ## Diagram
@@ -73,6 +73,7 @@ flowchart LR
 
 | Case | Cause | Expected behavior |
 | ---- | ----- | ----------------- |
+| Shape validation fails | Missing or malformed fields on the submitted address | Reject before anything is pushed. Nothing is written locally or at Stripe |
 | No Stripe customer id | User never subscribed | Write the local row, push nothing. Not an error |
 | Address resolves to no tax jurisdiction | Stripe cannot place it | The update errors, the error is relayed, nothing is written anywhere |
 | Stripe errors on the customer update | Provider unavailable | Error back, local row untouched, user retries |

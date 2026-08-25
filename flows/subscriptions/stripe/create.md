@@ -49,8 +49,8 @@ Entities
    11. Return the client secret to the client app, along with a `type` of `payment` or `setup` saying which of the two it came from. The `type` is a field we set ourselves, Stripe does not return it, and it is a convenience only. The front end can derive the same thing from the secret's prefix, `pi_` or `seti_`, and the 3DS return at the end of this flow does exactly that when the user comes back onto a cold page.
 3. Element mounts against that secret with `elements({ clientSecret })`. No mode, no amount, no currency, and no trial handling, Stripe reads all of that off the intent. The `type` is not used here at all, only at confirm.
    1. Load stripe.js if it isn't already on the page.
-   2. `elements({ clientSecret })` builds the Elements object locally. No network calls here.
-   3. `paymentElement.mount(target)` creates the iframe.
+   2. Calling `elements({ clientSecret })` builds the Elements object locally. No network calls here.
+   3. Calling `paymentElement.mount(target)` creates the iframe.
 4. User hits subscribe.
 5. Branch on the `type` from above and call the confirm named in step 2.7. Both take `{ elements, clientSecret, confirmParams: { return_url }, redirect: 'if_required' }`. The `return_url` is mandatory.
 6. Response is success / error / 3DS. 3DS either runs in a dialog and resolves inline, or sends the browser away to the bank and back to your return url. Either way you end up at the same place - a settled intent.

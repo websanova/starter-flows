@@ -27,7 +27,7 @@ Entities
 2. The control leads to a dedicated page rather than an inline button or a modal. The page states what is being resumed. Plan, interval, and the date billing picks back up. Confirm is the only action on it.
 3. User confirms. Client hits the resume endpoint. No body, the subscription is resolved from the authenticated user.
    1. Re-check the gate against the local subscription row. Refuse if the end date has already passed, or if no default payment method resolves. Already active is not a refusal, the request is already satisfied, so return the current state.
-   2. `subscriptions.update(stripe_sub_id, { cancel_at_period_end: false })`. Stripe returns the updated subscription in the same call. Status still `active`, `cancel_at` gone.
+   2. Call `subscriptions.update(stripe_sub_id, { cancel_at_period_end: false })`. Stripe returns the updated subscription in the same call. Status still `active`, `cancel_at` gone.
    3. Write the local row off the returned object. `cancel_at_period_end` comes back false and `cancel_at` comes back null, so the cancelled marker and the end date are both cleared on the local row.
    4. If Stripe errors, that error goes back to the client for display and the local row is left untouched.
 4. The response is the answer. Nothing is pending, so the client does not poll.

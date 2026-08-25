@@ -35,8 +35,8 @@ Entities
 1. The billing address is collected up front, always, whether or not tax is enabled.
 2. Element mounts with amount and currency in payment mode, for example `elements({ mode: 'payment', amount: 3000, currency: 'usd' })`. On a trial it mounts as `elements({ mode: 'setup', currency: 'usd' })` instead, no amount at all, so steps 3, 4 and 7 are skipped.
    1. Load stripe.js if it isn't already on the page.
-   2. `elements({ mode, amount, currency })` builds the Elements object locally. No network calls here.
-   3. `paymentElement.mount(target)` creates the iframe.
+   2. Calling `elements({ mode, amount, currency })` builds the Elements object locally. No network calls here.
+   3. Calling `paymentElement.mount(target)` creates the iframe.
 3. If there is a tax amount, fetch the proper total from the API and update it with `elements.update({ amount: <new price> })`. Or do the call before the `elements` call as a first step to avoid the update. Getting the tax amount can be quite complicated and will likely require a call to Stripe since it depends on multiple factors (see Rules). That call is a tax calculation and it takes the address, so it doubles as the address check. A location that won't resolve errors here, before anything exists on Stripe.
 4. Same for promo codes. The code gets entered and validated on the API side, with the plan and interval included in the request. The response includes the updated amount with tax, then call `elements.update({ amount: 3300 })`.
 5. A promo code still applies on a trial, it just does nothing today since there is nothing to discount. It sits on the subscription and comes off the first real invoice once the trial ends. Setup mode carries no amount so there is nothing to keep in sync either.
@@ -135,7 +135,7 @@ Unlike on-init, the row is only created for users who actually click subscribe. 
 - The API is the source of truth for the amount. Never calculate it locally.
 - Mode, amount and currency on the element must match the intent at confirm. Any disagreement throws.
 - Trial eligibility has to be known client side before mount, since it decides the mode. The client and API must not disagree.
-- `elements.submit()` must be the first statement in the click handler, before any `await`, or popup based methods break.
+- The call to `elements.submit()` must be the first statement in the click handler, before any `await`, or popup based methods break.
 - The Stripe customer must carry a validated billing address before the subscription is created, tax on or off. Pushed with `tax[validate_location]` set to `immediately`, see the [address update flow](../../../billing/stripe/address-update.md).
 - Tax is computed from three inputs, all of which must be set up:
   - Your registrations - which jurisdictions you have told Stripe you collect tax in, set in the Dashboard.

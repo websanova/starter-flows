@@ -27,7 +27,7 @@ Entities
 2. The control leads to a dedicated page rather than an inline button or a modal. The page states what cancelling does before the user commits. Access runs to the end of the paid term, no further charge, no refund. Confirm is the only action on it.
 3. User confirms. Client hits the cancel endpoint. No body, the subscription is resolved from the authenticated user.
    1. Re-check the gate against the local subscription row. Refuse if there is no live subscription. Already cancelled is not a refusal, the request is already satisfied, so return the current state.
-   2. `subscriptions.update(stripe_sub_id, { cancel_at_period_end: true })`. Stripe returns the updated subscription in the same call. Status still `active`, `cancel_at_period_end` true, `cancel_at` set to the current period end.
+   2. Call `subscriptions.update(stripe_sub_id, { cancel_at_period_end: true })`. Stripe returns the updated subscription in the same call. Status still `active`, `cancel_at_period_end` true, `cancel_at` set to the current period end.
    3. Write the local row off the returned object. The cancelled marker comes from `cancel_at_period_end` and the end date from `cancel_at`, both set on that same response. Not from `current_period_end`, which is not on the subscription at all, it sits on the subscription items. The row stays subscribed for access purposes until the stored date passes.
    4. If Stripe errors, that error goes back to the client for display and the local row is left untouched.
 4. The response is the answer. Nothing is pending, so the client does not poll.
