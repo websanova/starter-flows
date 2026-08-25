@@ -1,7 +1,7 @@
 # Subscription Resume - Stripe
 
 Status: draft
-Updated: 2026-08-17
+Updated: 2026-08-25
 
 ## Purpose & Scope
 
@@ -26,7 +26,7 @@ Entities
 1. Resume is gated on a cancelled subscription that is still inside the paid term, with a payment method on file. Once the end date passes there is nothing left at Stripe to resume and the user goes through the [create flow](create.md).
 2. The control leads to a dedicated page rather than an inline button or a modal. The page states what is being resumed. Plan, interval, and the date billing picks back up. Confirm is the only action on it.
 3. User confirms. Client hits the resume endpoint. No body, the subscription is resolved from the authenticated user.
-   1. Re-check the gate against the local subscription row. Refuse if the subscription is not cancelled, if the end date has already passed, or if there is no payment method on file.
+   1. Re-check the gate against the local subscription row. Refuse if the end date has already passed, or if there is no payment method on file. Already active is not a refusal, the request is already satisfied, so return the current state.
    2. `subscriptions.update(stripe_sub_id, { cancel_at_period_end: false })`. Stripe returns the updated subscription in the same call. Status still `active`, `cancel_at` gone.
    3. Write the local row off the returned object. Cancelled marker and end date are cleared.
    4. If Stripe errors, that error goes back to the client for display and the local row is left untouched.
@@ -84,6 +84,7 @@ Allowed transitions
 - The gate lives on the API. The client hides the control off the same state, that is display only.
 - Refuse once the end date has passed. The gate only gets stricter with time, unlike the cancel gate.
 - Refuse when there is no payment method on file. Stripe accepts the resume either way, the block is ours.
+- Already active is not a refusal.
 - Resume keeps the existing subscription, the plan and interval are not re-picked and nothing is charged on confirm.
 - State is written off the Stripe response. The webhook is never waited on.
 - The response is the answer. No polling.

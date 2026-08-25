@@ -1,7 +1,7 @@
 # Subscription Cancel - Stripe
 
 Status: draft
-Updated: 2026-08-17
+Updated: 2026-08-25
 
 ## Purpose & Scope
 
@@ -26,7 +26,7 @@ Entities
 1. Cancel is gated on a live subscription that is not already cancelled. The client hides or disables the control off the same state, that is display only, the API re-checks it.
 2. The control leads to a dedicated page rather than an inline button or a modal. The page states what cancelling does before the user commits. Access runs to the end of the paid term, no further charge, no refund. Confirm is the only action on it.
 3. User confirms. Client hits the cancel endpoint. No body, the subscription is resolved from the authenticated user.
-   1. Re-check the gate against the local subscription row. Refuse if there is no live subscription, or if it is already cancelled.
+   1. Re-check the gate against the local subscription row. Refuse if there is no live subscription. Already cancelled is not a refusal, the request is already satisfied, so return the current state.
    2. `subscriptions.update(stripe_sub_id, { cancel_at_period_end: true })`. Stripe returns the updated subscription in the same call. Status still `active`, `cancel_at_period_end` true, `cancel_at` set to the current period end.
    3. Write the local row off the returned object. Cancelled marker and the period end date come from the response, and the row stays subscribed for access purposes until that date passes.
    4. If Stripe errors, that error goes back to the client for display and the local row is left untouched.
@@ -82,7 +82,7 @@ Allowed transitions
 
 - Authenticated user required.
 - The gate lives on the API. The client hides the control off the same state, that is display only.
-- Refuse when there is no live subscription, or when it is already cancelled.
+- Refuse when there is no live subscription. Already cancelled is not a refusal.
 - State is written off the Stripe response. The webhook is never waited on.
 - The response is the answer. No polling.
 - A cancelled row counts as subscribed until the stored end date passes.
