@@ -1,7 +1,7 @@
 # Subscription Create - Stripe (Embedded Checkout)
 
 Status: reference
-Updated: 2026-08-17
+Updated: 2026-08-25
 
 ## Purpose & Scope
 
@@ -41,10 +41,10 @@ Entities
    8. Return the session's `client_secret` to the client app.
 2. Client mounts it with `initEmbeddedCheckout({ clientSecret })` then `checkout.mount(target)`.
 3. Everything from here happens inside the iframe. The user fills in their address, applies a promo code, picks a payment method, pays, and does 3DS if the bank asks. Stripe recalculates tax and totals live as they type, with no calls to your API at any point.
-4. On completion Stripe creates the Subscription and the Invoice and charges the payment method, all on its own side.
+4. On completion Stripe creates the Subscription and the Invoice, all on its own side. With no trial it charges the payment method. With a trial the first invoice is `$0`, nothing is charged, and the subscription lands at `trialing`.
 5. Then either it redirects to your `return_url` with `?session_id={CHECKOUT_SESSION_ID}` appended, or if you set `redirect_on_completion: 'never'` it fires an `onComplete` callback and stays on the page.
 6. Either way your API still knows nothing at this point. Nothing in the chain above told it the payment landed, only the webhook does.
-7. Stripe fires `checkout.session.completed`. Your backend reads the subscription id off the session and writes the local row. This is the first time anything lands in your DB. It is asynchronous and has no fixed timing, it can land before the browser even finishes redirecting, or seconds after.
+7. Stripe fires `checkout.session.completed`. Your backend reads the subscription id off the session's `subscription` field, then retrieves that Subscription for its status, since a webhook payload carries the id and cannot be expanded. The local row is written off that status. This is the first time anything lands in your DB. It is asynchronous and has no fixed timing, it can land before the browser even finishes redirecting, or seconds after.
 8. Reload the auth user and check for the subscription. Poll this, a hit means the webhook arrived and the API picked it up. Give up after a ceiling rather than spinning forever.
 9. Take the success action - redirect to billing, a success page, wherever.
 
@@ -59,7 +59,7 @@ flowchart LR
 
     E --> F["initEmbeddedCheckout({ clientSecret })<br/>checkout.mount()"]
     F --> G["Inside the iframe:<br/>address, promo code, tax,<br/>payment method, 3DS"]
-    G --> H[Stripe creates Subscription<br/>and Invoice, charges payment method]
+    G --> H[Stripe creates Subscription<br/>and Invoice, charges unless trialing]
 
     H --> I{redirect_on_completion}
     I -->|default| I1["Redirect to return_url<br/>?session_id="]

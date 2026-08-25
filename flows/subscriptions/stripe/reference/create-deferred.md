@@ -1,7 +1,7 @@
 # Subscription Create - Stripe (Payment Element, deferred intent)
 
 Status: reference
-Updated: 2026-08-17
+Updated: 2026-08-25
 
 ## Purpose & Scope
 
@@ -26,8 +26,8 @@ Entities
 - Stripe Customer - must carry a validated billing address, tax on or off.
 - Subscription - created at `incomplete` only once the user hits subscribe.
 - Invoice - first invoice, created with the subscription. `$0` on a trial.
-- PaymentIntent - on the invoice when there is no trial.
-- SetupIntent - on `pending_setup_intent` when there is a trial.
+- PaymentIntent - created against the first invoice when there is no trial. Secret at `latest_invoice.confirmation_secret.client_secret`.
+- SetupIntent - created instead when there is a trial. Secret at `pending_setup_intent.client_secret`.
 - Local subscription row - written at `incomplete` as soon as the Stripe id exists.
 
 ## Flow
@@ -48,18 +48,18 @@ Entities
    2. If there isn't one, create the customer on Stripe. Save the returned customer id to your users table.
    3. Push the billing address to the Stripe customer with `tax[validate_location]` set to `immediately`, whether or not tax is enabled. Has to be done before the subscription is created, see Decisions and the [address update flow](../../../billing/stripe/address-update.md) for details.
    4. If there is a promo code, resolve a Stripe promo code object from Stripe directly. The string the user typed is not what the create accepts.
-   5. Create the Subscription on Stripe with customer (stripe id), the plan's price id, `discounts: [{ promotion_code: 'promo_xxx' }]` (the resolved promo code object), `trial_period_days` if eligible, `payment_behavior: 'default_incomplete'`, `automatic_tax: { enabled: true }`, `expand: ['latest_invoice.confirmation_secret', 'pending_setup_intent']`. `confirmation_secret` is not expanded by default, it has to be named explicitly or it comes back absent.
-   6. That single call creates three things on Stripe - the Subscription at status `incomplete`, its first Invoice, and a PaymentIntent against that invoice. All three come back in the one response.
-   7. On a trial the first invoice is `$0` so there is no PaymentIntent. Stripe opens a SetupIntent on `pending_setup_intent` and that is the secret you return.
+   5. Create the Subscription on Stripe with customer (stripe id), the plan's price id, `discounts: [{ promotion_code: 'promo_xxx' }]` (the resolved promo code object), `trial_period_days` if eligible, `payment_behavior: 'default_incomplete'`, `automatic_tax: { enabled: true }`, `expand: ['latest_invoice.confirmation_secret', 'pending_setup_intent']`. Neither field comes back usable by default. `confirmation_secret` is absent unless it is named in the expand. `pending_setup_intent` is worse, without the expand it comes back as a bare `seti_` id string, which is truthy, so a presence check still picks the trial branch and then finds no `client_secret` on it.
+   6. That single call creates the Subscription at status `incomplete` and its first Invoice. With no trial the invoice carries a PaymentIntent and the secret is read off `latest_invoice.confirmation_secret.client_secret`. All of it comes back in the one response.
+   7. On a trial the first invoice is `$0` so there is no PaymentIntent. Stripe opens a SetupIntent on `pending_setup_intent` instead and the secret is read off `pending_setup_intent.client_secret`.
    8. The amount is computed by Stripe from price + discount + tax. You never send one, and it has to match what the element was set to above.
    9. If it errors out (invalid promo, tax not computable, etc) that error needs to get sent back to the client for display. An amount mismatch is not caught here, it gets caught client side on confirm.
    10. On success, write your local subscription row now that the Stripe id exists - stripe sub id, plan, interval, status `incomplete`.
-   11. Return the client secret to the client app, read off `latest_invoice.confirmation_secret.client_secret` on the payment path and off `pending_setup_intent` on a trial.
+   11. Return the client secret to the client app, read off `latest_invoice.confirmation_secret.client_secret` on the payment path and off `pending_setup_intent.client_secret` on a trial.
 10. Then `confirmPayment(...)`, or `confirmSetup(...)` on a trial, with `{ elements, clientSecret, confirmParams: { return_url }, redirect: 'if_required' }`. Fires immediately, same click handler, next line after the secret comes back. No second button press, no user interaction in between, the whole chain from the subscribe click runs uninterrupted with the button held in its pending state. The `return_url` is mandatory. This is also where a mismatched amount blows up - Stripe.js compares the intent against what elements was configured with and throws an `IntegrationError`, after the user already clicked pay.
 11. Response is success / error / 3DS. 3DS either runs in a dialog and resolves inline, or sends the browser away to the bank and back to your return url. Either way you end up at the same place - a settled intent.
-12. If it redirected, the user comes back to a freshly loaded page with no state. Stripe appends the secret to the return url, so the page reads it off the query and calls `retrievePaymentIntent`, or `retrieveSetupIntent` on a trial since it appends `setup_intent_client_secret` instead, to see how it landed rather than starting the flow over. This path cannot use deferred mounting, you have a real secret at that point, so the element mounts with `clientSecret` instead. That means supporting both mount modes.
+12. If it redirected, the user comes back to a freshly loaded page with no state. Stripe appends the secret to the return url as `payment_intent_client_secret`, or `setup_intent_client_secret` on a trial, so the page reads it off the query and calls `retrievePaymentIntent` or `retrieveSetupIntent` to see how it landed rather than starting the flow over. This path cannot use deferred mounting, you have a real secret at that point, so the element mounts with `clientSecret` instead. That means supporting both mount modes.
 13. On success, your API still knows nothing. Nothing in the chain above told it the payment landed, only the webhook does.
-14. Stripe fires the webhook. Your backend looks up the local row by Stripe sub id and flips it to `active`. This is asynchronous and has no fixed timing, it can land before confirm even resolves in the browser, or seconds after.
+14. Stripe fires the webhook. Your backend looks up the local row by Stripe sub id and flips it to `active`, or `trialing` if there was a trial. This is asynchronous and has no fixed timing, it can land before confirm even resolves in the browser, or seconds after.
 15. Reload the auth user and check for the subscription. Poll this, a hit means the webhook arrived and the API picked it up. Give up after a ceiling rather than spinning forever.
 16. Take the success action - redirect to billing, a success page, wherever.
 
@@ -88,7 +88,7 @@ flowchart LR
 
     I --> J["Load or create Stripe customer<br/>push address, validate_location<br/>resolve promo code"]
     J --> K["subscriptions.create<br/>default_incomplete<br/>write local row"]
-    K --> L[Return client_secret + type]
+    K --> L[Return client_secret]
 
     L --> M["confirmPayment / confirmSetup<br/>{ elements, clientSecret }"]
     M --> N{Amount, currency<br/>and mode match?}
@@ -143,7 +143,7 @@ Unlike on-init, the row is only created for users who actually click subscribe. 
   - The product's tax code - `tax_code` on the Stripe product, which decides the rate category. SaaS is taxed differently to physical goods.
 - One in-flight subscription per user, plan and interval. Hitting subscribe again must reuse the existing incomplete subscription rather than opening a second one.
 - The subscribed flag must treat `trialing` as subscribed, otherwise a trial signup polls forever.
-- Only the webhook flips the row to active. A resolved confirm is not proof.
+- Only the webhook flips the row to active or trialing. A resolved confirm is not proof.
 - Polling has a ceiling. Past it, show a pending state rather than spinning.
 
 ## Edge & Error Cases
