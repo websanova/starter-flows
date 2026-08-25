@@ -26,8 +26,8 @@ Entities
 - Stripe Customer - must carry a validated billing address, tax on or off.
 - Subscription - created at `incomplete` (or `trialing`) before any payment.
 - Invoice - first invoice, finalized at creation. `$0` on a trial.
-- PaymentIntent - on the invoice when there is no trial.
-- SetupIntent - on `pending_setup_intent` when there is a trial.
+- PaymentIntent - created against the first invoice when there is no trial. Secret at `latest_invoice.confirmation_secret.client_secret`.
+- SetupIntent - created instead when there is a trial. Secret at `pending_setup_intent.client_secret`.
 - Local subscription row - written at `incomplete` as soon as the Stripe id exists, before payment.
 
 ## Flow
@@ -39,22 +39,22 @@ Entities
    3. Push the billing address to the Stripe customer with `tax[validate_location]` set to `immediately`, whether or not tax is enabled. Has to be done before the intent is created, see Decisions and the [address update flow](../../billing/stripe/address-update.md) for details.
    4. Work out trial eligibility on the API side, since it already knows whether this user has burned a trial before.
    5. If a promo code came through it gets resolved into a Stripe promo code object. The field is optional, no code means this step is skipped entirely.
-   6. Create the Subscription on Stripe with customer (stripe id), the plan's price id, `discounts: [{ promotion_code: 'promo_xxx' }]` if there was a code, `trial_period_days` if eligible, `payment_behavior: 'default_incomplete'`, `automatic_tax: { enabled: true }`, `expand: ['latest_invoice.confirmation_secret', 'pending_setup_intent']`. `confirmation_secret` is not expanded by default, it has to be named explicitly or it comes back absent.
+   6. Create the Subscription on Stripe with customer (stripe id), the plan's price id, `discounts: [{ promotion_code: 'promo_xxx' }]` if there was a code, `trial_period_days` if eligible, `payment_behavior: 'default_incomplete'`, `automatic_tax: { enabled: true }`, `expand: ['latest_invoice.confirmation_secret', 'pending_setup_intent']`. Neither field comes back usable by default. `confirmation_secret` is absent unless it is named in the expand. `pending_setup_intent` is worse, without the expand it comes back as a bare `seti_` id string, which is truthy, so a presence check still picks the trial branch and then finds no `client_secret` on it.
    7. That single call creates the Subscription on Stripe at status `incomplete` (or `trialing`). It also creates an intent. Whether the user gets a trial decides which kind of intent, and the two kinds are not interchangeable. They come back on different fields, the client secret is read from a different key on each, and the front end has to call a different confirm method for each.
       - No trial - there is a real amount to charge, so Stripe creates a first Invoice for the full amount and a PaymentIntent against it. The client secret is read off `latest_invoice.confirmation_secret.client_secret`, not off the PaymentIntent itself. It starts with `pi_`. The front end confirms with `confirmPayment()`.
       - Trial - the first invoice is `$0`, so there is nothing to charge and no PaymentIntent. Stripe creates a SetupIntent instead, which stores the payment method for when the trial ends. It comes back on the subscription's `pending_setup_intent` field and the client secret is read off `pending_setup_intent.client_secret`. It starts with `seti_`. The front end confirms with `confirmSetup()`.
    8. The amount is computed by Stripe from price + tax. You never send one, and nothing on the client has to match it.
    9. If it errors out, that error needs to get sent back to the client for display.
    10. On success, write your local subscription row now that the Stripe id exists - stripe sub id, plan, interval, status.
-   11. Return the client secret to the client app, along with a `type` of `payment` or `setup` saying which of the two it came from. The `type` is a field we set ourselves, Stripe does not return it, and it is a convenience only. The front end can derive the same thing from the secret's prefix, `pi_` or `seti_`, and step 7 does exactly that when the user comes back from 3DS onto a cold page.
+   11. Return the client secret to the client app, along with a `type` of `payment` or `setup` saying which of the two it came from. The `type` is a field we set ourselves, Stripe does not return it, and it is a convenience only. The front end can derive the same thing from the secret's prefix, `pi_` or `seti_`, and the 3DS return at the end of this flow does exactly that when the user comes back onto a cold page.
 3. Element mounts against that secret with `elements({ clientSecret })`. No mode, no amount, no currency, and no trial handling, Stripe reads all of that off the intent. The `type` is not used here at all, only at confirm.
    1. Load stripe.js if it isn't already on the page.
    2. `elements({ clientSecret })` builds the Elements object locally. No network calls here.
    3. `paymentElement.mount(target)` creates the iframe.
 4. User hits subscribe.
-5. Branch on the `type` from above - `confirmSetup()` for a trial, `confirmPayment()` otherwise. Both take `{ elements, clientSecret, confirmParams: { return_url }, redirect: 'if_required' }`. The `return_url` is mandatory.
+5. Branch on the `type` from above and call the confirm named in step 2.7. Both take `{ elements, clientSecret, confirmParams: { return_url }, redirect: 'if_required' }`. The `return_url` is mandatory.
 6. Response is success / error / 3DS. 3DS either runs in a dialog and resolves inline, or sends the browser away to the bank and back to your return url. Either way you end up at the same place - a settled intent.
-7. If it redirected, the user comes back to a freshly loaded page with no state. Stripe appends the secret to the return url, and which key it appends also tells you the type, so read the pair together and call `retrievePaymentIntent` or `retrieveSetupIntent` to see how it landed rather than starting the flow over. Same mount path as the initial one since it is a client secret either way, so there is only one mode to support.
+7. If it redirected, the user comes back to a freshly loaded page with no state. Stripe appends the secret to the return url as `payment_intent_client_secret` or `setup_intent_client_secret`, so the key name is what tells you which intent you are looking at. Read the pair together and call `retrievePaymentIntent` or `retrieveSetupIntent` to see how it landed rather than starting the flow over. Same mount path as the initial one since it is a client secret either way, so there is only one mode to support.
 8. On success, your API still knows nothing. Nothing in the chain above told it the payment landed, only the webhook does.
 9. Stripe fires the webhook. Your backend looks up the local row by Stripe sub id and flips it to `active`, or `trialing` if there was a trial. This is asynchronous and has no fixed timing, it can land before confirm even resolves in the browser, or seconds after.
 10. Reload the auth user and check for the subscription. Poll this, a hit means the webhook arrived and the API picked it up. Give up after a ceiling rather than spinning forever.
@@ -72,7 +72,7 @@ flowchart LR
     E --> F["subscriptions.create<br/>default_incomplete"]
     F --> G{Trial?}
 
-    G -->|no| H1["PaymentIntent on invoice<br/>type: payment"]
+    G -->|no| H1["PaymentIntent on latest_invoice<br/>type: payment"]
     G -->|yes| H2["SetupIntent on pending_setup_intent<br/>type: setup"]
 
     H1 --> I["Write local row<br/>status: incomplete"]
