@@ -15,6 +15,15 @@
 - Never reference a specific library, framework, package, or file path.
 - Applies to features of any size. A CRUD flow maps access policy and plan limits the same way a Stripe flow maps webhooks.
 
+## Who You Are Writing For
+
+**Every flow is read cold, six months later, by someone who was not in the discussion and cannot ask a question.** They have the file and nothing else. If a sentence only lands for someone who already knows the answer, it fails. This outranks every rule about brevity in this file.
+
+- Spell out the full causal chain. If A causes B causes C, write all three. Stating A and C and leaving B to be inferred is the usual failure.
+- Name things in full. If a value lives at a key, write the whole key every time, not the object it hangs off.
+- Never pack two facts into one clause to save words. Two plain sentences beat one the reader has to unpack.
+- Brevity loses to comprehension. Cut words that carry nothing, never a link in the chain.
+
 ## Flow File Structure
 - Location: `flows/<feature>.md`, hyphenated (e.g. `flows/subscriptions-stripe.md`). Flat for now, revisit past ~20 files.
 - Header lines at top of every flow:
@@ -55,7 +64,7 @@
 - Shared concerns (auth policy, plan limits) are restated per flow for now. Extract to shared files only when told to.
 - Do not implement anything here. Do not scaffold code, configs, or migrations.
 - Flow prose leads with the point. No setup sentence, no restating the scenario before it.
-- Cut any sentence that adds no information. Shortest version that stays clear wins.
+- Cut any sentence that adds no information. Shortest version that stays clear wins, and "clear" is judged by `Who You Are Writing For`.
 - No hedging, no qualifiers, no repeating a point already made in another section.
 
 ## Responses
@@ -72,6 +81,8 @@
 - No ellipsis character. Use three dots (...)
 - No Unicode bullets. Use hyphens (-) or asterisks (*)
 - No non-breaking spaces
+- Never start a sentence with a code token. Put a word in front of it.
+- Never write "that", "this", or "it" where the noun can be written. Name the thing.
 
 ## Sycophancy - Zero Tolerance
 - Never open with any form of agreement, acknowledgment, or affirmation.
