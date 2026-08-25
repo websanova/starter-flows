@@ -28,7 +28,7 @@ Entities
 3. User confirms. Client hits the cancel endpoint. No body, the subscription is resolved from the authenticated user.
    1. Re-check the gate against the local subscription row. Refuse if there is no live subscription. Already cancelled is not a refusal, the request is already satisfied, so return the current state.
    2. `subscriptions.update(stripe_sub_id, { cancel_at_period_end: true })`. Stripe returns the updated subscription in the same call. Status still `active`, `cancel_at_period_end` true, `cancel_at` set to the current period end.
-   3. Write the local row off the returned object. Cancelled marker and the period end date come from the response, and the row stays subscribed for access purposes until that date passes.
+   3. Write the local row off the returned object. The cancelled marker comes from `cancel_at_period_end` and the end date from `cancel_at`, both set on that same response. Not from `current_period_end`, which is not on the subscription at all, it sits on the subscription items. The row stays subscribed for access purposes until the stored date passes.
    4. If Stripe errors, that error goes back to the client for display and the local row is left untouched.
 4. The response is the answer. Nothing is pending, so the client does not poll.
 5. Client refreshes the auth user so everything reading subscription state picks up the cancelled row. One refresh, not a poll.
@@ -96,10 +96,10 @@ Allowed transitions
 | Cancel with no subscription | Endpoint called directly, or client state stale | Refuse |
 | Client shows the control when it should not | Client state stale against the subscription | API refuses. The hidden button was never the rule |
 | Stripe errors on update | Provider unavailable | Error back, local row untouched, user retries |
-| Stripe update succeeds, local write fails | Partial failure | Stripe holds the cancel, the app still shows renewing. The webhook lands and corrects the row |
+| Stripe update succeeds, local write fails | Partial failure | Stripe holds the cancel, the app still shows renewing. The webhook lands and corrects the row. If the webhook is also dropped, nothing corrects it and the row needs a reconcile |
 | Webhook arrives before the response is written | Asynchronous, no fixed timing | Same fields either way, last write wins |
 | Cancelled in the Stripe Dashboard | Out of band | The same webhook handler writes the row |
-| Webhook never arrives | Delivery dropped or failed the attempts | Row already holds the state, written off the response. Nothing to reconcile |
+| Webhook never arrives | Delivery dropped or failed the attempts | No-op as long as the response write landed, the row already holds the state. The partial failure above is the only case left uncovered |
 
 ## Decisions
 
@@ -115,6 +115,7 @@ Now
 Later
 
 - Immediate cancel as an admin action.
+- Reconcile job for a cancel that succeeded at Stripe and left the local row renewing.
 
 Out of scope
 
