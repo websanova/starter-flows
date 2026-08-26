@@ -39,6 +39,35 @@ Entities
 
 ## Flow
 
+1. Address step. The user submits the billing address, and the API creates the customer and settles the address on it.
+   1. Load the user's Stripe customer id. Create the customer on Stripe if there isn't one, and save the returned id.
+   2. Push the address to the customer with `tax[validate_location]` set to `immediately`, whether or not tax is enabled. See the [address update flow](../../billing/stripe/address-update.md).
+   3. An address Stripe cannot place fails here. A customer is the only thing that exists at this point, so there is nothing to tear down. Error back, the user corrects the address and retries.
+   4. Write the local address row once Stripe accepts, never before.
+2. SetupIntent step. The API hands back one client secret and nothing else.
+   1. Load the user's Stripe customer id. No id means the address step never ran, so fail back to the address step.
+   2. Retrieve the customer and read `customer.tax.automatic_tax`. `supported` and `not_collecting` both pass. `failed` and `unrecognized_location` fail back to the address step. The value was stamped when the address was pushed, so the check costs a retrieve and re-sends no address.
+   3. Create the SetupIntent against the customer with `usage` set to `off_session`. That `usage` value records the mandate while the user is present, and the mandate is what lets Stripe charge the first invoice later with the user gone.
+   4. Return `client_secret` to the client.
+   5. Nothing about price, currency, tax, promo or trial goes on this call. A SetupIntent has no amount field, so there is nothing to compute and nothing to keep in sync.
+   6. Every pass through the flow creates a new SetupIntent. An unconfirmed one holds no subscription, no trial and no money, so nothing has to be deduplicated and no cleanup is required.
+
+TODO: mount, confirm, 3DS return, and the subscribe call are not worked out yet.
+
+
+
+
+
+
+
+
+
+
+
+
+
+OLD
+
 1. On page load, collect the billing address. Collect the promo code too if codes are on. The promo code is not bound to the mount here, it is only needed by the subscribe call in step 8, so it can be entered or changed at any point before then.
 2. Call the API to set up the customer, sending the address.
    1. Load the user's Stripe customer id from your DB.
@@ -137,6 +166,7 @@ There is no state before the subscription exists. A visitor who never finishes h
 
 - Authenticated user required.
 - The Stripe customer must carry a validated billing address before the SetupIntent is created, tax on or off. Pushed with `tax[validate_location]` set to `immediately`, see the [address update flow](../../billing/stripe/address-update.md).
+- Push the address to Stripe first. The local row is written only on a successful update.
 - The SetupIntent must be created with `usage` set to `off_session`. The first invoice is charged with the user gone, and that value is what makes the charge clear without an authentication challenge.
 - The subscription must not be created until the SetupIntent has been confirmed. Creating it earlier is the on-init strategy and it starts the trial clock at page load, see Decisions.
 - Trial eligibility is decided on the API side only, on the subscribe call. The client is never told and never branches on it.
@@ -174,6 +204,8 @@ Billing-first over deferred - the element mounts against a real client secret, s
 Billing-first over hosted and embedded - the payment UI is the Payment Element on your own page, styleable with the Appearance API. Checkout gives you Dashboard branding and nothing more.
 
 Cost of the choice: the first invoice is charged off-session inside the subscribe call, once the element is gone, so a refused or challenged payment method lands with the user no longer on the payment screen and needs a second screen to clear. Showing a tax-inclusive total before the user commits needs a separate preview call, because the first invoice does not exist until the payment method is already stored. On-init got that number for free, since its first invoice was finalized before the element ever mounted.
+
+Address before the element over address after. Collecting the address after the payment method is stored moves the rejection to subscription create, since `automatic_tax` cannot compute on an address Stripe cannot place. That failure arrives with the payment method already on the customer and the payment screen gone, so clearing it needs a second screen for something the user could have fixed in the first form. Collecting first costs a round trip before the element mounts and puts every rejection on a form the user is already looking at.
 
 The billing address is collected and validated on every subscribe, tax on or off. Collecting it only when tax is on saves a step in the subscription flow but ends up with all the users having missing or unvalidated addresses for tax purposes. This can lead to headaches and tax liability, and takes some work to then backfill the enforcement. That leaves `automatic_tax` as a backend flag, it decides what goes on the subscription create and nothing else.
 
