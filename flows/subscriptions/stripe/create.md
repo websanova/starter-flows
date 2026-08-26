@@ -81,11 +81,18 @@ Entities
    6. If the create errors, that error goes back to the client for display. The payment method is already stored and defaulted, so a retry does not ask the user for card details again.
    7. On success write the local subscription row, now that the Stripe id exists. Stripe sub id, plan, interval, status.
    8. Return the outcome, including whether the subscription is live or sitting at `incomplete`. An `incomplete` result carries the first invoice's client secret too, read off `latest_invoice.confirmation_secret.client_secret`, so the recovery screen has something to mount against.
+7. Subscription came back at `incomplete` with `authentication_required` on the first invoice's PaymentIntent. The user is still on screen, so the challenge runs now.
+   1. No element is needed. The payment method is already on the PaymentIntent, only the challenge is missing.
+   2. Call `stripe.handleNextAction({ clientSecret })` with the invoice client secret the subscribe call returned.
+   3. It either runs the challenge in a dialog and resolves inline, or sends the browser away to the bank and back to a return url.
+   4. On a redirect Stripe appends `payment_intent_client_secret`, not `setup_intent_client_secret`. The page reads it off the query and calls `retrievePaymentIntent` to see how it landed.
+   5. Challenge cleared. The PaymentIntent succeeds and Stripe pays the invoice, but the local row still reads `incomplete` because the create call wrote it before the challenge ran. The flip to `active` comes one of two ways. Poll the auth user until the subscription webhook lands and reconciles the row, or have the client make a subscription sync call now that retrieves the subscription from Stripe and writes the row, with the webhook as backstop. Same shape as the billing sync in step 5.
+   6. Challenge failed. The PaymentIntent falls to `requires_payment_method` and nothing more clears with that payment method. The user needs a different one.
+8. Client refreshes the auth user so everything reading subscription state picks up the new row, then takes the success action. Redirect to billing, a success page, wherever.
 
 TODO:
 
 Error handling at each step. Step 3 has no error line at all now.
-Everything after subscribe. The subscription webhook, the poll on the auth user, the success action.
 Where the promo code lives, still an open TODO in the file.
 
 
