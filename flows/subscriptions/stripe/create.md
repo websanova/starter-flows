@@ -58,7 +58,10 @@ The second concern is the total. A tax-inclusive price, if one has to be shown a
    8. Stripe fires the `setup_intent.succeeded` webhook for the same SetupIntent. Your webhook handler runs the same writes as the sync call, idempotently, so it is the backstop for every path where the sync call never lands. A browser that died after `confirmSetup`. A 3DS challenge that cleared at the bank while the user closed the tab instead of returning to `return_url`. A sync call that errored or timed out after the confirm already succeeded.
    9. Payment method already on file. Confirm makes the subscribe call only, no intent and no sync.
 6. Client hits the API to subscribe, sending `{ plan, interval, promo_code? }`. No payment method reference of any kind, the customer already carries a default from step 5.
-   1. Look for an existing subscription before creating anything. Live on the same plan and interval, return it as success, the request is already satisfied. Live on anything else is an error. At `incomplete` on the same plan and interval, attempt to pay its open invoice and create nothing.
+   1. Look for an existing subscription before creating anything. Live on the same plan and interval, return it as success, the request is already satisfied. Live on anything else is an error. `past_due` and `unpaid` are a subscription that went live and later failed a renewal, which is dunning's problem rather than this flow's, so they error back and point at whatever recovery path owns them. An `incomplete` one is a first charge that was refused, and what happens to it depends on whether its invoice can still be paid as it stands.
+      1. Same plan and interval, and the tax location has not moved since the invoice was finalized. Attempt to pay the open invoice and create nothing.
+      2. Anything else. A different plan, a different interval, or a country or postal code that changed underneath it. Cancel the subscription and create fresh. A finalized invoice never recalculates its tax, so paying it would charge the old jurisdiction, and Stripe will not repoint an incomplete subscription at a different price.
+      3. The tax location check compares the address the invoice was finalized against with the one the customer carries now. Stripe keeps the first on the invoice itself, so nothing has to be tracked locally. Only country and postal code count, since a corrected street name or a fixed typo in the city leaves the amount untouched.
    2. Paying that invoice charges whatever the customer default is now. If the user has not entered a different card it is the same one that failed, so it fails again. The subscription stays at `incomplete`, the error names the payment method, and pressing subscribe again repeats it. Nothing moves until the card changes.
    3. Any other failure on the pay call, Stripe unreachable, the invoice already settled or voided, errors back for display and leaves the subscription untouched.
    4. Work out trial eligibility here. The API already knows whether the user has burned a trial. The client is never told and never branches on it.
@@ -80,31 +83,34 @@ The second concern is the total. A tax-inclusive price, if one has to be shown a
 
 ## Diagram
 
-Wizard routing and address.
+Wizard routing.
 
 ```mermaid
 flowchart LR
-    A[User hits subscribe wizard] --> B{Customer address<br/>validated?}
-    B -->|no| C[Address step]
+    A[User hits the subscribe wizard] --> B{Customer address<br/>validated?}
     B -->|yes| B2{Payment method<br/>on file?}
-    B2 -->|no| P["Payment method step<br/>see diagram 2"]
-    B2 -->|yes| Q["Confirm step<br/>see diagram 3"]
-
-    Q -->|change address| C
+    B -->|no| C["Address step<br/>see diagram 2"]
+    B2 -->|no| P["Payment method step<br/>see diagram 3"]
+    B2 -->|yes| Q["Confirm step<br/>see diagram 4"]
     Q -->|change card| P
+    Q -->|change address| C
+```
 
-    C --> C1[User submits address]
-    C1 --> C2[Load or create the Stripe customer,<br/>save the returned id]
+Address step.
+
+```mermaid
+flowchart LR
+    C[User submits the address] --> C2[Load or create the Stripe customer,<br/>save the returned id]
     C2 --> C3["customers.update<br/>address, tax.validate_location: immediately"]
     C3 --> C4{Result}
-
-    C4 -->|Stripe cannot place the address| C5[Error back, only a customer exists,<br/>user corrects and retries]
-    C4 -->|Stripe unreachable| C6[Error back, nothing written,<br/>user retries as-is]
-    C5 --> C1
-    C6 --> C1
-
     C4 -->|accepted| C7[Write the local address row]
-    C7 --> B2
+    C7 --> C8{Where the user came from}
+    C8 -->|landing checks| C9["Payment method step<br/>see diagram 3"]
+    C8 -->|the summary| C10["Confirm step<br/>see diagram 4"]
+    C4 -->|Stripe cannot place the address| C5[Error back. Only a customer exists,<br/>so there is nothing to tear down.<br/>User corrects and retries]
+    C4 -->|Stripe unreachable| C6[Error back. Nothing written,<br/>user retries as-is]
+    C5 --> C
+    C6 --> C
 ```
 
 Payment method.
@@ -113,85 +119,67 @@ Payment method.
 flowchart LR
     P[Payment method step opens] --> S1[Client asks the API<br/>for a setup intent]
     S1 --> S2{Stripe customer id?}
-    S2 -->|none| BACK[Fail back to the address step]
     S2 -->|exists| S3["customers.retrieve,<br/>read customer.tax.automatic_tax"]
     S3 --> S3a{Value}
-    S3a -->|"failed / unrecognized_location"| BACK
     S3a -->|"supported / not_collecting"| S4["setupIntents.create<br/>usage: off_session"]
     S4 --> S4a{Result}
-    S4a -->|error| S5[Error back for display,<br/>no secret means no mount]
     S4a -->|ok| S6[Return client_secret]
-
     S6 --> M1["Load stripe.js,<br/>elements({ clientSecret }),<br/>paymentElement.mount(target)"]
     M1 --> M2{Loaded and mounted?}
-    M2 -->|no| M3[Show the failure, not an empty box<br/>where the card fields should be]
-    M2 -->|yes| M4[User enters details in the iframe,<br/>format validated inline, nothing sent yet]
-
+    M2 -->|yes| M4[User enters details in the iframe.<br/>Format validated inline, nothing sent yet]
     M4 --> F1[User presses confirm]
     F1 --> F2["confirmSetup({ elements, clientSecret,<br/>return_url, redirect: 'if_required' })"]
     F2 --> F3{Response}
-
+    F3 -->|"success, or 3DS cleared in a dialog"| PM
+    F3 -->|3DS redirect| R1["Back at return_url with<br/>setup_intent_client_secret on the query.<br/>Read before the landing checks in diagram 1"]
+    R1 --> R2[retrieveSetupIntent]
+    R2 --> PM
+    PM[Payment method stored] --> Y1["Billing sync call with the setup intent id.<br/>Read payment_method, set the customer's<br/>invoice_settings.default_payment_method,<br/>write brand and last4 locally"]
+    Y1 --> Y2{Result}
+    Y2 -->|ok| Z["Confirm step<br/>see diagram 4"]
+    Y2 -->|error| Y3[Stop before subscribe. The card is stored<br/>but not defaulted, so nothing would charge]
+    Y3 -->|user presses confirm again| Y1
     F3 -->|error| F4[Element stays mounted on the same<br/>client_secret, no new intent needed]
     F4 --> F1
-
-    F3 -->|3DS in a dialog| PM
-    F3 -->|3DS redirect| R1["Back at return_url with<br/>setup_intent_client_secret on the query"]
-    R1 --> R2["retrieveSetupIntent, checked before<br/>the landing checks in diagram 1"]
-    R2 --> PM
-    F3 -->|success| PM
-
-    PM[Payment method stored] --> Y1["Billing sync call with the setup intent id:<br/>read payment_method, set customer<br/>invoice_settings.default_payment_method,<br/>write brand and last4 locally"]
-    Y1 --> Y2{Result}
-    Y2 -->|error| Y3[Stop before subscribe. Card is stored<br/>but not defaulted, so nothing would charge.<br/>Confirm again retries the sync only]
-    Y3 --> F1
-    Y2 -->|ok| Z["Confirm step<br/>see diagram 3"]
-
-    PM -.-> W1["setup_intent.succeeded webhook<br/>runs the same writes idempotently.<br/>Backstop for a dead browser, a bank<br/>challenge cleared in a closed tab,<br/>or a sync call that never landed"]
+    M2 -->|no| M3[Show the failure, not an empty box<br/>where the card fields should be]
+    S4a -->|error| S5[Error back for display.<br/>No secret means no mount]
+    S2 -->|none| BACK["Fail back to the address step<br/>see diagram 2"]
+    S3a -->|"failed / unrecognized_location"| BACK
+    PM -.-> W1["setup_intent.succeeded webhook runs the<br/>same writes idempotently. Backstop for a dead<br/>browser, a challenge cleared in a closed tab,<br/>or a sync call that never landed"]
     W1 -.-> Z
 ```
 
-Subscribe and first invoice.
+Subscribe.
 
 ```mermaid
 flowchart LR
     Z[Confirm step] --> Z1{Promo codes enabled?}
     Z1 -->|yes| Z2[Code verified on entry,<br/>travels with the payload]
-    Z1 -->|no| Z3
     Z2 --> Z3["Client subscribes with<br/>{ plan, interval, promo_code? }<br/>no payment method reference"]
-
+    Z1 -->|no| Z3
     Z3 --> E1{Existing subscription?}
-    E1 -->|live, same plan and interval| E2[Return it as success,<br/>the request is already satisfied]
-    E1 -->|live, anything else| E3[Error]
-    E1 -->|incomplete, same plan and interval| E4[Attempt to pay its open invoice,<br/>create nothing]
-
-    E4 --> E5{Result}
-    E5 -->|charged the same failing default| E6[Error names the payment method.<br/>Nothing moves until the card changes]
-    E5 -->|unreachable, or invoice<br/>settled or voided| E7[Error back, subscription untouched]
-    E5 -->|paid| OK
-
-    E1 -->|none| N1[Work out trial eligibility API side.<br/>Client is never told and never branches on it]
+    E1 -->|none| N1[Work out trial eligibility API side.<br/>The client is never told and never branches on it]
     N1 --> N2[Resolve the promo code into a<br/>promotion code object, if one came through]
     N2 --> N3["subscriptions.create<br/>customer, price, automatic_tax, off_session,<br/>trial_period_days? discounts?<br/>no default_payment_method, no payment_behavior"]
-
     N3 --> N4{Result}
-    N4 -->|error| N5[Error back. Card is stored and defaulted,<br/>so a retry does not re-ask for details]
     N4 -->|ok| N6[Write the local subscription row,<br/>now that the Stripe id exists]
-
-    N6 --> N7{Stripe settles the first<br/>invoice in the same call}
-    N7 -->|"trialing, $0 invoice, nothing charged"| OK
-    N7 -->|active, off-session charge cleared| OK
-    N7 -->|incomplete, charge refused| D1
-    N7 -->|incomplete, authentication_required| D2
-
-    D2["handleNextAction({ clientSecret })<br/>with the invoice client secret.<br/>No element, only the challenge is missing"] --> D2a{Runs inline or redirects?}
-    D2a -->|redirect| D2b["Back with payment_intent_client_secret,<br/>then retrievePaymentIntent"]
+    N6 --> N7{Stripe settles the first invoice<br/>inside that same create call}
+    N7 -->|"trialing on a $0 invoice, or active<br/>once the off-session charge clears"| OK[Client refreshes the auth user,<br/>success action]
+    N7 -->|incomplete, authentication_required| D2["handleNextAction({ clientSecret })<br/>with the invoice client secret.<br/>No element, only the challenge is missing"]
+    D2 --> D2a{Runs inline or redirects?}
     D2a -->|dialog| D3
+    D2a -->|redirect| D2b["Back with payment_intent_client_secret,<br/>then retrievePaymentIntent"]
     D2b --> D3{Challenge outcome}
-
-    D3 -->|cleared| D4["Stripe pays the invoice, local row still<br/>reads incomplete. Poll the auth user, or<br/>make a subscription sync call now.<br/>Webhook is the backstop either way"]
+    D3 -->|cleared| D4["Stripe pays the invoice, the local row still<br/>reads incomplete. Poll the auth user, or make<br/>a subscription sync call now.<br/>The webhook is the backstop either way"]
     D4 --> OK
-    D3 -->|failed| D1["PaymentIntent falls to requires_payment_method.<br/>Back to the payment method step, diagram 2,<br/>for a different card"]
-    D1 --> Z3
-
-    OK[Client refreshes the auth user] --> OK2[Success action]
+    N7 -->|incomplete, charge refused| D1["PaymentIntent falls to requires_payment_method.<br/>Back to the payment method step, diagram 3,<br/>for a different card. Confirm from there<br/>subscribes again and pays the open invoice"]
+    D3 -->|failed| D1
+    N4 -->|error| N5[Error back. The card is stored and defaulted,<br/>so a retry does not re-ask for details]
+    E1 -->|"incomplete, same plan and interval"| E4[Attempt to pay its open invoice,<br/>create nothing]
+    E4 --> E5{Result}
+    E5 -->|paid| OK
+    E5 -->|charged the same failing default| E6[Error names the payment method.<br/>Nothing moves until the card changes]
+    E5 -->|"unreachable, or the invoice<br/>was settled or voided"| E7[Error back, subscription untouched]
+    E1 -->|"live, same plan and interval"| E2[Return it as success,<br/>the request is already satisfied]
+    E1 -->|live, anything else| E3[Error]
 ```
