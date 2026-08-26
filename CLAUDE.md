@@ -43,6 +43,9 @@
   6. `Rules` - access policy, plan and feature limits, validation
   7. `Edge & Error Cases` - table: case / cause / expected behavior
   8. `Decisions` - chose X over Y, why
+     - Record rejected alternatives here. The "why not" is the value.
+     - Holds forks only. Two viable options existed and one was picked, and the other one had a real cost. Validation, error handling, and anything that follows from how the provider works are not decisions. Most flows have zero or one.
+     - Do not manufacture a rejected alternative. If the "why not" is "that option was never possible", there is no decision.
   9. `TODO` - Now / Later / Out of scope
 - Omit a section only when it genuinely does not apply. Do not reorder.
 
@@ -55,9 +58,6 @@
 ## Working Rules
 - Pseudocode only where code is unavoidable. No syntax from any language.
 - Every flow must cover failure paths, not just the happy path.
-- Record rejected alternatives in `Decisions`. The "why not" is the value.
-- `Decisions` holds forks only. Two viable options existed and one was picked, and the other one had a real cost. Validation, error handling, and anything that follows from how the provider works are not decisions. Most flows have zero or one.
-- Do not manufacture a rejected alternative. If the "why not" is "that option was never possible", there is no decision.
 - A section only exists if it has real content. If there is nothing for it, omit it and say so. Never fill a section to satisfy the template.
 - Before writing any bullet, check it says something not already in the file. If it survives only as rephrasing, cut it.
 - Split a flow when its diagram exceeds one screen. Link to the sibling flow, do not nest.
