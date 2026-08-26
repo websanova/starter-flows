@@ -1,13 +1,15 @@
 # Subscription Create - Stripe (Payment Element, intent on init)
 
 Status: reference
-Updated: 2026-08-25
+Updated: 2026-08-26
 
 ## Purpose & Scope
 
-Creating a subscription with the Payment Element, where the intent gets created before the element mounts. The element is driven straight off a real client secret, so there is no amount to keep in sync. Trials fall out for free - the server decides whether it is a payment or a setup and just tells the client which.
+Creating a subscription with the Payment Element, where the intent gets created before the element mounts. The element is driven straight off a real client secret, so there is no amount to keep in sync. The server decides whether it is a payment or a setup and tells the client which, so the client never guesses at trial eligibility. That is the only part of a trial this strategy handles well, see below.
 
 The tradeoff is that a subscription gets opened on Stripe for anyone who so much as lands on the page, and anything that changes the amount afterwards, a promo code or a billing address that changes the tax, means tearing it down and building a new one.
+
+A trial cannot be run on this strategy at all. Creating the subscription with `trial_period_days` lands it at `trialing`, not `incomplete`, because the first invoice is `$0` and nothing is owed. The intent is created on page load, so the trial starts on page load. No card has been entered and the user has not pressed subscribe. Abandon the page and the trial keeps running, the payment method was never captured, and the subscribed flag counts `trialing` as subscribed, so a page visit alone hands the user the product for the full trial length. The 23 hour expiry that cleans up abandoned `incomplete` subscriptions does not touch a `trialing` one. Trial eligibility is decided API side off whether the user has used a trial before, so that abandoned visit also consumes the user's one trial. Getting it back means a cancel job on your side plus a rule for when a burned trial gets forgiven. See Decisions.
 
 The billing address is captured before the element mounts either way, and a promo code too when codes are on. The intent cannot be created until every input to the amount is known, and once it is created the first invoice is finalized and its amount does not change, so neither can be applied after the fact. Re-pointing the mounted element at a new secret is not an option either, `clientSecret` is fixed when `elements()` is created. That also means letting the user go back and change the address or promo code costs a fresh intent and a fresh mount, which wipes the details they typed.
 
