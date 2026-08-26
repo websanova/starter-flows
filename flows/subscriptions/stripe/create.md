@@ -1,100 +1,111 @@
-# Subscription Create - Stripe (Payment Element, intent on init)
+# Subscription Create - Stripe (Payment Element, billing first)
 
 Status: draft
 Updated: 2026-08-25
 
 ## Purpose & Scope
 
-Creating a subscription with the Payment Element, where the intent gets created before the element mounts. The element is driven straight off a real client secret, so there is no amount to keep in sync. Trials fall out for free - the server decides whether it is a payment or a setup and just tells the client which.
+Creating a subscription in three steps. The billing address is settled first, the card is stored second, and the subscription is created last, once a payment method already exists on the customer.
 
-The tradeoff is that a subscription gets opened on Stripe for anyone who so much as lands on the page, and anything that changes the amount afterwards, a promo code or a billing address that changes the tax, means tearing it down and building a new one.
+Every mount is a SetupIntent, whether or not the user is getting a trial. There is one kind of client secret, one confirm call and one redirect return to handle, and the client is never told whether a trial applies.
 
-The billing address is captured before the element mounts either way, and a promo code too when codes are on. The intent cannot be created until every input to the amount is known, and once it is created the first invoice is finalized and its amount does not change, so neither can be applied after the fact. Re-pointing the mounted element at a new secret is not an option either, `clientSecret` is fixed when `elements()` is created. That also means letting the user go back and change the address or promo code costs a fresh intent and a fresh mount, which wipes the details they typed.
+Someone who lands on the page and leaves has a SetupIntent on Stripe and nothing else. No subscription is opened, no trial clock is started, no local row is written, and nothing needs cleaning up.
+
+The concern is the first charge. It runs inside the subscription create call, off-session, once the element is already gone. A card the issuer refuses or wants to challenge cannot be dealt with in the moment, so the user has to be brought back to a second screen to clear it.
+
+The second concern is the total. The first invoice does not exist until after the card is stored, so showing a tax-inclusive amount before the user commits needs a separate preview call.
 
 ## Actors & Entities
 
 Actors
 
-- User - enters payment details in the Payment Element on your page.
-- Client App - requests the intent, mounts the element, confirms, polls after success.
-- API - creates the customer and the subscription, writes the local row, receives the webhook.
-- Stripe - issues the intent, runs 3DS, settles the charge, fires the webhook.
+- User - enters the billing address, then the card in the Payment Element.
+- Client App - makes the two setup calls, mounts the element, confirms, makes the subscribe call, polls after success.
+- API - creates the customer, pushes the address, creates the SetupIntent, creates the subscription, writes the local row, receives the webhook.
+- Stripe - stores the card, runs 3DS, computes the first invoice, charges it, fires the webhook.
 
 Entities
 
 - User record - holds the Stripe customer id and the billing address that gets pushed up.
-- Stripe Customer - must carry a validated billing address, tax on or off.
-- Subscription - created at `incomplete` (or `trialing`) before any payment.
-- Invoice - first invoice, finalized at creation. `$0` on a trial.
-- PaymentIntent - created against the first invoice when there is no trial. Secret at `latest_invoice.confirmation_secret.client_secret`.
-- SetupIntent - created instead when there is a trial. Secret at `pending_setup_intent.client_secret`.
-- Local subscription row - written at `incomplete` as soon as the Stripe id exists, before payment.
+- Stripe Customer - must carry a validated billing address before anything else is created, tax on or off.
+- SetupIntent - standalone, created against the customer with `usage` set to `off_session`. Nothing mints it, it is created on its own. Secret at `client_secret`, starts with `seti_`.
+- Payment Method - the stored card. Attached to the customer when the SetupIntent succeeds, and read back off the confirmed SetupIntent's `payment_method` field.
+- Subscription - created only after the card is stored. Lands at `trialing` on a trial, `active` when the first charge clears, `incomplete` when it does not.
+- Invoice - first invoice, created and charged by Stripe inside the subscription create call. `$0` on a trial.
+- PaymentIntent - exists only when the off-session charge fails. Sits on the first invoice and stays confirmable.
+- Local subscription row - written once the Stripe subscription exists, never before.
 
 ## Flow
 
-1. On page load, collect the billing address first, always, and the promo code too if codes are in play. The intent cannot be created until every input to the amount is known.
-2. Hit the API for the intent, sending `{ plan, interval, promo_code? }`.
+1. On page load, collect the billing address. Collect the promo code too if codes are on. The promo code is not bound to the mount here, it is only needed by the subscribe call in step 8, so it can be entered or changed at any point before then.
+2. Call the API to set up the customer, sending the address.
    1. Load the user's Stripe customer id from your DB.
    2. If there isn't one, create the customer on Stripe. Save the returned customer id to your users table.
-   3. Push the billing address to the Stripe customer with `tax[validate_location]` set to `immediately`, whether or not tax is enabled. Has to be done before the intent is created, see Decisions and the [address update flow](../../billing/stripe/address-update.md) for details.
-   4. Work out trial eligibility on the API side, since it already knows whether this user has burned a trial before.
-   5. If a promo code came through it gets resolved into a Stripe promo code object. The field is optional, no code means this step is skipped entirely.
-   6. Create the Subscription on Stripe with customer (stripe id), the plan's price id, `discounts: [{ promotion_code: 'promo_xxx' }]` if there was a code, `trial_period_days` if eligible, `payment_behavior: 'default_incomplete'`, `automatic_tax: { enabled: true }`, `expand: ['latest_invoice.confirmation_secret', 'pending_setup_intent']`. Neither field comes back usable by default. `confirmation_secret` is absent unless it is named in the expand. `pending_setup_intent` is worse, without the expand it comes back as a bare `seti_` id string, which is truthy, so a presence check still picks the trial branch and then finds no `client_secret` on it.
-   7. That single call creates the Subscription on Stripe at status `incomplete` (or `trialing`). It also creates an intent. Whether the user gets a trial decides which kind of intent, and the two kinds are not interchangeable. They come back on different fields, the client secret is read from a different key on each, and the front end has to call a different confirm method for each.
-      - No trial - there is a real amount to charge, so Stripe creates a first Invoice for the full amount and a PaymentIntent against it. The client secret is read off `latest_invoice.confirmation_secret.client_secret`, not off the PaymentIntent itself. It starts with `pi_`. The front end confirms with `confirmPayment()`.
-      - Trial - the first invoice is `$0`, so there is nothing to charge and no PaymentIntent. Stripe creates a SetupIntent instead, which stores the payment method for when the trial ends. It comes back on the subscription's `pending_setup_intent` field and the client secret is read off `pending_setup_intent.client_secret`. It starts with `seti_`. The front end confirms with `confirmSetup()`.
-   8. The amount is computed by Stripe from price + tax. You never send one, and nothing on the client has to match it.
-   9. If it errors out, that error needs to get sent back to the client for display.
-   10. On success, write your local subscription row now that the Stripe id exists - stripe sub id, plan, interval, status.
-   11. Return the client secret to the client app, along with a `type` of `payment` or `setup` saying which of the two it came from. The `type` is a field we set ourselves, Stripe does not return it, and it is a convenience only. The front end can derive the same thing from the secret's prefix, `pi_` or `seti_`, and the 3DS return at the end of this flow does exactly that when the user comes back onto a cold page.
-3. Element mounts against that secret with `elements({ clientSecret })`. No mode, no amount, no currency, and no trial handling, Stripe reads all of that off the intent. The `type` is not used here at all, only at confirm.
+   3. Push the billing address to the Stripe customer with `tax[validate_location]` set to `immediately`, whether or not tax is enabled. See the [address update flow](../../billing/stripe/address-update.md) for details.
+   4. An address Stripe cannot place fails on this call. Nothing else exists yet, so there is nothing to tear down. Error back to the client, the user corrects the address and retries.
+3. Call the API for the SetupIntent.
+   1. Create a SetupIntent on Stripe against the customer with `usage` set to `off_session`. That `usage` value is what records the mandate while the user is present, and the mandate is what lets Stripe charge the first invoice later with the user gone. Without it the first charge is far more likely to come back needing authentication.
+   2. Return `client_secret` to the client.
+   3. Nothing about price, currency, tax, promo or trial goes on this call. A SetupIntent has no amount field, so there is nothing to compute and nothing to keep in sync.
+4. Element mounts against that secret with `elements({ clientSecret })`. No mode, no amount, no currency, no trial handling.
    1. Load stripe.js if it isn't already on the page.
    2. Calling `elements({ clientSecret })` builds the Elements object locally. No network calls here.
    3. Calling `paymentElement.mount(target)` creates the iframe.
-4. User hits subscribe.
-5. Branch on the `type` from above and call the confirm named in step 2.7. Both take `{ elements, clientSecret, confirmParams: { return_url }, redirect: 'if_required' }`. The `return_url` is mandatory.
-6. Response is success / error / 3DS. 3DS either runs in a dialog and resolves inline, or sends the browser away to the bank and back to your return url. Either way you end up at the same place - a settled intent.
-7. If it redirected, the user comes back to a freshly loaded page with no state. Stripe appends the secret to the return url as `payment_intent_client_secret` or `setup_intent_client_secret`, so the key name is what tells you which intent you are looking at. Read the pair together and call `retrievePaymentIntent` or `retrieveSetupIntent` to see how it landed rather than starting the flow over. Same mount path as the initial one since it is a client secret either way, so there is only one mode to support.
-8. On success, your API still knows nothing. Nothing in the chain above told it the payment landed, only the webhook does.
-9. Stripe fires the webhook. Your backend looks up the local row by Stripe sub id and flips it to `active`, or `trialing` if there was a trial. This is asynchronous and has no fixed timing, it can land before confirm even resolves in the browser, or seconds after.
-10. Reload the auth user and check for the subscription. Poll this, a hit means the webhook arrived and the API picked it up. Give up after a ceiling rather than spinning forever.
+5. User hits subscribe. Call `confirmSetup()` with `{ elements, clientSecret, confirmParams: { return_url }, redirect: 'if_required' }`. The `return_url` is mandatory. There is no branch to pick here, `confirmSetup` is the only confirm this flow ever calls.
+6. Response is success / error / 3DS. An issuer that wants the card verified runs 3DS now, either in a dialog that resolves inline or by sending the browser away to the bank and back to the return url.
+7. If it redirected, the user comes back to a freshly loaded page with no state. Stripe appends `setup_intent_client_secret` to the return url, and that is the only key name this flow ever produces. Call `retrieveSetupIntent` with it. On success the flow has to carry on into step 8, because the card is now stored but no subscription exists yet. This is not a retrieve and show success.
+8. Call the API to create the subscription, sending `{ plan, interval, setup_intent_id, promo_code? }`.
+   1. Retrieve the SetupIntent and read `payment_method` off it. The client never sends a payment method id, so it cannot assert one that isn't its own.
+   2. Work out trial eligibility on the API side, since it already knows whether this user has burned a trial before. The client is not told the answer and never has been.
+   3. If a promo code came through it gets resolved into a Stripe promo code object. The field is optional, no code means this step is skipped entirely.
+   4. Create the Subscription on Stripe with customer (stripe id), the plan's price id, `default_payment_method` set to the payment method from step 8.1, `trial_period_days` if eligible, `discounts: [{ promotion_code: 'promo_xxx' }]` if there was a code, `automatic_tax: { enabled: true }`, `off_session: true`, and `expand: ['latest_invoice.payment_intent', 'latest_invoice.confirmation_secret']`.
+   5. Leave `payment_behavior` at its default. Setting it to `default_incomplete`, which is what the on-init strategy needs, would hold every subscription at `incomplete` waiting for a confirmation that is never coming, since there is no element on screen at this point. The default lets Stripe attempt the charge instead.
+   6. Stripe creates the first invoice and settles it inside this one call. On a trial the invoice is `$0`, nothing is charged, and the subscription lands at `trialing` with `trial_end` stamped from now. Otherwise Stripe computes price plus tax minus discount, charges the stored card off-session, and the subscription lands at `active` if the charge cleared or `incomplete` if it did not. You never send an amount.
+   7. If the create errors out, that error needs to get sent back to the client for display. The card is already stored either way, so a retry does not cost the user their card details.
+   8. On success, write your local subscription row now that the Stripe id exists - stripe sub id, plan, interval, status.
+   9. Return the outcome to the client, including whether the subscription is live or is sitting at `incomplete` waiting on the card. An `incomplete` result needs the first invoice's client secret sent back too, read off `latest_invoice.confirmation_secret.client_secret`, so the recovery screen has something to mount against.
+9. Stripe fires the webhook. Your backend looks up the local row by Stripe sub id and reconciles the status. This is asynchronous and has no fixed timing, and it can land before the subscribe call has even returned to the browser.
+10. Reload the auth user and check for the subscription. Poll this, and give up after a ceiling rather than spinning forever. On a trial or a cleared charge the row was already written in step 8.8, so this resolves on the first pass.
 11. Take the success action - redirect to billing, a success page, wherever.
 
 ## Diagram
 
 ```mermaid
-flowchart LR
-    A[Page load] --> B1["Collect address always,<br/>promo code if on"]
-    B1 --> C
+flowchart TD
+    A[Page load] --> B["Collect billing address,<br/>promo code if on"]
 
-    C["POST /subscription/intent<br/>{plan, interval, promo_code?}"] --> D["Load or create Stripe customer<br/>push address, validate_location"]
-    D --> E["Resolve promo code<br/>(if sent)"]
-    E --> F["subscriptions.create<br/>default_incomplete"]
-    F --> G{Trial?}
+    B --> C["Call 1: customer setup"]
+    C --> D["Load or create Stripe customer<br/>push address, validate_location"]
+    D -->|address will not resolve| D1[Error back, user corrects]
 
-    G -->|no| H1["PaymentIntent on latest_invoice<br/>type: payment"]
-    G -->|yes| H2["SetupIntent on pending_setup_intent<br/>type: setup"]
+    D --> E["Call 2: setup intent"]
+    E --> F["Create SetupIntent<br/>usage: off_session"]
+    F --> G["elements({ clientSecret })<br/>mount element"]
 
-    H1 --> I["Write local row<br/>status: incomplete"]
-    H2 --> I
-    I --> J[Return client_secret + type]
+    G --> H[User hits subscribe]
+    H --> I[confirmSetup]
+    I -->|declined| H
+    I -->|3DS redirect| I1["Back at return_url<br/>retrieveSetupIntent"]
+    I -->|success| J
+    I1 --> J
 
-    J --> K["elements({ clientSecret })<br/>mount element"]
-    K --> L[User hits subscribe]
-    L --> M{type}
+    J["Call 3: subscribe<br/>{plan, interval, setup_intent_id, promo_code?}"] --> K["Read payment_method off SetupIntent<br/>decide trial, resolve promo"]
+    K --> L["subscriptions.create<br/>default_payment_method, off_session"]
 
-    M -->|payment| N1[confirmPayment]
-    M -->|setup| N2[confirmSetup]
+    L --> M{First invoice}
+    M -->|"$0 trial"| N1[trialing]
+    M -->|charge cleared| N2[active]
+    M -->|charge failed| N3["incomplete<br/>PaymentIntent on invoice"]
 
-    N1 --> O{Result}
+    N1 --> O[Write local row]
     N2 --> O
+    N3 --> O
 
-    O -->|declined| L
-    O -->|3DS redirect| O1["Back at return_url<br/>retrieve intent"]
-    O -->|success| P
-    O1 --> P
+    O --> P{Status}
+    P -->|incomplete| P1["Recovery screen<br/>mount against the invoice PaymentIntent<br/>confirm on-session"]
+    P -->|trialing / active| Q[Stripe fires webhook]
+    P1 --> Q
 
-    P[Stripe fires webhook] --> Q["Local row -> active / trialing"]
     Q --> R[Client polls auth user]
     R --> S[Success action]
 ```
@@ -105,63 +116,64 @@ Local subscription row.
 
 | State | Meaning |
 | ----- | ------- |
-| incomplete | Written at intent creation. Subscription exists on Stripe, nothing charged, payment method may never be entered. |
-| trialing | Webhook landed, trial running, payment method stored via SetupIntent. Counts as subscribed. |
-| active | Webhook landed, first invoice paid. |
+| trialing | Trial running, card already stored before the subscription was created. Counts as subscribed. |
+| active | First invoice charged and cleared. |
+| incomplete | Subscription exists, the off-session charge failed. A PaymentIntent sits on the first invoice waiting for the user on-session. |
 
 Allowed transitions
 
 | From | To | Trigger |
 | ---- | -- | ------- |
-| none | incomplete | Subscription created on Stripe at `default_incomplete` |
-| incomplete | active | Webhook, payment settled |
-| incomplete | trialing | Webhook, trial was eligible |
-| incomplete | incomplete | Confirm declined. Same secret stays confirmable, user retries |
-| incomplete | expired | User abandons. Stripe expires the subscription after 23 hours, local row needs cleaning up |
+| none | trialing | Subscription created with `trial_period_days`, first invoice was `$0` |
+| none | active | Subscription created, off-session charge on the first invoice cleared |
+| none | incomplete | Subscription created, off-session charge on the first invoice failed |
+| incomplete | active | User confirmed the first invoice's PaymentIntent on-session from the recovery screen |
 
-Unlike hosted and embedded, a local row exists before any payment. That row is the cleanup problem.
+There is no state before the subscription exists. A visitor who never finishes has no row at all, so nothing accumulates and nothing has to be swept up.
 
 ## Rules
 
 - Authenticated user required.
-- Trial eligibility is decided on the API side only. The client never asserts it - it is told the `type` to confirm with.
-- The Stripe customer must carry a validated billing address before the subscription is created, tax on or off. Pushed with `tax[validate_location]` set to `immediately`, see the [address update flow](../../billing/stripe/address-update.md).
-- The address is always captured before the element mounts, and the promo code too when codes are on. Nothing can be applied after.
-- One in-flight subscription per user, plan and interval. Revisiting the page must hand back the existing incomplete subscription rather than opening another.
+- The Stripe customer must carry a validated billing address before the SetupIntent is created, tax on or off. Pushed with `tax[validate_location]` set to `immediately`, see the [address update flow](../../billing/stripe/address-update.md).
+- The SetupIntent must be created with `usage` set to `off_session`. The first invoice is charged with the user gone, and that value is what makes the charge clear without an authentication challenge.
+- The subscription must not be created until the SetupIntent has been confirmed. Creating it earlier is the on-init strategy and it starts the trial clock at page load, see Decisions.
+- Trial eligibility is decided on the API side only, on the subscribe call. The client is never told and never branches on it.
+- The payment method is read off the confirmed SetupIntent by the API. The client never sends a payment method id.
+- Subscription create leaves `payment_behavior` at its default so Stripe attempts the charge. `default_incomplete` would park every subscription at `incomplete` with nothing on screen to confirm it.
 - The subscribed flag must treat `trialing` as subscribed, otherwise a trial signup polls forever.
-- Only the webhook flips the row to active or trialing. A resolved confirm is not proof.
+- A user who already has a live subscription for the plan and interval does not go through this flow again.
+- Repeat visits create a fresh SetupIntent each time. That costs nothing and needs no deduplication, since a SetupIntent holds no subscription and no trial.
 - Polling has a ceiling. Past it, show a pending state rather than spinning.
 
 ## Edge & Error Cases
 
 | Case | Cause | Expected behavior |
 | ---- | ----- | ----------------- |
-| Promo code entered after mount | First invoice is already finalized. A discount applied now only affects future invoices | Cancel the subscription on Stripe, create a new one with the promo attached, mount a fresh element against the new secret. The typed details are lost |
-| Billing address changes the tax after init | Same as above, the amount is locked once the intent exists | Same teardown and remount. The typed details are lost |
-| Abandoned page | Subscription opened for anyone who lands | Incomplete subscription on Stripe and an incomplete row in your DB. Stripe expires its side after 23 hours, your rows need a cleanup job |
-| Revisit while incomplete | User comes back to the page | Hand back the in flight subscription for the same plan and interval rather than opening a second one |
-| Payment method declined | Bank refused | Element stays mounted against the same secret, user corrects the details and submits again. The intent is still confirmable, no new secret needed |
-| 3DS sends the browser away | Bank requires a challenge page | User returns to a cold page with no state. Stripe appends the secret to the return url, and the key name tells you the type. Retrieve the intent rather than restarting the flow |
-| Trial hits 3DS | Bank wants the payment method verified even though nothing is charged | Handle 3DS on the SetupIntent path too, not just payment |
-| Address resolves to no tax jurisdiction | Stripe cannot place it | The customer update errors before the intent is created. Nothing to tear down, the user corrects and retries |
-| Tax not computable | Missing registration or no product tax code | Error back to the client for display. Subscription create fails |
-| Invalid promo code | Code does not resolve to a Stripe promo object | Error back to the client for display |
-| 100% promo zeroes the invoice | Nothing to charge, so there is no intent and no secret to return | Not worked out yet. Also affects a trial, where a `once` code is consumed by the `$0` trial invoice. See TODO |
-| Webhook lands late | Asynchronous, can arrive before confirm resolves | Poll the auth user, show pending until the flag flips |
-| Webhook never arrives | API dropped or failed the attempts | User sits in a pending state with an incomplete row. Needs a manual sync command to reconcile against Stripe |
+| Address resolves to no tax jurisdiction | Stripe cannot place it | The customer update fails on call 1. No SetupIntent and no subscription exist. Error back to the client, the user corrects the address and retries |
+| Card declined at setup | Issuer refused the card outright when storing it | Element stays mounted against the same SetupIntent secret. User corrects the details and submits again, no new secret needed |
+| 3DS at setup | Issuer wants the card verified before storing it | Handled by `confirmSetup`, either inline in a dialog or by redirecting out to the bank and back |
+| 3DS sends the browser away | Bank requires a challenge page | User returns to a cold page. Stripe appends `setup_intent_client_secret`, the only key name this flow produces. Retrieve the SetupIntent, then make the subscribe call, which never ran |
+| Tab closed after the card is stored | User leaves between `confirmSetup` and the subscribe call | A payment method sits on the customer and no subscription exists. Nothing to clean up, no local row was ever written. Coming back runs the flow again |
+| First charge needs authentication | Issuer wants the challenge despite the mandate. `last_payment_error.code` on the PaymentIntent is `authentication_required` | Subscription sits at `incomplete`. Bring the user back to the recovery screen, mount against the first invoice's PaymentIntent and confirm on-session. The stored card clears once the challenge runs |
+| First charge declined | Insufficient funds, refused, lost card | Same recovery screen. No challenge will fix it, so the user enters a different card into the element mounted against that same PaymentIntent |
+| Tax not computable | Missing registration or no product tax code | The subscribe call fails, after the card is already stored. Error back for display. The card stays on the customer, so a retry does not ask for it again |
+| Invalid promo code | Code does not resolve to a Stripe promo object | The subscribe call fails. Error back for display. The user fixes the code and the subscribe call is retried on its own, the element is not remounted |
+| 100% promo zeroes the invoice | Nothing to charge | No off-session charge runs and the subscription goes straight to `active`. The mount was a SetupIntent regardless of the amount, so there is no missing client secret to work around |
+| Webhook lands late | Asynchronous, can arrive before the subscribe call returns | Poll the auth user, show pending until the flag flips |
+| Webhook never arrives | API dropped or failed the attempts | The local row can drift from Stripe on everything after create. Needs a manual sync command to reconcile |
 | Trial signup polls forever | Subscribed flag ignores `trialing` | Flag must count `trialing` as subscribed |
 
 ## Decisions
 
-Chose the Payment Element with the intent created on init. Four strategies were evaluated - hosted Checkout, embedded Checkout, Payment Element with the intent on init, and Payment Element with a deferred intent. The three not taken are kept in `reference/`.
+Billing-first over on-init - on-init mints the intent off the subscription, so the subscription has to exist before the card is ever collected. On a trial that subscription is created at `trialing` with `trial_end` already stamped, which starts the trial clock at page load and marks the user subscribed before any card exists. Setting `payment_behavior` to `default_incomplete` does not hold it back, because that only applies when the first invoice requires payment and a trial's first invoice is `$0`. There is no Stripe setting that keeps a trial subscription out of `trialing` until a SetupIntent is confirmed, so the only way to start the clock when the user actually subscribes is to not create the subscription until the card is stored. See [reference/create-init.md](reference/create-init.md).
 
-On-init over deferred - the element mounts against a real client secret, so there is no amount, currency or mode to keep in sync and no `IntegrationError` class of failure at confirm. The server decides trial eligibility and tells the client which confirm to call, rather than the client guessing it up front. The 3DS cold return also uses the same mount path as the initial one, so there is only one mode to support instead of two.
+Billing-first over deferred - the element mounts against a real client secret, so there is no amount, currency or mode to keep in sync and no `IntegrationError` class of failure at confirm. Deferred also forces trial eligibility onto the client, because the mount mode has to be `setup` or `payment` before anything exists on Stripe. Here every mount is a SetupIntent and the client is never told.
 
-On-init over hosted and embedded - the payment UI is the Payment Element on your own page, styleable with the Appearance API. Checkout gives you Dashboard branding and nothing more.
+Billing-first over hosted and embedded - the payment UI is the Payment Element on your own page, styleable with the Appearance API. Checkout gives you Dashboard branding and nothing more.
 
-Cost of the choice: a subscription is opened on Stripe for every visitor to the page, which needs a cleanup job on your side. Tax and promo codes have to be collected before the element mounts, and changing either afterwards means a full teardown that wipes the details the user typed.
+Cost of the choice: the first invoice is charged off-session inside the subscribe call, once the element is gone, so a refused or challenged card lands with the user no longer on the payment screen and needs a second screen to clear. Showing a tax-inclusive total before the user commits needs a separate preview call, because the first invoice does not exist until the card is already stored. On-init got that number for free, since its first invoice was finalized before the element ever mounted.
 
-The billing address is collected and validated on every subscribe, tax on or off. Collecting it only when tax is on saves a step in the subscription flow but ends up with all the users having missing or unvalidated addresses for tax purposes. This can lead to headaches and tax liability, and takes some work to then backfill the enforcement. This must be done before the intent is created. An address pushed afterwards won't work, it's either missing from the intent calculation when tax is on or it fails after the subscribe already went through. That leaves `automatic_tax` as a backend flag, it decides what goes on the subscription create and nothing else.
+The billing address is collected and validated on every subscribe, tax on or off. Collecting it only when tax is on saves a step in the subscription flow but ends up with all the users having missing or unvalidated addresses for tax purposes. This can lead to headaches and tax liability, and takes some work to then backfill the enforcement. That leaves `automatic_tax` as a backend flag, it decides what goes on the subscription create and nothing else.
 
 ## TODO
 
@@ -169,17 +181,18 @@ Now
 
 - Tax and promo codes are each a configurable on/off field. The API owns both and is the source of truth - the client is told what is on, it never decides. The address step runs either way, so what is left to decide is:
   - Promo off - the address is collected, pushed, and the element mounts behind it.
-  - Promo on - a code field is shown alongside the address and resolved before the subscription is created.
+  - Promo on - a code field is shown as well, and the code travels with the subscribe call rather than gating the mount.
 - Decide how the client learns the two flags (config payload at page load vs baked into the plan response).
+- Decide where the promo code field lives now that it no longer has to be resolved before the element mounts.
+- Lay out the recovery screen for a failed first charge. Where it lives, how the user is sent to it, and what it says for `authentication_required` versus a flat decline.
 - Decide how subscribe failures get diagnosed. When Stripe rejects the create (tax misconfigured, bad address, invalid promo), the API returns a generic "provider unavailable" and the real reason is only attached when app.debug is on. In production it is discarded, so a user reports a failed subscribe and there is nothing to go on.
-- Lay out how the address and promo code get collected before mount.
 
 Later
 
-- Cleanup job for abandoned incomplete rows.
+- Preview call for a tax-inclusive total shown before the user commits.
 - Manual sync command to reconcile against Stripe when a webhook is dropped.
 - Polling ceiling value and what the pending state looks like.
-- Work out the 100% promo case - what the API returns when there is no secret, and whether `once` codes are allowed alongside a trial.
+- Decide whether `once` promo codes are allowed alongside a trial, where the `$0` trial invoice consumes the code.
 
 Out of scope
 
