@@ -48,30 +48,34 @@ Entities
    1. Load the user's Stripe customer id. Create the customer on Stripe if there isn't one, and save the returned id.
    2. Push the address to the customer with `tax[validate_location]` set to `immediately`, whether or not tax is enabled. See the [address update flow](../../billing/stripe/address-update.md).
    3. An address Stripe cannot place fails here. A customer is the only thing that exists at this point, so there is nothing to tear down. Error back, the user corrects the address and retries.
-   4. Write the local address row once Stripe accepts, never before.
-   5. On success the wizard advances to the payment method stage, or back to confirm if the user came from the summary.
+   4. Stripe unreachable on either call fails the same way. Nothing is written locally, so the user retries as-is rather than correcting anything.
+   5. Write the local address row once Stripe accepts, never before.
+   6. On success the wizard advances to the payment method stage, or back to confirm if the user came from the summary.
 3. Client hits the API for a setup intent. Skipped when a payment method is already on file and the user did not press change. The element cannot mount without a secret, so this fires as the step opens rather than behind the confirm button.
    1. Load the user's Stripe customer id. No id means the address stage never ran, so fail back to the address stage.
    2. Retrieve the customer and read `customer.tax.automatic_tax`. `supported` and `not_collecting` both pass. `failed` and `unrecognized_location` fail back to the address stage. The value was stamped when the address was pushed, so the check costs a retrieve and re-sends no address.
    3. Create the SetupIntent against the customer with `usage` set to `off_session`. That `usage` value records the mandate while the user is present, and the mandate is what lets Stripe charge the first invoice later with the user gone.
-   4. Return `client_secret` to the client.
-   5. Nothing about price, currency, tax, promo or trial goes on this call. A SetupIntent has no amount field, so there is nothing to compute and nothing to keep in sync.
-   6. Every pass through the flow creates a new SetupIntent. An unconfirmed one holds no subscription, no trial and no money, so nothing has to be deduplicated and no cleanup is required.
+   4. Stripe erroring on the create errors back for display. Without a secret there is no mount, so the step cannot continue.
+   5. Return `client_secret` to the client.
+   6. Nothing about price, currency, tax, promo or trial goes on this call. A SetupIntent has no amount field, so there is nothing to compute and nothing to keep in sync.
+   7. Every pass through the flow creates a new SetupIntent. An unconfirmed one holds no subscription, no trial and no money, so nothing has to be deduplicated and no cleanup is required.
 4. Element mounts against the `client_secret` returned in step 3. Skipped whenever step 3 was skipped.
    1. Load stripe.js if it isn't already on the page.
    2. Call `elements({ clientSecret })` to build the Elements object. Local only, no network call.
    3. Call `paymentElement.mount(target)` to create the iframe.
-   4. No mode, no amount, no currency and no trial handling go on the mount. Stripe reads all of it off the SetupIntent.
-   5. User enters the payment details. The element validates format inline as they type. Nothing has gone to Stripe or to your API yet.
-   6. The details never touch your server. They sit in the iframe and go straight to Stripe when confirm runs.
+   4. stripe.js failing to load, or the mount failing, leaves the user with no way to enter a card. Show the failure rather than an empty box where the card fields should be.
+   5. No mode, no amount, no currency and no trial handling go on the mount. Stripe reads all of it off the SetupIntent.
+   6. User enters the payment details. The element validates format inline as they type. Nothing has gone to Stripe or to your API yet.
+   7. The details never touch your server. They sit in the iframe and go straight to Stripe when confirm runs.
 5. User presses confirm. What that runs depends on whether the element is on screen.
    1. Element mounted. Confirm calls `confirmSetup({ elements, clientSecret, confirmParams: { return_url }, redirect: 'if_required' })`. The `return_url` is mandatory.
    2. Response is success / error / 3DS. 3DS either runs in a dialog and resolves inline, or sends the browser away to the bank and back to your return url. Either way you end up at the same place, a stored payment method.
    3. An error leaves the element mounted against the same `client_secret`. The user corrects and presses confirm again, no new intent needed.
    4. If it redirected, the user comes back to a freshly loaded page with no state. Stripe appends `setup_intent_client_secret` to the return url, so the page reads it off the query and calls `retrieveSetupIntent` to see how it landed rather than starting the flow over. The wizard has to look for that key before running its landing checks, otherwise it drops the user back on the payment method step and mounts a fresh element over a payment method that is already stored.
    5. On success the client makes the billing sync call with the setup intent id. It reads `payment_method` off the intent, sets `invoice_settings.default_payment_method` on the customer, and writes brand and last4 locally. Without it the payment method is attached and nothing will charge it. See the billing capture flow.
-   6. Stripe fires the `setup_intent.succeeded` webhook for the same SetupIntent. Your webhook handler runs the same writes as the sync call, idempotently, so it is the backstop for every path where the sync call never lands. A browser that died after `confirmSetup`. A 3DS challenge that cleared at the bank while the user closed the tab instead of returning to `return_url`. A sync call that errored or timed out after the confirm already succeeded.
-   7. Payment method already on file. Confirm makes the subscribe call only, no intent and no sync.
+   6. The sync call failing errors back for display and stops before subscribe. The payment method is stored but not defaulted, so a subscription created now would have nothing to charge. The SetupIntent is still confirmed, so pressing confirm again retries the sync call and leaves the element alone. A refresh falls back to the landing checks in step 1, which find no card recorded and open on the payment method step again.
+   7. Stripe fires the `setup_intent.succeeded` webhook for the same SetupIntent. Your webhook handler runs the same writes as the sync call, idempotently, so it is the backstop for every path where the sync call never lands. A browser that died after `confirmSetup`. A 3DS challenge that cleared at the bank while the user closed the tab instead of returning to `return_url`. A sync call that errored or timed out after the confirm already succeeded.
+   8. Payment method already on file. Confirm makes the subscribe call only, no intent and no sync.
 6. Client hits the API to subscribe, sending `{ plan, interval, promo_code? }`. No payment method reference of any kind, the customer already carries a default from step 5.
    1. Work out trial eligibility here. The API already knows whether the user has burned a trial. The client is never told and never branches on it.
    2. Resolve the promo code into a Stripe promotion code object if one came through. Optional, no code means the step is skipped.
