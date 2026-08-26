@@ -69,8 +69,22 @@ Entities
    2. The billing sync call is what makes the captured payment method usable. It reads `payment_method` off the intent, sets `invoice_settings.default_payment_method` on the customer, and writes brand and last4 locally. Without it the payment method is attached and nothing will charge it. See the billing capture flow.
    3. Stripe fires the `setup_intent.succeeded` webhook for the same SetupIntent. Your webhook handler runs the same writes as the sync call, idempotently, so it is the backstop for every path where the sync call never lands. A browser that died after `confirmSetup`. A 3DS challenge that cleared at the bank while the user closed the tab instead of returning to `return_url`. A sync call that errored or timed out after the confirm already succeeded.
    4. Payment method already on file. Confirm makes the subscribe call only, no intent and no sync.
+6. Client hits the API to subscribe, sending `{ plan, interval, promo_code? }`. No payment method reference of any kind, the customer already carries a default from step 5.
+   1. Work out trial eligibility here. The API already knows whether the user has burned a trial. The client is never told and never branches on it.
+   2. Resolve the promo code into a Stripe promotion code object if one came through. Optional, no code means the step is skipped.
+   3. Create the subscription on Stripe with the customer id, the plan's price id, `trial_period_days` if eligible, `discounts: [{ promotion_code }]` if there was a code, `automatic_tax: { enabled: true }`, `off_session: true`, and `expand: ['latest_invoice.payment_intent', 'latest_invoice.confirmation_secret']`.
+   4. Send no `default_payment_method` and no `payment_behavior`. Stripe falls back to the customer's `invoice_settings.default_payment_method`, which the billing sync call set, and the default `payment_behavior` (`allow_incomplete`) is what makes Stripe attempt the charge.
+   5. Stripe creates the first invoice and settles it inside the same call. On a trial the invoice is `$0`, nothing is charged, and the subscription lands at `trialing` with `trial_end` stamped from now. Otherwise Stripe computes price plus tax minus discount, charges the customer's default payment method off-session, and the subscription lands at `active` if the charge cleared or `incomplete` if it did not. You never send an amount.
+   6. If the create errors, that error goes back to the client for display. The payment method is already stored and defaulted, so a retry does not ask the user for card details again.
+   7. On success write the local subscription row, now that the Stripe id exists. Stripe sub id, plan, interval, status.
+   8. Return the outcome, including whether the subscription is live or sitting at `incomplete`. An `incomplete` result carries the first invoice's client secret too, read off `latest_invoice.confirmation_secret.client_secret`, so the recovery screen has something to mount against.
 
-TODO: 3DS return and the subscribe call are not worked out yet.
+TODO:
+
+3DS, the confirmSetup response branches and the redirect return with setup_intent_client_secret.
+Error handling at each step. Step 3 has no error line at all now.
+Everything after subscribe. The subscription webhook, the poll on the auth user, the success action.
+Where the promo code lives, still an open TODO in the file.
 
 
 
