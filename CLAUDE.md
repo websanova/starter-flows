@@ -30,6 +30,7 @@
   2. `Actors & Entities` - who acts, what state and records exist
   3. `Flow` - numbered steps, the happy path
   4. `Diagram` - mermaid
+     - Always LR.
   5. `States` - state table plus allowed transitions
   6. `Rules` - access policy, plan and feature limits, validation
   7. `Edge & Error Cases` - table: case / cause / expected behavior
