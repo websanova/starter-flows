@@ -65,10 +65,13 @@ Entities
    5. User enters the payment details. The element validates format inline as they type. Nothing has gone to Stripe or to your API yet.
    6. The details never touch your server. They sit in the iframe and go straight to Stripe when confirm runs.
 5. User presses confirm. What that runs depends on whether the element is on screen.
-   1. Element mounted. Confirm runs three calls in order. `confirmSetup` against Stripe, then the billing sync call with the setup intent id, then the subscribe call.
-   2. The billing sync call is what makes the captured payment method usable. It reads `payment_method` off the intent, sets `invoice_settings.default_payment_method` on the customer, and writes brand and last4 locally. Without it the payment method is attached and nothing will charge it. See the billing capture flow.
-   3. Stripe fires the `setup_intent.succeeded` webhook for the same SetupIntent. Your webhook handler runs the same writes as the sync call, idempotently, so it is the backstop for every path where the sync call never lands. A browser that died after `confirmSetup`. A 3DS challenge that cleared at the bank while the user closed the tab instead of returning to `return_url`. A sync call that errored or timed out after the confirm already succeeded.
-   4. Payment method already on file. Confirm makes the subscribe call only, no intent and no sync.
+   1. Element mounted. Confirm calls `confirmSetup({ elements, clientSecret, confirmParams: { return_url }, redirect: 'if_required' })`. The `return_url` is mandatory.
+   2. Response is success / error / 3DS. 3DS either runs in a dialog and resolves inline, or sends the browser away to the bank and back to your return url. Either way you end up at the same place, a stored payment method.
+   3. An error leaves the element mounted against the same `client_secret`. The user corrects and presses confirm again, no new intent needed.
+   4. If it redirected, the user comes back to a freshly loaded page with no state. Stripe appends `setup_intent_client_secret` to the return url, so the page reads it off the query and calls `retrieveSetupIntent` to see how it landed rather than starting the flow over. The wizard has to look for that key before running its landing checks, otherwise it drops the user back on the payment method step and mounts a fresh element over a payment method that is already stored.
+   5. On success the client makes the billing sync call with the setup intent id. It reads `payment_method` off the intent, sets `invoice_settings.default_payment_method` on the customer, and writes brand and last4 locally. Without it the payment method is attached and nothing will charge it. See the billing capture flow.
+   6. Stripe fires the `setup_intent.succeeded` webhook for the same SetupIntent. Your webhook handler runs the same writes as the sync call, idempotently, so it is the backstop for every path where the sync call never lands. A browser that died after `confirmSetup`. A 3DS challenge that cleared at the bank while the user closed the tab instead of returning to `return_url`. A sync call that errored or timed out after the confirm already succeeded.
+   7. Payment method already on file. Confirm makes the subscribe call only, no intent and no sync.
 6. Client hits the API to subscribe, sending `{ plan, interval, promo_code? }`. No payment method reference of any kind, the customer already carries a default from step 5.
    1. Work out trial eligibility here. The API already knows whether the user has burned a trial. The client is never told and never branches on it.
    2. Resolve the promo code into a Stripe promotion code object if one came through. Optional, no code means the step is skipped.
@@ -81,7 +84,6 @@ Entities
 
 TODO:
 
-3DS, the confirmSetup response branches and the redirect return with setup_intent_client_secret.
 Error handling at each step. Step 3 has no error line at all now.
 Everything after subscribe. The subscription webhook, the poll on the auth user, the success action.
 Where the promo code lives, still an open TODO in the file.
