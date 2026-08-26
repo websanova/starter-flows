@@ -4,7 +4,7 @@ Feature flow specs for the starter projects.
 
 | Flow | Status | Updated |
 | ---- | ------ | ------- |
-| [Subscription Create - Stripe (Payment Element - billing first)](flows/subscriptions/stripe/create.md) | draft | 2026-08-25 |
+| [Subscription Create - Stripe (Payment Element, billing first)](flows/subscriptions/stripe/create.md) | draft | 2026-08-25 |
 | [Subscription Create - Stripe (Hosted Checkout)](flows/subscriptions/stripe/reference/create-hosted.md) | reference | 2026-08-17 |
 | [Subscription Create - Stripe (Embedded Checkout)](flows/subscriptions/stripe/reference/create-embedded.md) | reference | 2026-08-17 |
 | [Subscription Create - Stripe (Payment Element, deferred intent)](flows/subscriptions/stripe/reference/create-deferred.md) | reference | 2026-08-17 |
