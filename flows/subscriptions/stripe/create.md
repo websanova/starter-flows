@@ -13,9 +13,9 @@ Someone who lands on the page and leaves has a Checkout Session on Stripe and no
 
 The first concern carries over unchanged. A stored payment method proves nothing about a charge clearing later. On a trial nothing is charged at signup, so a card that cannot be charged is indistinguishable from one that can until the first real invoice runs at trial end with no user on the page. The failure arrives as a webhook, and the subscription has to carry state that forces the user back into entering a payment method through whatever mechanism gets built for it.
 
-The second concern is gone. The session knows its line items, so `getSession()` hands back a real total with tax and discount already applied, and it updates as the user changes the address or applies a code. Nothing has to be estimated and no "+ tax" line is needed.
+The second concern is gone. The session knows its line items, so `getSession()` hands back a real total with tax and discount already applied. Nothing has to be estimated and no "+ tax" line is needed. A promotion code moves the figure as soon as it is applied, an address does not, since the address element stopped writing itself onto the session and its value is only read at confirm.
 
-What replaces the old incomplete subscription handling is nothing, because there is nothing to handle. From API version `2025-03-31.basil` the subscription is created after payment completes rather than upfront, so a refused first charge leaves no subscription and no invoice behind. The session stays open and the user retries on the same one. Everything below assumes that version or later.
+What replaces the old incomplete subscription handling is nothing, because there is nothing to handle. From API version `2025-03-31.basil` the subscription is created after payment completes rather than upfront, so a refused first charge leaves no subscription and no invoice behind. The session stays open and the user retries on the same one. Everything below assumes `2026-03-25.dahlia` or later, which is a higher floor again, since that is where `ui_mode` took the value this flow uses.
 
 ## Flow
 
@@ -32,14 +32,15 @@ What replaces the old incomplete subscription handling is nothing, because there
    2. Call `stripe.initCheckoutElementsSdk({ clientSecret })`, then `await checkout.loadActions()` for the actions the rest of the page runs on.
    3. stripe.js failing to load, or the actions failing to resolve, leaves the user with nowhere to enter anything. Show the failure rather than an empty page where the form should be.
 3. Mount both elements. They sit on the one page rather than behind steps.
-   1. `checkout.createBillingAddressElement()`, prefilled through `contacts` off the local address row when there is one.
+   1. `checkout.createBillingAddressElement()`, prefilled through `defaultValues.billingAddress` on the init call off the local address row when there is one. `contacts` is a different thing, a picker for addresses already saved against the customer.
    2. `checkout.createPaymentElement()`.
    3. Country is an ISO alpha-2 select and the field layout follows the country, so the shape of an address is Stripe's problem rather than a hand rolled form's.
    4. Both take the same appearance object, so they match the rest of the app the way the payment element already did.
 4. Read the session for what to display.
-   1. `actions.getSession()` carries `total` and `lineItems`. Render those rather than pricing the plan locally.
+   1. `actions.getSession()` carries `total` and `lineItems`. Render those rather than pricing the plan locally. This is enforced rather than advised. Reading and displaying either `total.total.amount`, or `total.total.minorUnitsAmount` alongside `currency` and `minorUnitsAmountDivisor`, is required and Stripe throws if you skip it.
    2. The total is real. Tax is calculated off the address in the element, the discount off the promotion code, both by Stripe, both before anything is charged.
-   3. It updates as the user changes the address or applies a code, so the figure on screen is the figure that gets charged.
+   3. A promotion code updates the figure the moment it is applied. An address does not. The address element no longer writes itself onto the session, so its value is only picked up at confirm, and the total on screen reflects whatever address the session already carries until then.
+   4. If the total has to track the address as the user types, listen to the element's change event and push the value onto the session yourself. Worth deciding deliberately, since it trades a live tax figure against a call on every edit.
 5. Promotion codes belong to the session. `allow_promotion_codes` puts the field in play and the actions apply the code, so there is no verify call of your own and no code travelling on a subscribe payload to be resolved later.
 6. User presses subscribe. Client calls `actions.confirm({ redirect: 'if_required' })`.
    1. One call. It submits the address and the card, creates the subscription, and settles the first invoice.
@@ -72,8 +73,8 @@ flowchart LR
     G --> H["initCheckoutElementsSdk({ clientSecret })<br/>then loadActions()"]
     H --> I{Loaded?}
     I -->|no| I1[Show the failure, not an empty page<br/>where the form should be]
-    I -->|yes| J["createBillingAddressElement, prefilled<br/>from the local row via contacts<br/>createPaymentElement"]
-    J --> K["getSession() carries total and lineItems.<br/>A real figure, tax and discount applied,<br/>updating as the user edits"]
+    I -->|yes| J["createBillingAddressElement, prefilled from the<br/>local row via defaultValues.billingAddress<br/>createPaymentElement"]
+    J --> K["getSession() carries total and lineItems.<br/>Displaying it is required, not optional.<br/>A code moves it, an address only at confirm"]
     K --> L[User enters the address and card,<br/>applies a promotion code]
     L --> M[User presses subscribe]
     M --> N["actions.confirm({ redirect: 'if_required' })"]
@@ -91,7 +92,9 @@ flowchart LR
 
 ## Rules
 
-- API version `2025-03-31.basil` or later. Earlier versions create the subscription upfront and leave an incomplete one with a finalized invoice behind on a refused charge, which brings back all the reconciliation this flow deliberately does not do.
+- API version `2026-03-25.dahlia` or later. Two separate reasons stack up to that floor. `2025-03-31.basil` is where the subscription started being created after payment completes, and anything earlier creates it upfront and leaves an incomplete one with a finalized invoice behind on a refused charge, which brings back all the reconciliation this flow deliberately does not do. Dahlia is where `ui_mode` gained `elements`, which is the value used throughout here. On Basil the same thing is called `custom`.
+- Displaying the session total is required. Stripe throws if the page never reads it.
+- The billing address element does not write itself onto the session. Its value is read at confirm unless you wire the change event yourself.
 - Authenticated user required.
 - Create the Stripe customer before the session if there isn't one. Passing `customer` also satisfies the session's email requirement.
 - Trial eligibility is decided server side. The client is never told and never branches on it.
