@@ -19,14 +19,15 @@ What replaces the old incomplete subscription handling is nothing, because there
 
 ## Flow
 
-1. User hits the subscribe page. Client asks the API for a Checkout Session. Both elements go up together, so there is nothing to route between and no landing checks to run.
-   1. Load the user's Stripe customer id. Create the customer on Stripe if there isn't one, and save the returned id. Passing `customer` on the session is also what satisfies its email requirement, so no contact details element is needed.
-   2. Work out trial eligibility here. The API already knows whether the user has burned a trial. The client is never told and never branches on it.
-   3. Create the session with `ui_mode: 'elements'`, `mode: 'subscription'`, the customer, `line_items` carrying the plan's price id at quantity one, a `return_url`, `automatic_tax: { enabled: true }`, `billing_address_collection: 'required'`, `allow_promotion_codes: true`, and `subscription_data.trial_period_days` when eligible.
-   4. Card up front on a trial is the default. `payment_method_collection` only needs setting when you want a trial without a card, which is the opposite of what this flow wants, so it is left alone.
-   5. Nothing is created beyond the session itself. No address is written to the customer, no intent is opened, no subscription exists. A user who abandons here leaves a session that ages out on its own, so there is nothing to deduplicate and nothing to clean up.
-   6. Stripe erroring on the create errors back for display. Without a client secret there is nothing to mount, so the page cannot continue.
-   7. Return the session's `client_secret`.
+1. User hits the subscribe page. Client asks the API for a Checkout Session. Both elements go up together, so there is nothing to route between and no landing checks on the client.
+   1. Refuse if the user already has a subscription, before anything is created. A live one, which counts a trial and a cancelled one still inside its paid term, is `already_subscribed`. Past due or unpaid is `payment_required`, kept separate so the client can send them to the card page instead of telling them they are already subscribed. Reject either way, and there is no success to hand back. See the note below.
+   2. Load the user's Stripe customer id. Create the customer on Stripe if there isn't one, and save the returned id. Passing `customer` on the session is also what satisfies its email requirement, so no contact details element is needed.
+   3. Work out trial eligibility here. The API already knows whether the user has burned a trial. The client is never told and never branches on it.
+   4. Create the session with `ui_mode: 'elements'`, `mode: 'subscription'`, the customer, `line_items` carrying the plan's price id at quantity one, a `return_url`, `billing_address_collection: 'required'`, `allow_promotion_codes: true`, `automatic_tax: { enabled: true }` when the app's automatic tax flag is on, and `subscription_data.trial_end` when eligible. `trial_end` rather than `trial_period_days`, since a user carrying a partial trial keeps whatever is left of it and a whole number of days cannot say that.
+   5. Card up front on a trial is the default. `payment_method_collection` only needs setting when you want a trial without a card, which is the opposite of what this flow wants, so it is left alone.
+   6. Nothing is created beyond the session itself. No address is written to the customer, no intent is opened, no subscription exists. A user who abandons here leaves a session that ages out on its own, so there is nothing to deduplicate and nothing to clean up.
+   7. Stripe erroring on the create errors back for display. Without a client secret there is nothing to mount, so the page cannot continue.
+   8. Return the session's `client_secret`.
 2. Client initialises Checkout against that secret.
    1. Load stripe.js if it isn't already on the page.
    2. Call `stripe.initCheckoutElementsSdk({ clientSecret })`, then `await checkout.loadActions()` for the actions the rest of the page runs on.
@@ -56,7 +57,8 @@ What replaces the old incomplete subscription handling is nothing, because there
    4. Write the card brand and last4.
    5. The sync call failing errors back for display. Everything is already correct at Stripe, only the local rows are behind, so a retry is idempotent and the webhook lands regardless.
    6. Stripe fires `checkout.session.completed` for the same session. The handler runs the same writes, idempotently, so it is the backstop for every path where the sync call never lands. A browser that died after confirm. A challenge that cleared at the bank while the user closed the tab instead of returning. A sync call that errored or timed out after the confirm already succeeded.
-   7. Do not look for the invoice before the session reaches `complete`. It does not exist until then, which is why completion is the trigger rather than a payment intent event.
+   7. Both writers should expect a user who is already subscribed by the time they run, rather than assuming they are writing the first subscription. See the note below.
+   8. Do not look for the invoice before the session reaches `complete`. It does not exist until then, which is why completion is the trigger rather than a payment intent event.
 8. Client refreshes the auth user so everything reading subscription state picks up the new row, then takes the success action. Redirect to billing, a success page, wherever.
 
 ## Diagram
@@ -64,9 +66,11 @@ What replaces the old incomplete subscription handling is nothing, because there
 ```mermaid
 flowchart LR
     A[User hits the subscribe page] --> B[Client asks the API<br/>for a Checkout Session]
-    B --> C[Load or create the Stripe customer,<br/>save the returned id]
+    B --> B1{Subscription already<br/>on the user?}
+    B1 -->|"live, past due or unpaid"| B2[Refuse. already_subscribed,<br/>or payment_required.<br/>No session is created]
+    B1 -->|no| C[Load or create the Stripe customer,<br/>save the returned id]
     C --> D[Work out trial eligibility.<br/>The client is never told]
-    D --> E["checkout.sessions.create<br/>ui_mode: elements, mode: subscription<br/>customer, line_items, return_url<br/>automatic_tax, billing_address_collection<br/>allow_promotion_codes, trial_period_days?"]
+    D --> E["checkout.sessions.create<br/>ui_mode: elements, mode: subscription<br/>customer, line_items, return_url<br/>billing_address_collection, allow_promotion_codes<br/>automatic_tax when the flag is on, trial_end?"]
     E --> F{Result}
     F -->|error| F1[Error back for display.<br/>No secret means nothing mounts]
     F -->|ok| G[Return client_secret]
@@ -96,6 +100,8 @@ flowchart LR
 - Displaying the session total is required. Stripe throws if the page never reads it.
 - The billing address element does not write itself onto the session. Its value is read at confirm unless you wire the change event yourself.
 - Authenticated user required.
+- A user who already has a subscription never gets a session. Live, past due and unpaid all refuse, since the subscription exists at Stripe in every one of those cases and a second one is wrong regardless.
+- Dunning is not this flow. Past due and unpaid are refused here and handled somewhere that does not exist yet.
 - Create the Stripe customer before the session if there isn't one. Passing `customer` also satisfies the session's email requirement.
 - Trial eligibility is decided server side. The client is never told and never branches on it.
 - Card up front on a trial is the default. Leave `payment_method_collection` alone.
@@ -104,3 +110,21 @@ flowchart LR
 - A refused charge leaves nothing behind. The same session is confirmed again rather than replaced.
 - Only the sync call and the `checkout.session.completed` webhook write local rows, and both are idempotent.
 - The local address row needs a `state` column. The billing address element collects one.
+
+## Notes
+
+### Note on 1.1 - why the subscription check sits here
+
+Stripe creates the subscription inside the confirm, in the browser. The server sees the user once, when it hands out the session secret, so that is the only place a check can run at all.
+
+Reject either way. The subscription exists at Stripe whether it is live, past due or unpaid, so a second one is wrong regardless. There is nothing to hand back on success either, since the only thing this request returns is a session secret, and a subscription is not that. A double submit gets the same refusal as anything else.
+
+Past due and unpaid get their own error rather than sharing one, so the client can send the user to the card page. What happens after that, a new card, a retry on the open invoice, or dropping them, belongs to a dunning flow that has not been written.
+
+### Note on 7.7 - a session outlives the check that allowed it
+
+The check runs once, when the secret is handed out, and Stripe keeps a session usable for up to a day after that. So a user can pass the check with no subscription, leave the tab open, subscribe on another device or be set up by an admin, then come back to the stale tab and press subscribe. It goes through, and they have two.
+
+Nothing at the front of the flow catches that, it already ran and it passed at the time. The only code that sees it is what writes the local rows after the payment clears, so the sync call and the webhook handler are where it would have to be dealt with.
+
+Open. Whether anything is actually done about it is undecided. It is a narrow case, and it is written down so whoever builds step 7 has seen it, not because there is an answer.
