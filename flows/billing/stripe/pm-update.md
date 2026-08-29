@@ -33,7 +33,7 @@ Entities
 
 ## Flow
 
-1. User lands on the dedicated billing update page. It shows the payment method currently on file (brand, last4) off the local row. The route is guarded on there being one, so a user with nothing to replace is sent back to billing before the page loads.
+1. User lands on the dedicated billing update page. The route is guarded on a payment method being on file, so a user with nothing to replace is sent back to billing before the page loads.
 2. On page load, without waiting for any user action, the client hits the API for a setup intent. Nothing to send, the customer is the authenticated user. The element cannot mount without a secret, so this fires before the form is usable rather than behind a save or a change payment method button.
    1. Load the user's Stripe customer id from your DB. It has to already exist, the payment method being replaced was entered during subscribe. No customer id means there is nothing to update, error back. The guard on the route means this is a backstop for a direct hit rather than something the user can walk into.
    2. Create a SetupIntent on Stripe with `customer` and `usage: 'off_session'`. The `off_session` part matters, the payment method gets charged by the renewal with nobody at the keyboard, and that is what sets the mandate up for it.
@@ -61,8 +61,7 @@ Entities
 
 ```mermaid
 flowchart LR
-    A[Billing update page] --> B["Show payment method on file<br/>brand, last4"]
-    A -->|on load| C["POST /payment-method/intent"]
+    A[Billing update page] -->|on load| C["POST /payment-method/intent"]
     C --> D[Load Stripe customer id]
     D --> E["setupIntents.create<br/>usage: off_session"]
     E --> F[Return client_secret]
