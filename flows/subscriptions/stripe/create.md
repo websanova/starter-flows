@@ -24,7 +24,7 @@ What replaces the old incomplete subscription handling is nothing, because there
    2. Expire every open session the customer already has. One live session at a time, so a tab left open on another device cannot be confirmed after this one is handed out. Only an `open` session can be expired and a completed one throws, so the sweep swallows that rather than failing the create on it. See the note below.
    3. Refuse if the user already has a subscription. A live one, which counts a trial and a cancelled one still inside its paid term, comes back as `already_subscribed` on the response's `error` field. Past due or unpaid is `payment_required`, kept separate so the client can send them to the card page instead of telling them they are already subscribed. Reject either way, and there is no success to hand back. It sits after the sweep so that anything an abandoned session already completed is visible to it rather than racing it, and nothing but the customer exists by the time it runs. See the note below.
    4. Work out trial eligibility here. The API already knows whether the user has burned a trial. The client is never told and never branches on it.
-   5. Create the session with `ui_mode: 'elements'`, `mode: 'subscription'`, the customer, `line_items` carrying the plan's price id at quantity one, a `return_url`, `billing_address_collection: 'required'`, `allow_promotion_codes: true`, `automatic_tax: { enabled: true }` when the app's automatic tax flag is on, and `subscription_data.trial_end` when eligible. `trial_end` rather than `trial_period_days`, since a user carrying a partial trial keeps whatever is left of it and a whole number of days cannot say that.
+   5. Create the session with `ui_mode: 'elements'`, `mode: 'subscription'`, the customer, `line_items` carrying the plan's price id at quantity one, a `return_url`, `billing_address_collection: 'required'`, `allow_promotion_codes: true`, `customer_update: { address: 'auto', name: 'auto' }`, `automatic_tax: { enabled: true }` when the app's automatic tax flag is on, and `subscription_data.trial_end` when eligible. `trial_end` rather than `trial_period_days`, since a user carrying a partial trial keeps whatever is left of it and a whole number of days cannot say that.
    6. Card up front on a trial is the default. `payment_method_collection` only needs setting when you want a trial without a card, which is the opposite of what this flow wants, so it is left alone.
    7. Nothing is created beyond the session itself. No address is written to the customer, no intent is opened, no subscription exists. A user who abandons here leaves a session that ages out on its own, or gets swept by their next create, so there is nothing to deduplicate and nothing to clean up.
    8. Stripe erroring on the create errors back for display. Without a client secret there is nothing to mount, so the page cannot continue.
@@ -34,7 +34,7 @@ What replaces the old incomplete subscription handling is nothing, because there
    2. Call `stripe.initCheckoutElementsSdk({ clientSecret })`, then `await checkout.loadActions()` for the actions the rest of the page runs on.
    3. stripe.js failing to load, or the actions failing to resolve, leaves the user with nowhere to enter anything. Show the failure rather than an empty page where the form should be.
 3. Mount both elements. They sit on the one page rather than behind steps.
-   1. `checkout.createBillingAddressElement()`, prefilled through `defaultValues.billingAddress` on the init call off the local address row when there is one. `contacts` is a different thing, a picker for addresses already saved against the customer.
+   1. `checkout.createBillingAddressElement()`, prefilled through `defaultValues.billingAddress` on the init call off the local address row when there is one, the name along with the address. `contacts` is a different thing, a picker for addresses already saved against the customer.
    2. `checkout.createPaymentElement({ fields: { billingDetails: { name: 'never' } } })`. The billing address element collects a name and gives no option not to, so the payment element has to stand down. Leaving both on it fails the confirm for collecting the same field twice.
    3. Country is an ISO alpha-2 select and the field layout follows the country, so the shape of an address is Stripe's problem rather than a hand rolled form's.
    4. Both take the same appearance object, so they match the rest of the app the way the payment element already did.
@@ -54,7 +54,7 @@ What replaces the old incomplete subscription handling is nothing, because there
 7. Client makes the subscription sync call once the session completes. One call writes every local row, all of it read off the one session.
    1. Retrieve the session with the subscription expanded.
    2. Write the subscription row, now that the Stripe id exists. Stripe sub id, plan, interval, status.
-   3. Write the address row from the address Stripe collected.
+   3. Write the address row from the name and address Stripe collected, both off the session's `customer_details`.
    4. Write the card brand and last4.
    5. The sync call failing errors back for display. Everything is already correct at Stripe, only the local rows are behind, so a retry is idempotent and the webhook lands regardless.
    6. Stripe fires `checkout.session.completed` for the same session. The handler runs the same writes, idempotently, so it is the backstop for every path where the sync call never lands. A browser that died after confirm. A challenge that cleared at the bank while the user closed the tab instead of returning. A sync call that errored or timed out after the confirm already succeeded.
@@ -112,7 +112,8 @@ flowchart LR
 - The subscription and its invoice only exist once the session reaches `complete`. Nothing should read the invoice before that.
 - A refused charge leaves nothing behind. The same session is confirmed again rather than replaced.
 - Only the sync call and the `checkout.session.completed` webhook write local rows, and both are idempotent.
-- The local address row needs a `state` column. The billing address element collects one.
+- The local address row needs `state` and `name` columns. The billing address element collects both.
+- The API never pushes the name on this path. `customer_update` has Stripe copy it onto the customer at confirm, unlike the billing address page where the API sends it itself.
 
 ## Notes
 
