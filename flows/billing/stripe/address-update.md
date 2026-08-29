@@ -7,7 +7,7 @@ Updated: 2026-08-29
 
 Saving a billing address from the account pages, collected in a Stripe Address Element rather than a form of our own. There is no intent, no client secret, no confirm and no webhook. The element is a widget and nothing it collects goes to Stripe from the browser. Its value comes back to the client, and the address only reaches Stripe through our own customer update on the server.
 
-The page updates an address that already exists. The billing page only links to it when there is one, and the first address is collected by subscribe in its own session element, so there is no add path here. A user who never subscribes never sets one, which is right, since nothing is billing them.
+The page updates an address that already exists. The billing page only links to it when there is one, the route is guarded on the same thing so a direct hit is sent back rather than coming up empty, and the first address is collected by subscribe in its own session element, so there is no add path here. A user who never subscribes never sets one, which is right, since nothing is billing them.
 
 The address goes to Stripe first and only reaches the local record if Stripe accepts it. If it doesn't, the request errors and nothing changes. A customer is always there to update, since an address on file means subscribe already made one, so arriving here without one is a broken state rather than a first address.
 
@@ -43,7 +43,7 @@ Entities
 2. User edits the address. The change event reports `complete` along with the value. Submit stays disabled until it is complete, and nothing has left the browser at any point.
 3. User submits. The client reads the value off the element and sends it to the API.
    1. Validate the basic shape. It doesn't need to be anything fancy, the element has already enforced the country's own field rules and Stripe verifies the address properly on the next call. This is a backstop for a request that did not come from the element, not the validation the user sees, and nothing here should be built to render field errors.
-   2. Load the user's Stripe customer id. There is always one, since nothing links here without an address on file and an address on file means subscribe already created it. If there isn't, error out rather than creating one. Same backstop as the shape check above and for the same case, the page being opened directly.
+   2. Load the user's Stripe customer id. There is always one, since the route is guarded on an address being on file and an address on file means subscribe already created it. If there isn't, error out rather than creating one. Same backstop as the shape check above and for the same case, a request that did not come through the page.
    3. Update `address` and `name` with `tax[validate_location]` set to `immediately` to ensure the address resolves to a valid tax jurisdiction. `name` is `customer.name`, which sits alongside `address` on the customer rather than inside it.
    4. Send every field on every save, empty where the user cleared it. Stripe only touches what it is sent, so a field left out of the call keeps whatever was on the customer before. A country change is where that bites, since the element stops rendering a state for a country that has none and the old subdivision stays sitting under the new country. An empty string is what clears one.
    5. If the response is a success we can proceed to write the local row, otherwise relay the error to the front end to display for the user.
@@ -81,7 +81,7 @@ flowchart LR
 
 - Authenticated user required.
 - The address is collected in a Stripe Address Element. There is no form of our own, no field rules of our own and no country list of our own.
-- Update only. The billing page links here when an address is on file and offers nothing when there isn't, since subscribe collects the first one.
+- Update only. The billing page links here when an address is on file and offers nothing when there isn't, and the route is guarded on it, since subscribe collects the first one.
 - No intent, no client secret, no confirm, no 3DS and no webhook. The element is a widget and the address reaches Stripe only through our own customer update.
 - The element always renders a name field. `display.name` only changes its shape, so the billing name is stored rather than collected and thrown away.
 - Neither `contacts` nor `customerSessionClientSecret` is passed. The element never renders Stripe's saved addresses.
@@ -102,7 +102,8 @@ flowchart LR
 | stripe.js fails to load | Network, blocker, provider down | Show the failure. There is no fallback form to fall back to |
 | Submit pressed on an incomplete address | Should not happen, the button is gated on the element's complete flag | Nothing is sent. The element draws its own field errors |
 | Shape validation fails | Request did not come from the element | Reject before anything is pushed. Nothing is written locally or at Stripe |
-| No Stripe customer id | Page opened directly, the user never subscribed | Reject. Nothing is written locally and no customer is created. Not a path the billing page offers |
+| No address on file | User never subscribed | Guarded route, sent back to billing before the page loads. Subscribe collects the first address |
+| No Stripe customer id | Request did not come through the page | Reject. Nothing is written locally and no customer is created. A backstop behind the guard |
 | User clears an optional field | line2 or city emptied, or a country change that drops the state | The field goes as an empty string and Stripe clears it. Leaving it out would keep the old value on the customer while the local row goes empty |
 | Address resolves to no tax jurisdiction | Stripe cannot place it | The update errors, the error is relayed, nothing is written anywhere |
 | Stripe errors on the customer update | Provider unavailable | Error back, local row untouched, user retries |
