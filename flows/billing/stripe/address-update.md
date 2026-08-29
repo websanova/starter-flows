@@ -9,7 +9,7 @@ Saving a billing address from the account pages, collected in a Stripe Address E
 
 The page updates an address that already exists. The billing page only links to it when there is one, and the first address is collected by subscribe in its own session element, so there is no add path here. A user who never subscribes never sets one, which is right, since nothing is billing them.
 
-If the user has a Stripe customer the address goes to Stripe first and only reaches the local record if Stripe accepts it. If it doesn't, the request errors and nothing changes. Without a customer it is a local write and nothing is pushed.
+The address goes to Stripe first and only reaches the local record if Stripe accepts it. If it doesn't, the request errors and nothing changes. A customer is always there to update, since an address on file means subscribe already made one, so arriving here without one is a broken state rather than a first address.
 
 Setting `tax[validate_location]` to `immediately` returns an error and leaves the customer unchanged when the address cannot be placed, so an unplaceable address never reaches the local record. What it does not check is registration. An address that resolves cleanly in a jurisdiction you are not registered in comes back with `automatic_tax` at `not_collecting` and bills zero tax, which you may still be liable for.
 
@@ -27,7 +27,7 @@ Actors
 Entities
 
 - Local address row - name, country, line1, line2, city, postal code, state.
-- Stripe Customer - carries `address` and `name`. May not exist, the user may never have subscribed.
+- Stripe Customer - carries `address` and `name`. Created by subscribe, so one is already there by the time this page is reachable.
 - Address Element - a form widget and nothing more. It holds no intent, stores nothing at Stripe, and has no server side of its own.
 
 ## Flow
@@ -43,9 +43,10 @@ Entities
 2. User edits the address. The change event reports `complete` along with the value. Submit stays disabled until it is complete, and nothing has left the browser at any point.
 3. User submits. The client reads the value off the element and sends it to the API.
    1. Validate the basic shape. It doesn't need to be anything fancy, the element has already enforced the country's own field rules and Stripe verifies the address properly on the next call. This is a backstop for a request that did not come from the element, not the validation the user sees, and nothing here should be built to render field errors.
-   2. Load the user's Stripe customer id. If there isn't one the user has never subscribed, so the write is local only and there is nothing to push. Do not create a customer for this. Subscribe creates one and pushes the address through its session anyway. This is a backstop for the page being opened directly, since nothing links here without an address on file.
-   3. If there is a Stripe customer update `address` and `name` with `tax[validate_location]` set to `immediately` to ensure the address resolves to a valid tax jurisdiction. `name` is `customer.name`, which sits alongside `address` on the customer rather than inside it.
-   4. If the response is a success we can proceed to write the local row, otherwise relay the error to the front end to display for the user.
+   2. Load the user's Stripe customer id. There is always one, since nothing links here without an address on file and an address on file means subscribe already created it. If there isn't, error out rather than creating one. Same backstop as the shape check above and for the same case, the page being opened directly.
+   3. Update `address` and `name` with `tax[validate_location]` set to `immediately` to ensure the address resolves to a valid tax jurisdiction. `name` is `customer.name`, which sits alongside `address` on the customer rather than inside it.
+   4. Send every field on every save, empty where the user cleared it. Stripe only touches what it is sent, so a field left out of the call keeps whatever was on the customer before. A country change is where that bites, since the element stops rendering a state for a country that has none and the old subdivision stays sitting under the new country. An empty string is what clears one.
+   5. If the response is a success we can proceed to write the local row, otherwise relay the error to the front end to display for the user.
 4. Refresh the auth user and take the success action. The local row is what prefills the element next time, so it has to be the one that was just written.
 5. Nothing is charged and no invoice is created. The current cycle is already finalized and its tax is locked at the rate that applied when it was issued.
 6. The change applies from the next renewal invoice. Stripe recomputes tax off the customer address every time it creates one, so nothing on the subscription has to be re-pointed.
@@ -65,15 +66,14 @@ flowchart LR
     F -->|no| F1[Reject, nothing pushed]
     F -->|yes| G{Stripe customer id?}
 
-    G -->|none| H[Write local row only.<br/>No customer is created]
-    G -->|exists| I["customers.update<br/>address, name, validate_location"]
+    G -->|none| H[Reject. No customer means the page<br/>was opened directly]
+    G -->|exists| I["customers.update, every field sent<br/>address, name, validate_location"]
 
     I --> J{Result}
     J -->|error| J1["Relay the error,<br/>nothing written anywhere"]
     J -->|success| K[Write local row]
 
-    H --> L[Refresh the auth user,<br/>success action]
-    K --> L
+    K --> L[Refresh the auth user,<br/>success action]
     L --> M["Next renewal invoice<br/>computes tax off the new address"]
 ```
 
@@ -86,7 +86,8 @@ flowchart LR
 - The element always renders a name field. `display.name` only changes its shape, so the billing name is stored rather than collected and thrown away.
 - Neither `contacts` nor `customerSessionClientSecret` is passed. The element never renders Stripe's saved addresses.
 - API side shape validation is a backstop for requests that did not come from the element. It is not what the user sees and should not grow field error handling.
-- No Stripe customer id means the user never subscribed. Write locally, push nothing, and do not create a customer.
+- A Stripe customer is always there to update. No customer id is an error, not a local write and not a reason to create one.
+- Every address field goes on every save, empty where it was cleared. A field left out of the call keeps its old value on the customer.
 - Push to Stripe first. The local row is written only on a successful update.
 - The local address row needs `state` and `name` columns. The element collects both.
 - Never write `billing_details.address` on the payment method. Tax reads the customer address while one is set, AVS reads the payment method address.
@@ -101,7 +102,8 @@ flowchart LR
 | stripe.js fails to load | Network, blocker, provider down | Show the failure. There is no fallback form to fall back to |
 | Submit pressed on an incomplete address | Should not happen, the button is gated on the element's complete flag | Nothing is sent. The element draws its own field errors |
 | Shape validation fails | Request did not come from the element | Reject before anything is pushed. Nothing is written locally or at Stripe |
-| No Stripe customer id | Page opened directly, the user never subscribed | Write the local row, push nothing, create no customer. Not an error, and not a path the billing page offers |
+| No Stripe customer id | Page opened directly, the user never subscribed | Reject. Nothing is written locally and no customer is created. Not a path the billing page offers |
+| User clears an optional field | line2 or city emptied, or a country change that drops the state | The field goes as an empty string and Stripe clears it. Leaving it out would keep the old value on the customer while the local row goes empty |
 | Address resolves to no tax jurisdiction | Stripe cannot place it | The update errors, the error is relayed, nothing is written anywhere |
 | Stripe errors on the customer update | Provider unavailable | Error back, local row untouched, user retries |
 | Stripe write succeeds, local write fails | Partial failure | Stripe is correct and tax is right, the page shows the old address. Retry is idempotent, the same address pushes again |
@@ -114,7 +116,7 @@ The element rather than a form of our own. `tax[validate_location]` at `immediat
 
 Plain Elements rather than the Checkout Session SDK. `createBillingAddressElement()` only exists on a session, and there is no session outside subscribe. The element instance is the same type either way, so the difference is confined to how it is constructed and where the value is sent afterwards.
 
-No customer is created here. An address is not a reason to open a customer at Stripe for someone who has never paid, and subscribe creates one and pushes the address through its session when the time comes. This keeps a user who edits an address and never subscribes as a local row and nothing else.
+No customer is created here. The page is update only, so one already exists, and a request without one is a broken state rather than a first address. Creating it would open a customer at Stripe for someone who has never paid and hand back a success, which reads as the address being saved somewhere it matters. Subscribe creates the customer and pushes the first address through its session when the time comes.
 
 No webhook. There is no intent, no confirm and no challenge, so nothing can settle after the response. There is nothing to poll for and nothing to reconcile against on the happy path.
 
