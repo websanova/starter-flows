@@ -14,6 +14,7 @@ Feature flow specs for the starter projects.
 | [Billing Payment Method Update - Stripe (Payment Element)](flows/billing/stripe/pm-update.md) | draft | 2026-08-17 |
 | [Billing Payment Method Delete - Stripe](flows/billing/stripe/pm-delete.md) | draft | 2026-08-17 |
 | [Billing Address Update - Stripe](flows/billing/stripe/address-update.md) | draft | 2026-08-17 |
+| [Subscription Guards](flows/subscriptions/guards.md) | WIP | 2026-08-30 |
 
 A `reference/` directory holds strategies that were evaluated and not taken. The chosen one is the flow file beside it.
 
@@ -37,7 +38,7 @@ Work the flow out here first, then paste it into a session in the target code re
 * `Review this flow for missing parts to add to our code.`
 * `Review this flow against the code and report what needs updating.`
 
-Status: `draft` (being worked out), `approved` (ready to execute), `implemented` (executed in at least one repo), `reference` (research, not executable). Section template in [CLAUDE.md](CLAUDE.md).
+Status: `WIP` (ideas being gathered), `draft` (being worked out), `approved` (ready to execute), `implemented` (executed in at least one repo), `reference` (research, not executable). Section template in [CLAUDE.md](CLAUDE.md).
 
 ## Docker
 

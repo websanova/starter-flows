@@ -140,6 +140,12 @@
             border: 1px solid;
         }
 
+        .badge.wip {
+            color: #9a6700;
+            border-color: #d4a72c66;
+            background: #d4a72c22;
+        }
+
         .badge.draft {
             color: #9a6700;
             border-color: #d4a72c66;
@@ -165,6 +171,7 @@
         }
 
         @media (prefers-color-scheme: dark) {
+            .badge.wip { color: #d29922; }
             .badge.draft { color: #d29922; }
             .badge.approved { color: #4493f8; }
             .badge.implemented { color: #3fb950; }
@@ -333,7 +340,7 @@
             el.innerHTML = '<div class="error"><strong>' + title + '</strong><p>' + detail + '</p></div>';
         };
 
-        const readStatus = text => (text.match(/^Status:\s*(draft|approved|implemented|reference)/mi) || [])[1] || '';
+        const readStatus = text => (text.match(/^Status:\s*(approved|draft|implemented|reference|wip)/mi) || [])[1] || '';
 
         const encodePath = path => path.split('/').map(encodeURIComponent).join('/');
 
@@ -361,7 +368,12 @@
         }
 
         async function fetchIndex () {
-            return (await listDir('')).sort((a, b) => a.name.localeCompare(b.name));
+            return (await listDir('')).sort((a, b) => {
+                const ad = a.name.slice(0, a.name.lastIndexOf('/') + 1);
+                const bd = b.name.slice(0, b.name.lastIndexOf('/') + 1);
+
+                return ad === bd ? a.name.localeCompare(b.name) : ad.localeCompare(bd);
+            });
         }
 
         async function fetchDoc (name) {
