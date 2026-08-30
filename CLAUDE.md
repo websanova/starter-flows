@@ -60,6 +60,15 @@
 - Cut any sentence that adds no information. Shortest version that stays clear wins, and "clear" is judged by `Who You Are Writing For`.
 - No hedging, no qualifiers, no repeating a point already made in another section.
 
+## Standalone Documents
+- A flow describes the current design only. It is not a changelog and carries no revision history.
+- Never write a flow against a previous version of itself. No "no longer", "anymore", "used to", "previously", "now that", "instead of", "we removed", "this replaces", "as before". If a thing is gone, the thing does not appear in the file at all.
+- Edits are rewrites, not diffs. When something changes, rewrite the affected sections so they read as if the new design was always the design. Delete the old text, never annotate it.
+- The only place a rejected option may be named is `Decisions`, and only when a real fork existed with a real cost. Write the fork in the present ("X over Y, because"), never as history ("we switched from Y").
+- Tense applies to the document, not the runtime. Describing state inside a step is fine ("the subscription is no longer chargeable", "the session no longer accepts a confirm"). Describing the document's own past is not.
+- After every edit, grep the file for the banned phrases above. Each hit is either a runtime-state sentence or a violation, decided by asking "no longer relative to what, the user's subscription or an earlier version of this file".
+- After every edit, reread the touched section start to finish as a cold reader with no knowledge of what changed. A sentence that only earns its place by explaining a delta gets cut.
+
 ## Responses
 - Answer the question that was asked. Nothing else. Length follows the question.
 - Never volunteer a proposal, an alternative, or a next step. Only when asked.
