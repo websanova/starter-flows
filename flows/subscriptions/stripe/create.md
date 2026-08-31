@@ -3,21 +3,30 @@
 Status: draft
 Updated: 2026-08-31
 
-## Purpose & Scope
+## Description
 
-One Checkout Session does the whole thing. The billing address, the card, the promotion code, the tax calculation and the subscription all hang off a single session created server side, and the client mounts two elements against it and confirms once.
+A user with no subscription signs up for a plan on the app's own page. A two step wizard collects the billing address, then the payment method, and one confirm creates the subscription and settles the first invoice. The billing address, the card, the promotion code, the tax calculation and the subscription all hang off a single Stripe Checkout Session created on the back end.
 
-The page runs as two steps, address then payment. Both elements are created and mounted together and the steps only show and hide them. The steps exist for one reason. The billing address element does not write itself onto the session, so no tax is calculated against it until something pushes it, and once something does, Stripe refuses to confirm while that element is still mounted. Leaving a step is a natural place to push and unmount, and coming back to it is a natural place to mount again, which a single page with everything standing has nowhere to put.
+## Requirements
 
-Someone who lands on the page and leaves has a Checkout Session on Stripe and nothing else. No subscription is opened, no trial clock is started, no local row is written, and the session ages out on its own.
-
-A stored payment method proves nothing about a charge clearing later. On a trial nothing is charged at signup, so a card that cannot be charged is indistinguishable from one that can until the first real invoice runs at trial end with no user on the page. The failure arrives as a webhook, and the subscription has to carry state that forces the user back into entering a payment method through whatever mechanism gets built for it.
-
-The session knows its line items, so `getSession()` hands back a real total with tax and discount already applied by Stripe. Nothing is priced or estimated on the client. That total is only as good as what the session is carrying, though. A promotion code moves it the moment it is applied, an address moves it when the address step is left, so the address step shows a figure before tax and has to say so, and the payment step does not.
-
-A refused first charge leaves no subscription and no invoice behind, since the subscription is created after payment completes rather than upfront. The session stays open and the user retries on the same one, so there is nothing to reconcile and nothing to tear down between attempts.
-
-Everything here assumes API version `2026-03-25.dahlia` or later. See the rules for why the floor sits there.
+- Create an initial subscription, either for a new user or for a user whose previous subscription has ended.
+- Authenticated users only.
+- Multi step wizard that captures the billing address and name first, required for tax purposes, followed by the payment method.
+- Use the Stripe Payment Element client side against a Stripe Checkout Session created on the back end.
+- Collect the address with the Stripe Billing Address Element, so field layout and country rules come from Stripe.
+- Style both elements with the app's own appearance so the page matches the rest of the app.
+- Offer a card already saved against the customer, with the option to enter a different one instead.
+- Support promotion codes, applied and validated by Stripe against the session.
+- Show the total, tax and discount as Stripe calculates them. Nothing is priced on the client.
+- The address step shows a total before tax and says so, since tax cannot be calculated until the session carries an address.
+- Start a trial when the user is eligible, with a card collected up front. Eligibility is decided on the back end.
+- Refuse anyone who already has a subscription. Past due and unpaid refuse with their own error so the client can send the user to update their card.
+- Only one checkout at a time per user. Opening the subscribe page cancels any checkout the user already has open, so a page left sitting in another tab or on another device cannot be completed later and subscribe them twice.
+- Handle bank authentication challenges (3DS), including one that takes the browser off the page and returns it.
+- A refused charge leaves nothing behind. The user corrects the card and tries again on the same checkout.
+- Nothing is created until the user confirms. Abandoning the page leaves no subscription, no trial and no local records.
+- Write the local subscription, address and card records once the checkout completes, via an API sync call.
+- A Stripe webhook runs the same write as a backstop, for the case where the browser never comes back to make the sync call.
 
 ## Flow
 
@@ -124,37 +133,23 @@ flowchart LR
     W -.-> T
 ```
 
-## Rules
+## Notes
 
-- API version `2026-03-25.dahlia` or later. Two separate reasons stack up to that floor. `2025-03-31.basil` is where the subscription started being created after payment completes, and anything earlier creates it upfront and leaves an incomplete one with a finalized invoice behind on a refused charge, which brings back all the reconciliation this flow deliberately does not do. Dahlia is where `ui_mode` gained `elements`, which is the value used throughout here. On Basil the same thing is called `custom`.
-- Displaying the session total is required. Stripe throws if the page never reads it.
-- The billing address element does not write itself onto the session. Its value is read at confirm unless the push is wired by hand.
-- Pushing the address onto the session and unmounting its element are one action and are never separated. Stripe refuses to confirm while the element is mounted and the address has also been set that way.
-- The subscribe control is unreachable while the address element is mounted. That is a property of how the steps are laid out, not a guard in the code.
-- Step containers are hidden, never removed. Removing one tears the element's mount down.
-- Nothing mounts until the loading state has dropped and the containers are in the document.
-- Authenticated user required.
-- One live session per customer. A create expires the customer's open ones before it does anything else, so the device that asked last is the only one that can confirm.
-- A stored secret is resumed, everything else creates. Only a confirm in flight puts one in storage, and it is cleared the moment that confirm lands.
-- A user who already has a subscription never gets a session. Live, past due and unpaid all refuse, since the subscription exists at Stripe in every one of those cases and a second one is wrong regardless.
-- Dunning is not this flow. Past due and unpaid are refused here and handled somewhere that does not exist yet.
-- Create the Stripe customer before the session if there isn't one. Passing `customer` also satisfies the session's email requirement.
-- Trial eligibility is decided server side. The client never asks and never decides, it reads whether the session carries a trial and uses it for copy.
-- Card up front on a trial is the default. Leave `payment_method_collection` alone.
-- Nothing exists beyond the session until the user confirms. No address on the customer, no intent, no subscription.
-- The subscription and its invoice only exist once the session reaches `complete`. Nothing should read the invoice before that.
-- A refused charge leaves nothing behind. The same session is confirmed again rather than replaced.
-- Only the sync call and the `checkout.session.completed` webhook write local rows, and both are idempotent.
-- The local address row needs `state` and `name` columns. The billing address element collects both.
-- The API never pushes the name on this path. `customer_update` has Stripe copy it onto the customer at confirm, unlike the billing address page where the API sends it itself.
-
-## Decisions
+### The payment element over hosted and embedded checkout
 
 The payment element on the app's own page over [hosted](reference/create-hosted.md) and [embedded](reference/create-embedded.md) checkout. The address, card and promotion code are elements the app mounts and styles with the same appearance object as everything else in it, where hosted and embedded render Stripe's UI, styled by the logo, colors, fonts and border radius set in the Dashboard and nothing further. All three create the same kind of session, so the checkout mechanics match and the fork is UI control against build cost.
 
 Cost of the choice: everything Stripe's UI does inside its own page is built here. The two steps, since the address element does not write itself onto the session. The mount lifecycle, including a session secret held in storage so a bank challenge returns to the same session. The total read off the session and rendered by hand.
 
-## Notes
+### Stripe API version
+
+Everything here assumes `2026-03-25.dahlia` or later. Two separate reasons stack up to that floor. `2025-03-31.basil` is the version where the subscription is created after payment completes, and anything earlier creates it upfront, so a refused charge leaves an incomplete subscription with a finalized invoice sitting behind it to reconcile. Dahlia is where `ui_mode` gained `elements`, which is the value used throughout this flow. On Basil the same mode is named `custom`.
+
+### The local address record
+
+The address row needs `state` and `name` columns. The billing address element collects both and the sync call writes both off the session's `customer_details`.
+
+The API never sends the name to Stripe on this path. `customer_update: { address: 'auto', name: 'auto' }` on the session has Stripe copy the name and the address onto the customer at confirm.
 
 ### Note on 1.2 - why open sessions are expired
 
@@ -183,3 +178,10 @@ A bank challenge can take the browser off the page entirely and drop it back at 
 Session storage is enough for it. It only has to survive a redirect in the same tab, and it is keyed to the user so a session one account walked away from is not picked up by the next one to sign in.
 
 It is written going into the confirm and cleared as soon as the call lands, successfully or not, so the only thing it ever holds is a confirm with an unknown outcome. That is what keeps a normal visit on the create path, where the sweep and the subscription check run, instead of quietly resuming something stale.
+
+## TODO
+
+- Saved payment methods have to be asked for on the create so the client can offer a card already on the customer. What that costs on the create is not pinned down and needs checking against the API.
+- Dunning. Past due and unpaid are refused here and belong to a flow that does not exist.
+- A card that cannot be charged at trial end. Nothing is charged at signup on a trial, so a card that will fail is indistinguishable from one that will not until the first real invoice runs with no user on the page. The failure arrives as a webhook, and the subscription has to carry state that forces the user back into entering a payment method.
+- Asking Stripe for the customer's live subscriptions on every create rather than reading the local row, to close the window where two confirms seconds apart both go through.
