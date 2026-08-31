@@ -15,7 +15,8 @@
             --fg: #1f2328;
             --muted: #59636e;
             --border: #d1d9e0;
-            --code-bg: #f6f8fa;
+            --code-bg: rgba(217, 119, 87, .10);
+            --code-fg: #b3502f;
             --link: #0969da;
             --side-bg: #f6f8fa;
             --hover: #eaeef2;
@@ -28,7 +29,8 @@
                 --fg: #e6edf3;
                 --muted: #9198a1;
                 --border: #3d444d;
-                --code-bg: #161b22;
+                --code-bg: rgba(217, 119, 87, .14);
+                --code-fg: #e79070;
                 --link: #4493f8;
                 --side-bg: #010409;
                 --hover: #161b22;
@@ -264,6 +266,7 @@
 
         code {
             background: var(--code-bg);
+            color: var(--code-fg);
             border-radius: 4px;
             padding: .15em .35em;
             font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -278,9 +281,21 @@
             overflow-x: auto;
         }
 
+        /* A fenced block stays neutral. The accent is for picking one token out
+           of a sentence, and a whole block tinted rust reads as an error. */
         pre code {
             background: none;
+            color: var(--fg);
             padding: 0;
+        }
+
+        /* An identifier like invoice_settings.default_payment_method is one
+           unbreakable token, and a nested list item is already narrow enough
+           that it pushes the page sideways. Inline code only, prose is left
+           alone. anywhere rather than break-word so a table cell stops
+           demanding the whole token as its minimum width. */
+        main :not(pre) > code {
+            overflow-wrap: anywhere;
         }
 
         blockquote {
