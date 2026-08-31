@@ -77,14 +77,33 @@
             border-right: 1px solid var(--border);
         }
 
-        aside h1 {
-            margin: 0;
+        aside .tabs {
+            display: flex;
+            gap: 1rem;
             padding: 1rem 1.2rem;
+        }
+
+        aside .tabs button {
+            padding: 0;
+            border: 0;
+            background: none;
+            cursor: pointer;
+            font: inherit;
             font-size: .75rem;
             font-weight: 600;
             letter-spacing: .08em;
             text-transform: uppercase;
             color: var(--muted);
+            opacity: .45;
+        }
+
+        aside .tabs button:hover {
+            opacity: .75;
+        }
+
+        aside .tabs button.active {
+            color: var(--link);
+            opacity: 1;
         }
 
         nav .group {
@@ -170,12 +189,19 @@
             background: #656d7622;
         }
 
+        .badge.current {
+            color: #1a7f37;
+            border-color: #1a7f3766;
+            background: #1a7f3722;
+        }
+
         @media (prefers-color-scheme: dark) {
             .badge.wip { color: #d29922; }
             .badge.draft { color: #d29922; }
             .badge.approved { color: #4493f8; }
             .badge.implemented { color: #3fb950; }
             .badge.reference { color: #8b949e; }
+            .badge.current { color: #3fb950; }
         }
 
         /* Content */
@@ -300,7 +326,7 @@
 </head>
 <body>
     <aside>
-        <h1>Flows</h1>
+        <div class="tabs" id="tabs"></div>
         <nav id="nav"></nav>
     </aside>
 
@@ -314,7 +340,11 @@
         const mermaid = window.mermaid;
 
         const nav = document.getElementById('nav');
+        const tabs = document.getElementById('tabs');
         const el = document.getElementById('doc');
+
+        // Sidebar tabs. Each root is a top level directory served by nginx.
+        const ROOTS = ['flows', 'docs'];
 
         const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 
@@ -328,9 +358,10 @@
 
         const POLL_MS = 2000;
 
-        // name -> { mtime, status }
+        // Full path from the site root -> { mtime, status }, e.g. flows/subscriptions/stripe/create.md
         const meta = new Map();
 
+        let root = ROOTS[0];
         let current = null;
         let busy = false;
 
@@ -340,14 +371,22 @@
             el.innerHTML = '<div class="error"><strong>' + title + '</strong><p>' + detail + '</p></div>';
         };
 
-        const readStatus = text => (text.match(/^Status:\s*(approved|draft|implemented|reference|wip)/mi) || [])[1] || '';
+        const readStatus = text => (text.match(/^Status:\s*(approved|current|draft|implemented|reference|wip)/mi) || [])[1] || '';
 
         const encodePath = path => path.split('/').map(encodeURIComponent).join('/');
 
-        // Walks flows/ and every directory under it. Names come back as paths
-        // relative to flows/, e.g. subscriptions/stripe/create-hosted.md.
+        // The hash is the full path without .md, e.g. #flows/subscriptions/stripe/create
+        // or #docs/terms. Its first segment picks the tab.
+        const hashRoot = () => {
+            const first = location.hash.slice(1).split('/')[0];
+
+            return ROOTS.includes(first) ? first : null;
+        };
+
+        // Walks a root and every directory under it. Names come back as full
+        // paths, e.g. flows/subscriptions/stripe/create-hosted.md.
         async function listDir (path) {
-            const res = await fetch('flows/' + encodePath(path), { cache: 'no-store' });
+            const res = await fetch(encodePath(path), { cache: 'no-store' });
 
             if (! res.ok) {
                 throw new Error(res.status + ' ' + res.statusText);
@@ -368,7 +407,7 @@
         }
 
         async function fetchIndex () {
-            return (await listDir('')).sort((a, b) => {
+            return (await listDir(root + '/')).sort((a, b) => {
                 const ad = a.name.slice(0, a.name.lastIndexOf('/') + 1);
                 const bd = b.name.slice(0, b.name.lastIndexOf('/') + 1);
 
@@ -377,7 +416,7 @@
         }
 
         async function fetchDoc (name) {
-            const res = await fetch('flows/' + encodePath(name), { cache: 'no-store' });
+            const res = await fetch(encodePath(name), { cache: 'no-store' });
 
             if (! res.ok) {
                 throw new Error(res.status + ' ' + res.statusText);
@@ -386,11 +425,35 @@
             return res.text();
         }
 
+        function renderTabs () {
+            tabs.innerHTML = '';
+
+            for (const name of ROOTS) {
+                const button = document.createElement('button');
+
+                button.textContent = name;
+                button.className = name === root ? 'active' : '';
+
+                // Clearing the hash drops the tab back to its first file.
+                button.onclick = () => {
+                    if (name === root) {
+                        return;
+                    }
+
+                    root = name;
+                    current = null;
+                    location.hash = name;
+                };
+
+                tabs.appendChild(button);
+            }
+        }
+
         function renderNav (list) {
             nav.innerHTML = '';
 
             if (! list.length) {
-                nav.innerHTML = '<p class="empty">No flows yet.</p>';
+                nav.innerHTML = '<p class="empty">Nothing in <code>' + root + '/</code> yet.</p>';
 
                 return;
             }
@@ -402,14 +465,17 @@
                 const cut = e.name.lastIndexOf('/');
                 const dir = cut === -1 ? '' : e.name.slice(0, cut);
 
+                // The tab already names the root, so the heading drops it.
+                const heading = dir === root ? '' : dir.slice(root.length + 1);
+
                 if (dir !== group) {
                     group = dir;
 
-                    if (dir) {
+                    if (heading) {
                         const head = document.createElement('div');
 
                         head.className = 'group';
-                        head.textContent = dir;
+                        head.textContent = heading;
                         nav.appendChild(head);
                     }
                 }
@@ -417,7 +483,7 @@
                 const a = document.createElement('a');
 
                 a.href = '#' + slug(e.name);
-                a.className = (e.name === current ? 'active' : '') + (dir ? ' nested' : '');
+                a.className = (e.name === current ? 'active' : '') + (heading ? ' nested' : '');
 
                 const label = document.createElement('span');
 
@@ -470,7 +536,7 @@
 
         async function load (name, keepScroll) {
             current = name;
-            document.title = slug(name) + ' - Starter Flows';
+            document.title = slug(name.slice(root.length + 1)) + ' - Starter Flows';
 
             try {
                 const text = await fetchDoc(name);
@@ -485,6 +551,11 @@
         }
 
         async function sync (initial) {
+            // A hash pointing at the other tab switches the tab before listing.
+            root = hashRoot() || root;
+
+            renderTabs();
+
             let list;
 
             try {
@@ -492,9 +563,9 @@
             }
             catch (e) {
                 if (initial) {
-                    fail('Could not list flows', e.message
+                    fail('Could not list ' + root, e.message
                         + '<br>Check the container is up with <code>docker compose up -d</code> '
-                        + 'and that a <code>flows/</code> directory exists.');
+                        + 'and that a <code>' + root + '/</code> directory exists.');
                 }
 
                 return;
@@ -512,8 +583,9 @@
                 }
             }
 
+            // Only prune the active root. The other tab's statuses stay cached.
             for (const name of [...meta.keys()]) {
-                if (! names.has(name)) {
+                if (name.startsWith(root + '/') && ! names.has(name)) {
                     meta.delete(name);
                 }
             }
@@ -525,7 +597,7 @@
                 current = null;
                 document.title = 'Starter Flows';
                 renderNav(list);
-                el.innerHTML = '<p class="empty">No flows in <code>flows/</code> yet.</p>';
+                el.innerHTML = '<p class="empty">Nothing in <code>' + root + '/</code> yet.</p>';
 
                 return;
             }

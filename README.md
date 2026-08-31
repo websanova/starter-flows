@@ -1,6 +1,11 @@
 # Starter Flows
 
-Feature flow specs for the starter projects.
+Feature flow specs and setup docs for the starter projects.
+
+| Doc | Status | Updated |
+| --- | ------ | ------- |
+| [Terms](docs/terms.md) | current | 2026-08-31 |
+| [Docker Setup](docs/docker-setup.md) | WIP | 2026-08-31 |
 
 | Flow | Status | Updated |
 | ---- | ------ | ------- |
@@ -28,7 +33,9 @@ APP
 
 ## How It Works
 
-Each feature gets one flow file in `flows/`: logic, states, rules, edge cases, error handling, decisions, mermaid diagrams. Flows are implementation-agnostic - a Stripe subscription flow is the same in Laravel, Rails, Django, Vue, React, or mobile. Only the library choices differ, and those are a code session problem.
+Each feature gets one flow file in `flows/`, holding a description, the shared terms, the requirements, the numbered steps, a mermaid diagram, notes and outstanding items. Anything that is not a feature gets a doc in `docs/`, which has no fixed structure. Both are implementation-agnostic, so a Stripe subscription flow is the same in Laravel, Rails, Django, Vue, React, or mobile. Only the library choices differ, and those are a code session problem.
+
+Every term used in either is defined once in [docs/terms.md](docs/terms.md) and copied word for word wherever it appears.
 
 Work the flow out here first, then paste it into a session in the target code repo:
 
@@ -36,11 +43,13 @@ Work the flow out here first, then paste it into a session in the target code re
 * `Review this flow for missing parts to add to our code.`
 * `Review this flow against the code and report what needs updating.`
 
-Status: `WIP` (ideas being gathered), `draft` (being worked out), `approved` (ready to execute), `implemented` (executed in at least one repo), `reference` (research, not executable). Section template in [CLAUDE.md](CLAUDE.md).
+Flow status: `WIP` (ideas being gathered), `draft` (being worked out), `approved` (ready to execute), `implemented` (executed in at least one repo), `reference` (research, not executable).
+
+Doc status: `WIP` (being written), `current` (describes the setup as it is). Section template in [CLAUDE.md](CLAUDE.md).
 
 ## Docker
 
-Markdown viewer for `flows/` at http://localhost:8088.
+Markdown viewer for `flows/` and `docs/` at http://localhost:8088.
 
 ```bash
 docker compose up -d      # start
@@ -50,4 +59,4 @@ docker compose ps         # status
 docker compose logs -f    # tail nginx logs
 ```
 
-Everything is bind mounted read-only. Edits to `flows/*.md` and `viewer/index.html` are live, no restart. Only `nginx.conf` needs one.
+Everything is bind mounted read-only. Edits to `flows/*.md`, `docs/*.md` and `viewer/index.html` are live, no restart. Only `nginx.conf` needs one.
