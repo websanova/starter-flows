@@ -4,22 +4,22 @@ Feature flow specs and setup docs for the starter projects.
 
 | Doc | Status | Updated |
 | --- | ------ | ------- |
-| [Terms](docs/Terms.md) | current | 2026-08-31 |
-| [Docker Setup](docs/DockerSetup.md) | WIP | 2026-08-31 |
+| [Terms](docs/Terms.md) | done | 2026-08-31 |
+| [Docker Setup](docs/DockerSetup.md) | wip | 2026-08-31 |
 
 | Flow | Status | Updated |
 | ---- | ------ | ------- |
-| [Subscription Create - Stripe (Checkout Sessions, Payment Element)](flows/subscriptions/stripe/Create.md) | draft | 2026-08-31 |
-| [Subscription Create - Stripe (Hosted Checkout)](flows/subscriptions/stripe/reference/CreateHosted.md) | reference | 2026-08-31 |
-| [Subscription Create - Stripe (Embedded Checkout)](flows/subscriptions/stripe/reference/CreateEmbedded.md) | reference | 2026-08-31 |
+| [Subscription Create - Stripe (Checkout Sessions, Payment Element)](flows/subscriptions/stripe/Create.md) | done | 2026-08-31 |
+| [Subscription Create - Stripe (Hosted Checkout)](flows/subscriptions/stripe/CreateHosted.md) | ref | 2026-08-31 |
+| [Subscription Create - Stripe (Embedded Checkout)](flows/subscriptions/stripe/CreateEmbedded.md) | ref | 2026-08-31 |
 | [Subscription Cancel - Stripe](flows/subscriptions/stripe/Cancel.md) | draft | 2026-08-17 |
 | [Subscription Resume - Stripe](flows/subscriptions/stripe/Resume.md) | draft | 2026-08-17 |
 | [Billing Payment Method Update - Stripe (Payment Element)](flows/billing/stripe/PaymentMethodUpdate.md) | draft | 2026-08-17 |
 | [Billing Payment Method Delete - Stripe](flows/billing/stripe/PaymentMethodDelete.md) | draft | 2026-08-17 |
 | [Billing Address Update - Stripe](flows/billing/stripe/AddressUpdate.md) | draft | 2026-08-17 |
-| [Subscription Guards](flows/subscriptions/Guards.md) | WIP | 2026-08-30 |
+| [Subscription Guards](flows/subscriptions/Guards.md) | wip | 2026-08-30 |
 
-A `reference/` directory holds strategies that were evaluated and not taken. The chosen one is the flow file beside it.
+A `ref` flow is a strategy that was evaluated and not taken. The one that was taken sits beside it.
 
 ## Projects
 
@@ -43,9 +43,9 @@ Work the flow out here first, then paste it into a session in the target code re
 * `Review this flow for missing parts to add to our code.`
 * `Review this flow against the code and report what needs updating.`
 
-Flow status: `WIP` (ideas being gathered), `draft` (being worked out), `approved` (ready to execute), `implemented` (executed in at least one repo), `reference` (research, not executable).
+Flow status: `wip` (ideas being gathered), `draft` (being worked out), `ready` (ready to execute), `done` (executed in at least one repo), `ref` (research, not executable).
 
-Doc status: `WIP` (being written), `current` (describes the setup as it is). Section template in [CLAUDE.md](CLAUDE.md).
+Doc status: `wip` (being written), `done` (describes the setup as it is). Section template in [CLAUDE.md](CLAUDE.md).
 
 ## Docker
 

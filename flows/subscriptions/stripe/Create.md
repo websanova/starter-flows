@@ -1,6 +1,6 @@
 # Subscription Create - Stripe (Checkout Sessions, Payment Element)
 
-Status: draft
+Status: done
 Updated: 2026-08-31
 
 ## Description
@@ -158,7 +158,7 @@ flowchart LR
 
 ### The Stripe Payment Element over hosted and embedded checkout
 
-The Stripe Payment Element on a page the App renders itself over [hosted](reference/CreateHosted.md) and [embedded](reference/CreateEmbedded.md) checkout. The address, the payment method and the promotion code are Stripe Elements the App mounts and styles with the same appearance object as everything else in it, where hosted and embedded render Stripe's UI, styled by the logo, colors, fonts and border radius set in the Dashboard and nothing further. All three create the same kind of Stripe Checkout Session, so the checkout mechanics match and the fork is UI control against build cost.
+The Stripe Payment Element on a page the App renders itself over [hosted](CreateHosted.md) and [embedded](CreateEmbedded.md) checkout. The address, the payment method and the promotion code are Stripe Elements the App mounts and styles with the same appearance object as everything else in it, where hosted and embedded render Stripe's UI, styled by the logo, colors, fonts and border radius set in the Dashboard and nothing further. All three create the same kind of Stripe Checkout Session, so the checkout mechanics match and the fork is UI control against build cost.
 
 What the choice costs is everything Stripe's UI does inside its own page. The two steps, since the Stripe Billing Address Element does not write itself onto the Stripe Checkout Session. The mount lifecycle, including a secret held in App Storage so a bank challenge returns to the same Stripe Checkout Session. The total read off the Stripe Checkout Session and rendered by hand.
 

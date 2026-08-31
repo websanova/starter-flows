@@ -92,9 +92,9 @@
   - File names are PascalCase, spelled out. The viewer splits them on the capitals for display, so `PaymentMethodUpdate.md` reads as "Payment Method Update".
   - Directory names stay lowercase and hyphenated.
   - `flows/subscriptions/Guards.md`, `flows/subscriptions/stripe/Create.md`, `flows/billing/stripe/PaymentMethodUpdate.md`.
-  - A `reference/` directory under a provider holds flows kept for comparison and never built. Everything in it carries `Status: reference`.
+  - A flow kept for comparison and never built sits beside the one that was taken and carries `Status: ref`. The badge is what tells them apart, there is no separate directory.
 - Header lines at top of every flow:
-  - `Status: WIP | draft | approved | implemented | reference`
+  - `Status: wip | draft | ready | done | ref`
   - `Updated: YYYY-MM-DD`
 - Fixed section order, every file:
   1. `Description`
@@ -140,7 +140,7 @@
 ## Docs
 - Location: `docs/<Topic>.md`, PascalCase, same as a flow. Flat.
 - Header lines at top of every doc:
-  - `Status: WIP | current`
+  - `Status: wip | done`
   - `Updated: YYYY-MM-DD`
 - No fixed structure. Sections, order and length are whatever the topic needs.
 - Diagrams are free form. No LR requirement, no diagram type rules, no one screen limit.

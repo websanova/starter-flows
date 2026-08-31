@@ -123,7 +123,7 @@
             padding: .45rem 1.2rem;
             color: var(--fg);
             text-decoration: none;
-            font-size: .875rem;
+            font-size: .7rem;
             border-left: 2px solid transparent;
         }
 
@@ -152,7 +152,7 @@
             flex: none;
             padding: .05rem .4rem;
             border-radius: 999px;
-            font-size: .65rem;
+            font-size: .7rem;
             font-weight: 600;
             letter-spacing: .03em;
             text-transform: uppercase;
@@ -171,37 +171,30 @@
             background: #d4a72c22;
         }
 
-        .badge.approved {
+        .badge.ready {
             color: #0969da;
             border-color: #0969da66;
             background: #0969da22;
         }
 
-        .badge.implemented {
+        .badge.done {
             color: #1a7f37;
             border-color: #1a7f3766;
             background: #1a7f3722;
         }
 
-        .badge.reference {
+        .badge.ref {
             color: #656d76;
             border-color: #656d7666;
             background: #656d7622;
         }
 
-        .badge.current {
-            color: #1a7f37;
-            border-color: #1a7f3766;
-            background: #1a7f3722;
-        }
-
         @media (prefers-color-scheme: dark) {
             .badge.wip { color: #d29922; }
             .badge.draft { color: #d29922; }
-            .badge.approved { color: #4493f8; }
-            .badge.implemented { color: #3fb950; }
-            .badge.reference { color: #8b949e; }
-            .badge.current { color: #3fb950; }
+            .badge.ready { color: #4493f8; }
+            .badge.done { color: #3fb950; }
+            .badge.ref { color: #8b949e; }
         }
 
         /* Content */
@@ -373,11 +366,15 @@
             .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
             .replace(/([a-z0-9])([A-Z])/g, '$1 $2');
 
+        const base = name => name.slice(name.lastIndexOf('/') + 1);
+
+        const groupOf = name => name.slice(0, name.lastIndexOf('/'));
+
         const fail = (title, detail) => {
             el.innerHTML = '<div class="error"><strong>' + title + '</strong><p>' + detail + '</p></div>';
         };
 
-        const readStatus = text => (text.match(/^Status:\s*(approved|current|draft|implemented|reference|wip)/mi) || [])[1] || '';
+        const readStatus = text => (text.match(/^Status:\s*(done|draft|ready|ref|wip)/mi) || [])[1] || '';
 
         const encodePath = path => path.split('/').map(encodeURIComponent).join('/');
 
@@ -414,10 +411,10 @@
 
         async function fetchIndex () {
             return (await listDir(root + '/')).sort((a, b) => {
-                const ad = a.name.slice(0, a.name.lastIndexOf('/') + 1);
-                const bd = b.name.slice(0, b.name.lastIndexOf('/') + 1);
+                const ad = groupOf(a.name);
+                const bd = groupOf(b.name);
 
-                return ad === bd ? a.name.localeCompare(b.name) : ad.localeCompare(bd);
+                return ad === bd ? base(a.name).localeCompare(base(b.name)) : ad.localeCompare(bd);
             });
         }
 
@@ -468,8 +465,7 @@
             let group = null;
 
             for (const e of list) {
-                const cut = e.name.lastIndexOf('/');
-                const dir = cut === -1 ? '' : e.name.slice(0, cut);
+                const dir = groupOf(e.name);
 
                 // The tab already names the root, so the heading drops it.
                 const heading = dir === root ? '' : dir.slice(root.length + 1);
@@ -494,7 +490,7 @@
                 const label = document.createElement('span');
 
                 label.className = 'name';
-                label.textContent = words(slug(e.name.slice(cut + 1)));
+                label.textContent = words(slug(base(e.name)));
                 a.appendChild(label);
 
                 const status = (meta.get(e.name) || {}).status;

@@ -1,6 +1,6 @@
 # Subscription Create - Stripe (Embedded Checkout)
 
-Status: reference
+Status: ref
 Updated: 2026-08-31
 
 ## Purpose & Scope
@@ -112,12 +112,12 @@ There is no `incomplete` state here. Nothing exists locally until the session co
 | No address on file at renewal | `customer_update` omitted from session create | Stripe collected the address for tax but never wrote it back. Set `customer_update: { address: 'auto' }` |
 | Cold return after redirect | Default `redirect_on_completion` sends the browser to `return_url` | Read `session_id` off the query and treat the page as a landing page. Set `redirect_on_completion: 'never'` if you want to stay put and keep state |
 | Payment method declined | Happens inside the iframe | Stripe handles the retry. No local effect |
-| Styling does not match the app | Appearance API does not apply to embedded checkout | Only Dashboard branding is available. If the payment UI must match the app, use [Create](../Create.md) |
+| Styling does not match the app | Appearance API does not apply to embedded checkout | Only Dashboard branding is available. If the payment UI must match the app, use [Create](Create.md) |
 
 ## Decisions
 
 Embedded over hosted - the iframe stays on your page, so the user never visibly leaves your domain. That is the only difference. Styling is identical between the two, and hosted is less to build, so this is worth it only if the domain change matters.
 
-Embedded over the [payment element on your own page](../Create.md) - Stripe collects the address, the promotion code and the card inside the iframe, so there is no element to mount, no address to push onto the session, no mount lifecycle to carry across a bank challenge and no total to read back and render. Both create the same kind of session, so the fork is UI control against build cost.
+Embedded over the [payment element on your own page](Create.md) - Stripe collects the address, the promotion code and the card inside the iframe, so there is no element to mount, no address to push onto the session, no mount lifecycle to carry across a bank challenge and no total to read back and render. Both create the same kind of session, so the fork is UI control against build cost.
 
-Cost of the choice: you get Stripe's UI, styled only by Dashboard branding. If the checkout has to look like the rest of the app, [Create](../Create.md) is the option.
+Cost of the choice: you get Stripe's UI, styled only by Dashboard branding. If the checkout has to look like the rest of the app, [Create](Create.md) is the option.

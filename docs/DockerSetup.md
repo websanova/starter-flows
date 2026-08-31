@@ -1,4 +1,4 @@
 # Docker Setup
 
-Status: WIP
+Status: wip
 Updated: 2026-08-31

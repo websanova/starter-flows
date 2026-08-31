@@ -1,6 +1,6 @@
 # Subscription Guards
 
-Status: WIP
+Status: wip
 Updated: 2026-08-30
 
 
