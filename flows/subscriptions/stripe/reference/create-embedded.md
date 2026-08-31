@@ -1,7 +1,7 @@
 # Subscription Create - Stripe (Embedded Checkout)
 
 Status: reference
-Updated: 2026-08-25
+Updated: 2026-08-31
 
 ## Purpose & Scope
 
@@ -112,14 +112,12 @@ There is no `incomplete` state here. Nothing exists locally until the session co
 | No address on file at renewal | `customer_update` omitted from session create | Stripe collected the address for tax but never wrote it back. Set `customer_update: { address: 'auto' }` |
 | Cold return after redirect | Default `redirect_on_completion` sends the browser to `return_url` | Read `session_id` off the query and treat the page as a landing page. Set `redirect_on_completion: 'never'` if you want to stay put and keep state |
 | Payment method declined | Happens inside the iframe | Stripe handles the retry. No local effect |
-| Styling does not match the app | Appearance API does not apply to embedded checkout | Only Dashboard branding is available. If the payment UI must match the app, this is the wrong variant |
+| Styling does not match the app | Appearance API does not apply to embedded checkout | Only Dashboard branding is available. If the payment UI must match the app, use [create.md](../create.md) |
 
 ## Decisions
 
 Embedded over hosted - the iframe stays on your page, so the user never visibly leaves your domain. That is the only difference. Styling is identical between the two, and hosted is less to build, so this is worth it only if the domain change matters.
 
-Embedded over on-init - nothing is created on Stripe until the session completes, so anyone who lands and leaves costs you a session record that expires itself. On-init opens a real subscription for every visitor, leaving incomplete rows to clean up.
+Embedded over the [payment element on your own page](../create.md) - Stripe collects the address, the promotion code and the card inside the iframe, so there is no element to mount, no address to push onto the session, no mount lifecycle to carry across a bank challenge and no total to read back and render. Both create the same kind of session, so the fork is UI control against build cost.
 
-Embedded over deferred - no amount to keep in sync. Stripe computes tax and discounts live inside the iframe, so there is no recalculated total to fetch, no `elements.update`, and no `IntegrationError` class of failure at confirm.
-
-Cost of the choice: you get Stripe's UI, styled only by Dashboard branding. If the checkout has to look like the rest of the app, on-init or deferred are the only options.
+Cost of the choice: you get Stripe's UI, styled only by Dashboard branding. If the checkout has to look like the rest of the app, [create.md](../create.md) is the option.

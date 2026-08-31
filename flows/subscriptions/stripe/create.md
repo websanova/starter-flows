@@ -1,7 +1,7 @@
 # Subscription Create - Stripe (Checkout Sessions, Payment Element)
 
 Status: draft
-Updated: 2026-08-30
+Updated: 2026-08-31
 
 ## Purpose & Scope
 
@@ -147,6 +147,12 @@ flowchart LR
 - Only the sync call and the `checkout.session.completed` webhook write local rows, and both are idempotent.
 - The local address row needs `state` and `name` columns. The billing address element collects both.
 - The API never pushes the name on this path. `customer_update` has Stripe copy it onto the customer at confirm, unlike the billing address page where the API sends it itself.
+
+## Decisions
+
+The payment element on the app's own page over [hosted](reference/create-hosted.md) and [embedded](reference/create-embedded.md) checkout. The address, card and promotion code are elements the app mounts and styles with the same appearance object as everything else in it, where hosted and embedded render Stripe's UI, styled by the logo, colors, fonts and border radius set in the Dashboard and nothing further. All three create the same kind of session, so the checkout mechanics match and the fork is UI control against build cost.
+
+Cost of the choice: everything Stripe's UI does inside its own page is built here. The two steps, since the address element does not write itself onto the session. The mount lifecycle, including a session secret held in storage so a bank challenge returns to the same session. The total read off the session and rendered by hand.
 
 ## Notes
 
