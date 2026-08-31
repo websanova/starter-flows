@@ -4,8 +4,9 @@ Feature flow specs and setup docs for the starter projects.
 
 | Doc | Status | Updated |
 | --- | ------ | ------- |
-| [Terms](docs/Terms.md) | done | 2026-08-31 |
-| [Docker Setup](docs/DockerSetup.md) | wip | 2026-08-31 |
+| [Terms](docs/conventions/Terms.md) | done | 2026-08-31 |
+| [Status](docs/conventions/Status.md) | done | 2026-08-31 |
+| [Docker Setup](docs/setup/DockerSetup.md) | wip | 2026-08-31 |
 
 | Flow | Status | Updated |
 | ---- | ------ | ------- |
@@ -35,7 +36,7 @@ APP
 
 Each feature gets one flow file in `flows/`, holding a description, the shared terms, the requirements, the numbered steps, a mermaid diagram, notes and outstanding items. Anything that is not a feature gets a doc in `docs/`, which has no fixed structure. Both are implementation-agnostic, so a Stripe subscription flow is the same in Laravel, Rails, Django, Vue, React, or mobile. Only the library choices differ, and those are a code session problem.
 
-Every term used in either is defined once in [docs/Terms.md](docs/Terms.md) and copied word for word wherever it appears.
+Every term used in either is defined once in [docs/conventions/Terms.md](docs/conventions/Terms.md) and copied word for word wherever it appears.
 
 Work the flow out here first, then paste it into a session in the target code repo:
 
@@ -43,9 +44,7 @@ Work the flow out here first, then paste it into a session in the target code re
 * `Review this flow for missing parts to add to our code.`
 * `Review this flow against the code and report what needs updating.`
 
-Flow status: `wip` (ideas being gathered), `draft` (being worked out), `ready` (ready to execute), `done` (executed in at least one repo), `ref` (research, not executable).
-
-Doc status: `wip` (being written), `done` (describes the setup as it is). Section template in [CLAUDE.md](CLAUDE.md).
+Every status keyword is defined in [docs/conventions/Status.md](docs/conventions/Status.md). Section template in [CLAUDE.md](CLAUDE.md).
 
 ## Docker
 

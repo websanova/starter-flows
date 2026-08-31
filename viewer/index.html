@@ -538,7 +538,7 @@
 
         async function load (name, keepScroll) {
             current = name;
-            document.title = slug(name.slice(root.length + 1)) + ' - Starter Flows';
+            document.title = words(slug(base(name)));
 
             try {
                 const text = await fetchDoc(name);

@@ -23,7 +23,7 @@
 - The stored thing is a `record`, never a `row`. Row implies tables and everything here is implementation-agnostic.
 - Terms are always written in full. No abbreviations, even where the short form reads clearly enough and even where the prefix feels redundant. `Stripe Checkout Session`, not `Checkout Session`. That redundancy is the point.
 - Prefixes name systems, they do not ban common nouns. Lowercase browser, page, invoice, charge stay ordinary prose.
-- The master vocabulary lives in [docs/Terms.md](docs/Terms.md).
+- The master vocabulary lives in [docs/conventions/Terms.md](docs/conventions/Terms.md).
 - Table only. Two columns, `Term` and `Description`. Alphabetical.
 - Rows are written so they hold anywhere. No row may reference the file it is read in, no row may describe one feature's use of the term.
 - A local table in any other file is a verbatim subset. Row for row, word for word, so a mismatch is visible on sight.
@@ -94,7 +94,7 @@
   - `flows/subscriptions/Guards.md`, `flows/subscriptions/stripe/Create.md`, `flows/billing/stripe/PaymentMethodUpdate.md`.
   - A flow kept for comparison and never built sits beside the one that was taken and carries `Status: ref`. The badge is what tells them apart, there is no separate directory.
 - Header lines at top of every flow:
-  - `Status: wip | draft | ready | done | ref`
+  - `Status: wip | draft | ready | done | ref`, defined in [docs/conventions/Status.md](docs/conventions/Status.md)
   - `Updated: YYYY-MM-DD`
 - Fixed section order, every file:
   1. `Description`
@@ -138,9 +138,11 @@
 - More than one diagram per flow is fine. One giant diagram is not.
 
 ## Docs
-- Location: `docs/<Topic>.md`, PascalCase, same as a flow. Flat.
+- Location: `docs/<area>/<Topic>.md`, PascalCase file names and lowercase directories, same as a flow.
+  - `docs/conventions/` holds the files that define how this repo works, `Terms.md` and `Status.md`. `docs/setup/` holds the files that describe a system.
+  - Conventions sort above setup, so the files every other file depends on sit at the top of the sidebar.
 - Header lines at top of every doc:
-  - `Status: wip | done`
+  - `Status: wip | done`, defined in [docs/conventions/Status.md](docs/conventions/Status.md)
   - `Updated: YYYY-MM-DD`
 - No fixed structure. Sections, order and length are whatever the topic needs.
 - Diagrams are free form. No LR requirement, no diagram type rules, no one screen limit.
