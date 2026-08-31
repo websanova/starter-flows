@@ -23,7 +23,12 @@
 - The stored thing is a `record`, never a `row`. Row implies tables and everything here is implementation-agnostic.
 - Terms are always written in full. No abbreviations, even where the short form reads clearly enough and even where the prefix feels redundant. `Stripe Checkout Session`, not `Checkout Session`. That redundancy is the point.
 - Prefixes name systems, they do not ban common nouns. Lowercase browser, page, invoice, charge stay ordinary prose.
-- The master list is [docs/terms.md](docs/terms.md). Any local table is a verbatim subset of it.
+- The master vocabulary lives in [docs/terms.md](docs/terms.md).
+- Table only. Two columns, `Term` and `Description`. Alphabetical.
+- Rows are written so they hold anywhere. No row may reference the file it is read in, no row may describe one feature's use of the term.
+- A local table in any other file is a verbatim subset. Row for row, word for word, so a mismatch is visible on sight.
+- Edit the master first, then re-copy into every file carrying the term. Never edit a local table directly.
+- The master has no row limit. The ~16 cap is about scanning one flow, not looking a term up.
 
 ## Standalone Documents
 - A file describes the current design only. It is not a changelog and carries no revision history.
@@ -64,7 +69,7 @@
   2. `Terms`
      - Table only. Two columns, `Term` and `Description`. No prose under the heading.
      - Alphabetical. No exceptions, no hand grouping.
-     - Mandatory. Rows are copied word for word from the master, see `Docs` > `Terms`.
+     - Mandatory. Rows are copied word for word from the master, see `Naming & Terms`.
      - Only terms the flow uses in a specific or invented sense. Never define a provider concept the provider already documents.
      - Past ~16 rows it stops being scannable. If it is growing past that, the flow is probably two flows.
   3. `Requirements`
@@ -106,14 +111,6 @@
 - Diagrams are free form. No LR requirement, no diagram type rules, no one screen limit.
 - A doc gives the overview. The explicit install and usage instructions live in the repo they belong to.
 - A local `Terms` table is optional in a doc. If one is there, it follows the master exactly like a flow's.
-
-### Terms
-- The master vocabulary lives in [docs/terms.md](docs/terms.md).
-- Table only. Two columns, `Term` and `Description`. Alphabetical.
-- Rows are written so they hold anywhere. No row may reference the file it is read in, no row may describe one feature's use of the term.
-- A local table in any other file is a verbatim subset. Row for row, word for word, so a mismatch is visible on sight.
-- Edit the master first, then re-copy into every file carrying the term. Never edit a local table directly.
-- The master has no row limit. The ~16 cap is about scanning one flow, not looking a term up.
 
 ## Responses
 - Answer the question that was asked. Nothing else. Length follows the question.
