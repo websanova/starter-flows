@@ -354,7 +354,31 @@
         // Full path from the site root -> { mtime, status }, e.g. flows/subscriptions/stripe/create.md
         const meta = new Map();
 
-        let root = ROOTS[0];
+        // Last root used and the last file open in each, so clicking between the
+        // tabs and refreshing both land back where you were. Private browsing
+        // makes localStorage throw rather than no-op, so every touch is guarded
+        // and a failure just means the viewer forgets.
+        const STORE = 'starter-flows:last';
+
+        const readStore = () => {
+            try {
+                return JSON.parse(localStorage.getItem(STORE)) || {};
+            }
+            catch (e) {
+                return {};
+            }
+        };
+
+        const writeStore = patch => {
+            try {
+                localStorage.setItem(STORE, JSON.stringify({ ...readStore(), ...patch }));
+            }
+            catch (e) {
+                // Storage unavailable. Nothing is remembered.
+            }
+        };
+
+        let root = ROOTS.includes(readStore().root) ? readStore().root : ROOTS[0];
         let current = null;
         let busy = false;
 
@@ -437,15 +461,19 @@
                 button.textContent = name;
                 button.className = name === root ? 'active' : '';
 
-                // Clearing the hash drops the tab back to its first file.
+                // Go straight to the file last open in that tab. Falling back to
+                // the bare root name leaves sync() to pick the first file.
                 button.onclick = () => {
                     if (name === root) {
                         return;
                     }
 
+                    const last = readStore()[name];
+
                     root = name;
                     current = null;
-                    location.hash = name;
+                    writeStore({ root: name });
+                    location.hash = last ? slug(last) : name;
                 };
 
                 tabs.appendChild(button);
@@ -539,6 +567,7 @@
         async function load (name, keepScroll) {
             current = name;
             document.title = words(slug(base(name)));
+            writeStore({ root: root, [root]: name });
 
             try {
                 const text = await fetchDoc(name);
@@ -592,8 +621,13 @@
                 }
             }
 
+            // Hash first so links and refreshes win, then the file last open in
+            // this tab, then whatever is at the top of the list.
             const want = location.hash.slice(1) + '.md';
-            const target = names.has(want) ? want : (list[0] ? list[0].name : null);
+            const last = readStore()[root];
+            const target = names.has(want) ? want
+                : names.has(last) ? last
+                : (list[0] ? list[0].name : null);
 
             if (! target) {
                 current = null;
