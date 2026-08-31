@@ -59,3 +59,33 @@ docker compose logs -f    # tail nginx logs
 ```
 
 Everything is bind mounted read-only. Edits to `flows/*.md`, `docs/*.md` and `viewer/index.html` are live, no restart. Only `nginx.conf` needs one.
+
+## Deploy
+
+If you want to deploy the flows publicly, just serve the viewer directory and create a couple aliases for the `flows` and `docs` folders.
+
+```nginx
+server {
+    listen 80;
+    server_name flows.example.com;
+
+    root /srv/starter-flows/viewer;
+    index index.html;
+
+    add_header Cache-Control "no-store" always;
+
+    location /flows/ {
+        alias /srv/starter-flows/flows/;
+        autoindex on;
+        autoindex_format json;
+        default_type text/markdown;
+    }
+
+    location /docs/ {
+        alias /srv/starter-flows/docs/;
+        autoindex on;
+        autoindex_format json;
+        default_type text/markdown;
+    }
+}
+```
