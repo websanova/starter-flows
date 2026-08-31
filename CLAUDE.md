@@ -16,30 +16,52 @@
 - Applies to features of any size. A CRUD flow maps access policy and plan limits the same way a Stripe flow maps webhooks.
 
 ## Flow File Structure
-- Location: `flows/<feature>.md`, hyphenated (e.g. `flows/subscriptions-stripe.md`). Flat for now, revisit past ~20 files.
+- Location: `flows/<area>/<feature>.md`, hyphenated. A provider takes its own level when the flow is provider specific, `flows/<area>/<provider>/<feature>.md`.
+  - `flows/subscriptions/guards.md`, `flows/subscriptions/stripe/create.md`, `flows/billing/stripe/pm-update.md`.
+  - A `reference/` directory under a provider holds flows kept for comparison and never built. Everything in it carries `Status: reference`.
 - Header lines at top of every flow:
-  - `Status: draft | approved | implemented | reference`
+  - `Status: WIP | draft | approved | implemented | reference`
   - `Updated: YYYY-MM-DD`
 - Fixed section order, every file:
-  1. `Purpose & Scope`
-     - What the flow does. Shortest statement that lands it.
-     - Describe the feature, not how it works. No mechanism, that belongs in `Flow`.
-     - Flag anything about it that is a concern. A step behind a config flag, an input that may or may not be there.
-     - No out of scope list. That lives in `TODO`.
-     - No consequences of how the provider already behaves. If a fork was picked, that is `Decisions`.
-  2. `Actors & Entities` - who acts, what state and records exist
-  3. `Flow` - numbered steps, the happy path
-  4. `Diagram` - mermaid
+  1. `Description`
+     - One paragraph, hard maximum. What the feature is.
+     - Describe the feature, not how it works. Mechanism belongs in `Flow`.
+     - No out of scope list, that lives in `Todo`. No concerns, those are `Notes` or `Todo`.
+  2. `Terms`
+     - Table only. Two columns, `Term` and `Description`. No prose under the heading.
+     - Alphabetical. No exceptions, no hand grouping.
+     - Every noun that exists in more than one system carries the system it belongs to.
+     - Three prefixes only, `Stripe`, `API`, `App`. A fourth means a new system entered the flow, not a new word.
+     - `API` is the back end. `App` is the front end, web or mobile. Never `FE`, `BE`, `Browser` or `Client`.
+     - `User` is the human, always bare. `Auth User` is the signed in User's data held by the App.
+     - The stored thing is a `record`, never a `row`. Row implies tables and flows are implementation-agnostic.
+     - Terms are always written in full. No abbreviations, even where the short form reads clearly enough and even where the prefix feels redundant. `Stripe Checkout Session`, not `Checkout Session`. That redundancy is the point.
+     - Only terms the flow uses in a specific or invented sense. Never define a provider concept the provider already documents.
+     - Prefixes name systems, they do not ban common nouns. Lowercase browser, page, invoice, charge stay ordinary prose.
+     - Past ~16 rows it stops being scannable. If it is growing past that, the flow is probably two flows.
+  3. `Requirements`
+     - Point form only. No paragraphs, no sub-bullets, no explanation of why. Why is `Notes`.
+     - Readable by a non-technical client. That is the audience test.
+     - Product names are encouraged so clients and developers share one vocabulary. Stripe Payment Element, Stripe Checkout Session. Method names, field names and mechanics are not.
+     - Written in `Terms`, same as every other section.
+  4. `Flow` - numbered steps, sub-numbered
+     - Happy path and failure paths both. A step that can fail says what happens, on the step.
+     - Ends a step with "See the note below" only when the why needs a paragraph.
+  5. `Diagram` - mermaid
      - Always LR.
-  5. `States` - state table plus allowed transitions
-  6. `Rules` - access policy, plan and feature limits, validation
-  7. `Edge & Error Cases` - table: case / cause / expected behavior
-  8. `Decisions` - chose X over Y, why
-     - Record rejected alternatives here. The "why not" is the value.
-     - Holds forks only. Two viable options existed and one was picked, and the other one had a real cost. Validation, error handling, and anything that follows from how the provider works are not decisions. Most flows have zero or one.
-     - Do not manufacture a rejected alternative. If the "why not" is "that option was never possible", there is no decision.
-  9. `TODO` - Now / Later / Out of scope
-- Omit a section only when it genuinely does not apply. Do not reorder.
+     - Node labels use the same `Terms` as `Flow`. A diagram naming things differently from the prose is a defect.
+  6. `Notes`
+     - One catch-all. No uniform heading scheme across notes.
+     - A note about a flow step is titled by the step, `Note on 1.2 - why open sessions are expired`. A standalone topic gets a topic title.
+     - General notes first, flow step notes after, in flow order.
+     - A note exists when something needs a paragraph that would bloat a step or a requirement bullet. That is the whole test.
+     - No inbound pointer required. Not every note is reachable from `Flow`.
+     - Redundant with `Flow` means drop the note, never the `Flow` line.
+     - Decisions live here as a topic titled note. Present tense, "X over Y, because". Only when a real fork existed and the rejected option had a real cost. Do not manufacture one. If the "why not" is "that option was never possible", there is no decision.
+  7. `Todo`
+     - One flat list. No Now, Later or Out of scope buckets. No sub-headings.
+     - Outstanding items, deferred work, and anything the flow knowingly does not cover.
+- `Description`, `Requirements`, `Flow` and `Diagram` are mandatory. `Terms`, `Notes` and `Todo` are omitted when genuinely empty. Never reorder.
 
 ## Diagram Rules
 - Sequence diagram for time-ordered exchanges (client, api, third party, webhooks).
@@ -64,7 +86,7 @@
 - A flow describes the current design only. It is not a changelog and carries no revision history.
 - Never write a flow against a previous version of itself. No "no longer", "anymore", "used to", "previously", "now that", "instead of", "we removed", "this replaces", "as before". If a thing is gone, the thing does not appear in the file at all.
 - Edits are rewrites, not diffs. When something changes, rewrite the affected sections so they read as if the new design was always the design. Delete the old text, never annotate it.
-- The only place a rejected option may be named is `Decisions`, and only when a real fork existed with a real cost. Write the fork in the present ("X over Y, because"), never as history ("we switched from Y").
+- The only place a rejected option may be named is a decision note under `Notes`, and only when a real fork existed with a real cost. Write the fork in the present ("X over Y, because"), never as history ("we switched from Y").
 - Tense applies to the document, not the runtime. Describing state inside a step is fine ("the subscription is no longer chargeable", "the session no longer accepts a confirm"). Describing the document's own past is not.
 - After every edit, grep the file for the banned phrases above. Each hit is either a runtime-state sentence or a violation, decided by asking "no longer relative to what, the user's subscription or an earlier version of this file".
 - After every edit, reread the touched section start to finish as a cold reader with no knowledge of what changed. A sentence that only earns its place by explaining a delta gets cut.
