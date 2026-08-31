@@ -117,6 +117,6 @@ There is no `incomplete` state here. Nothing exists locally until the session co
 
 Hosted over embedded - no stripe.js on the page at all, nothing to mount, no client secret. Styling is identical between the two (Dashboard branding only, the Appearance API applies to neither), so embedded buys you the iframe staying on your domain and nothing else. If keeping the user on your domain does not matter, hosted is strictly less to build.
 
-Hosted over the [payment element on your own page](../create.md) - Stripe collects the address, the promotion code and the card in its own UI, so there is no element to mount, no address to push onto the session, no mount lifecycle to carry across a bank challenge and no total to read back and render. Both create the same kind of session, so the fork is UI control against build cost.
+Hosted over the [payment element on your own page](../Create.md) - Stripe collects the address, the promotion code and the card in its own UI, so there is no element to mount, no address to push onto the session, no mount lifecycle to carry across a bank challenge and no total to read back and render. Both create the same kind of session, so the fork is UI control against build cost.
 
 Cost of the choice: the user visibly leaves your site, and you get no control over the payment UI beyond branding settings.

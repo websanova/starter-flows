@@ -23,7 +23,7 @@ Entities
 
 ## Flow
 
-1. Resume is gated on a cancelled subscription that is still inside the paid term, with a payment method on file. Once the end date passes there is nothing left at Stripe to resume and the user goes through the [create flow](create.md).
+1. Resume is gated on a cancelled subscription that is still inside the paid term, with a payment method on file. Once the end date passes there is nothing left at Stripe to resume and the user goes through the [create flow](Create.md).
 2. The control leads to a dedicated page rather than an inline button or a modal. The page states what is being resumed. Plan, interval, and the date billing picks back up. Confirm is the only action on it.
 3. User confirms. Client hits the resume endpoint. No body, the subscription is resolved from the authenticated user.
    1. Re-check the gate against the local subscription row. Refuse if the end date has already passed, or if no default payment method resolves. Already active is not a refusal, the request is already satisfied, so return the current state.
@@ -94,7 +94,7 @@ Allowed transitions
 
 | Case | Cause | Expected behavior |
 | ---- | ----- | ----------------- |
-| Payment method was removed during the grace period | The [delete flow](../../billing/stripe/pm-delete.md) allows removal once cancelled, and the detach takes the customer default with it | Refuse. The user adds one through [pm-update](../../billing/stripe/pm-update.md) and comes back, the subscription and the paid remainder are still there |
+| Payment method was removed during the grace period | The [delete flow](../../billing/stripe/PaymentMethodDelete.md) allows removal once cancelled, and the detach takes the customer default with it | Refuse. The user adds one through [payment method update](../../billing/stripe/PaymentMethodUpdate.md) and comes back, the subscription and the paid remainder are still there |
 | End date passes between render and the request | Term ran out while the page sat open | API re-check refuses. The user subscribes again through create |
 | Resume on a subscription that is not cancelled | Double submit, second tab, direct call | Return the existing active state. Nothing changes at Stripe |
 | Resume on an ended subscription | Endpoint called directly, or client state stale | Refuse. Nothing at Stripe to update |
@@ -121,5 +121,5 @@ Later
 
 Out of scope
 
-- Cancel. See the [cancel flow](cancel.md).
+- Cancel. See the [cancel flow](Cancel.md).
 - Plan change.

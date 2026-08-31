@@ -367,6 +367,12 @@
 
         const slug = name => name.replace(/\.md$/, '');
 
+        // PascalCase file names read as sentences in the sidebar. Two passes so
+        // APIUser gives "API User" rather than "A P I User".
+        const words = name => name
+            .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+            .replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+
         const fail = (title, detail) => {
             el.innerHTML = '<div class="error"><strong>' + title + '</strong><p>' + detail + '</p></div>';
         };
@@ -475,7 +481,7 @@
                         const head = document.createElement('div');
 
                         head.className = 'group';
-                        head.textContent = heading;
+                        head.textContent = heading.split('/').join(' / ');
                         nav.appendChild(head);
                     }
                 }
@@ -488,7 +494,7 @@
                 const label = document.createElement('span');
 
                 label.className = 'name';
-                label.textContent = slug(e.name.slice(cut + 1));
+                label.textContent = words(slug(e.name.slice(cut + 1)));
                 a.appendChild(label);
 
                 const status = (meta.get(e.name) || {}).status;

@@ -13,7 +13,7 @@ The address goes to Stripe first and only reaches the local record if Stripe acc
 
 Setting `tax[validate_location]` to `immediately` returns an error and leaves the customer unchanged when the address cannot be placed, so an unplaceable address never reaches the local record. What it does not check is registration. An address that resolves cleanly in a jurisdiction you are not registered in comes back with `automatic_tax` at `not_collecting` and bills zero tax, which you may still be liable for.
 
-The subscribe page collects the same address through the Checkout Session's own element and never writes it to the customer until confirm, so the two do not overlap. See the [subscription create flow](../../subscriptions/stripe/create.md). This page is the other half, a direct customer write with no session behind it. Same element, different construction, and the reason both exist is that a session only exists while something is being bought.
+The subscribe page collects the same address through the Checkout Session's own element and never writes it to the customer until confirm, so the two do not overlap. See the [subscription create flow](../../subscriptions/stripe/Create.md). This page is the other half, a direct customer write with no session behind it. Same element, different construction, and the reason both exist is that a session only exists while something is being bought.
 
 ## Actors & Entities
 

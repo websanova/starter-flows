@@ -4,20 +4,20 @@ Feature flow specs and setup docs for the starter projects.
 
 | Doc | Status | Updated |
 | --- | ------ | ------- |
-| [Terms](docs/terms.md) | current | 2026-08-31 |
-| [Docker Setup](docs/docker-setup.md) | WIP | 2026-08-31 |
+| [Terms](docs/Terms.md) | current | 2026-08-31 |
+| [Docker Setup](docs/DockerSetup.md) | WIP | 2026-08-31 |
 
 | Flow | Status | Updated |
 | ---- | ------ | ------- |
-| [Subscription Create - Stripe (Checkout Sessions, Payment Element)](flows/subscriptions/stripe/create.md) | draft | 2026-08-31 |
-| [Subscription Create - Stripe (Hosted Checkout)](flows/subscriptions/stripe/reference/create-hosted.md) | reference | 2026-08-31 |
-| [Subscription Create - Stripe (Embedded Checkout)](flows/subscriptions/stripe/reference/create-embedded.md) | reference | 2026-08-31 |
-| [Subscription Cancel - Stripe](flows/subscriptions/stripe/cancel.md) | draft | 2026-08-17 |
-| [Subscription Resume - Stripe](flows/subscriptions/stripe/resume.md) | draft | 2026-08-17 |
-| [Billing Payment Method Update - Stripe (Payment Element)](flows/billing/stripe/pm-update.md) | draft | 2026-08-17 |
-| [Billing Payment Method Delete - Stripe](flows/billing/stripe/pm-delete.md) | draft | 2026-08-17 |
-| [Billing Address Update - Stripe](flows/billing/stripe/address-update.md) | draft | 2026-08-17 |
-| [Subscription Guards](flows/subscriptions/guards.md) | WIP | 2026-08-30 |
+| [Subscription Create - Stripe (Checkout Sessions, Payment Element)](flows/subscriptions/stripe/Create.md) | draft | 2026-08-31 |
+| [Subscription Create - Stripe (Hosted Checkout)](flows/subscriptions/stripe/reference/CreateHosted.md) | reference | 2026-08-31 |
+| [Subscription Create - Stripe (Embedded Checkout)](flows/subscriptions/stripe/reference/CreateEmbedded.md) | reference | 2026-08-31 |
+| [Subscription Cancel - Stripe](flows/subscriptions/stripe/Cancel.md) | draft | 2026-08-17 |
+| [Subscription Resume - Stripe](flows/subscriptions/stripe/Resume.md) | draft | 2026-08-17 |
+| [Billing Payment Method Update - Stripe (Payment Element)](flows/billing/stripe/PaymentMethodUpdate.md) | draft | 2026-08-17 |
+| [Billing Payment Method Delete - Stripe](flows/billing/stripe/PaymentMethodDelete.md) | draft | 2026-08-17 |
+| [Billing Address Update - Stripe](flows/billing/stripe/AddressUpdate.md) | draft | 2026-08-17 |
+| [Subscription Guards](flows/subscriptions/Guards.md) | WIP | 2026-08-30 |
 
 A `reference/` directory holds strategies that were evaluated and not taken. The chosen one is the flow file beside it.
 
@@ -35,7 +35,7 @@ APP
 
 Each feature gets one flow file in `flows/`, holding a description, the shared terms, the requirements, the numbered steps, a mermaid diagram, notes and outstanding items. Anything that is not a feature gets a doc in `docs/`, which has no fixed structure. Both are implementation-agnostic, so a Stripe subscription flow is the same in Laravel, Rails, Django, Vue, React, or mobile. Only the library choices differ, and those are a code session problem.
 
-Every term used in either is defined once in [docs/terms.md](docs/terms.md) and copied word for word wherever it appears.
+Every term used in either is defined once in [docs/Terms.md](docs/Terms.md) and copied word for word wherever it appears.
 
 Work the flow out here first, then paste it into a session in the target code repo:
 

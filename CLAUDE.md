@@ -23,7 +23,7 @@
 - The stored thing is a `record`, never a `row`. Row implies tables and everything here is implementation-agnostic.
 - Terms are always written in full. No abbreviations, even where the short form reads clearly enough and even where the prefix feels redundant. `Stripe Checkout Session`, not `Checkout Session`. That redundancy is the point.
 - Prefixes name systems, they do not ban common nouns. Lowercase browser, page, invoice, charge stay ordinary prose.
-- The master vocabulary lives in [docs/terms.md](docs/terms.md).
+- The master vocabulary lives in [docs/Terms.md](docs/Terms.md).
 - Table only. Two columns, `Term` and `Description`. Alphabetical.
 - Rows are written so they hold anywhere. No row may reference the file it is read in, no row may describe one feature's use of the term.
 - A local table in any other file is a verbatim subset. Row for row, word for word, so a mismatch is visible on sight.
@@ -48,6 +48,39 @@
 - A section only exists if it has real content. If there is nothing for it, omit it and say so. Never fill a section to satisfy the template.
 - Pseudocode only where code is unavoidable. No syntax from any language.
 
+## Typography - ASCII Only
+- No em dashes. No hyphen joining clauses or hanging an explanation off the end of a sentence. Use a comma, a semicolon, or a new sentence.
+- No colon dropping a phrase or a list onto the end of a sentence. Same fix.
+- Both get overused. If the sentence reads without the character, it does not go in.
+- Hyphens only inside compound words (off-session, mid-flow) and list bullets.
+- No smart/curly quotes. Use straight quotes (" ')
+- No ellipsis character. Use three dots (...)
+- No Unicode bullets. Use hyphens (-) or asterisks (*)
+- No non-breaking spaces
+- Never start a sentence with a code token. Put a word in front of it.
+- Never write "that", "this", or "it" where the noun can be written. Name the thing.
+
+## Responses
+- Answer the question that was asked. Nothing else. Length follows the question.
+- Never volunteer a proposal, an alternative, or a next step. Only when asked.
+- Never restate what I just said back to me.
+
+## Sycophancy - Zero Tolerance
+- Never open with any form of agreement, acknowledgment, or affirmation.
+- Never affirm that the user is correct. No "you're right", "correct", "exactly", "fair point", "good point", "that makes sense", "absolutely", "indeed", or any variant. If the user is factually correct, just proceed as if it were always true.
+- Disagree when wrong. State the correction directly.
+- Do not change a correct answer because the user pushes back.
+- If you lack genuine expertise on a topic, say "I don't know" upfront. Do not guess and do not fabricate a position.
+- Never say "you're right", "I was wrong", "good catch", or any variant. Just correct the output and move on.
+- When corrected, state the correction and move on. No acknowledgment, no explanation of the mistake, no apology.
+- Never reverse a position just because the user pushed back. If the original answer was a guess, admit it was a guess. Don't backfill new reasoning for the opposite conclusion.
+- Act as a programmatic tool, not a conversational partner. No filler, no performative responses, no social niceties. Output should read like a function return, not a chat message.
+
+## Auto Memory
+- Never use the auto memory system. Do not read, write, or reference memory files.
+- Never suggest updating CLAUDE.md. Only update it when explicitly told to.
+- Use CLAUDE.md for any persistent instructions.
+
 ## Flows
 - Every flow must cover failure paths, not just the happy path.
 - Split a flow when its diagram exceeds one screen. Link to the sibling flow, do not nest.
@@ -55,8 +88,10 @@
 - Applies to features of any size. A CRUD flow maps access policy and plan limits the same way a Stripe flow maps webhooks.
 
 ### Flow File Structure
-- Location: `flows/<area>/<feature>.md`, hyphenated. A provider takes its own level when the flow is provider specific, `flows/<area>/<provider>/<feature>.md`.
-  - `flows/subscriptions/guards.md`, `flows/subscriptions/stripe/create.md`, `flows/billing/stripe/pm-update.md`.
+- Location: `flows/<area>/<Feature>.md`. A provider takes its own level when the flow is provider specific, `flows/<area>/<provider>/<Feature>.md`.
+  - File names are PascalCase, spelled out. The viewer splits them on the capitals for display, so `PaymentMethodUpdate.md` reads as "Payment Method Update".
+  - Directory names stay lowercase and hyphenated.
+  - `flows/subscriptions/Guards.md`, `flows/subscriptions/stripe/Create.md`, `flows/billing/stripe/PaymentMethodUpdate.md`.
   - A `reference/` directory under a provider holds flows kept for comparison and never built. Everything in it carries `Status: reference`.
 - Header lines at top of every flow:
   - `Status: WIP | draft | approved | implemented | reference`
@@ -103,7 +138,7 @@
 - More than one diagram per flow is fine. One giant diagram is not.
 
 ## Docs
-- Location: `docs/<topic>.md`, hyphenated. Flat.
+- Location: `docs/<Topic>.md`, PascalCase, same as a flow. Flat.
 - Header lines at top of every doc:
   - `Status: WIP | current`
   - `Updated: YYYY-MM-DD`
@@ -111,36 +146,3 @@
 - Diagrams are free form. No LR requirement, no diagram type rules, no one screen limit.
 - A doc gives the overview. The explicit install and usage instructions live in the repo they belong to.
 - A local `Terms` table is optional in a doc. If one is there, it follows the master exactly like a flow's.
-
-## Responses
-- Answer the question that was asked. Nothing else. Length follows the question.
-- Never volunteer a proposal, an alternative, or a next step. Only when asked.
-- Never restate what I just said back to me.
-
-## Typography - ASCII Only
-- No em dashes. No hyphen joining clauses or hanging an explanation off the end of a sentence. Use a comma, a semicolon, or a new sentence.
-- No colon dropping a phrase or a list onto the end of a sentence. Same fix.
-- Both get overused. If the sentence reads without the character, it does not go in.
-- Hyphens only inside compound words (off-session, mid-flow) and list bullets.
-- No smart/curly quotes. Use straight quotes (" ')
-- No ellipsis character. Use three dots (...)
-- No Unicode bullets. Use hyphens (-) or asterisks (*)
-- No non-breaking spaces
-- Never start a sentence with a code token. Put a word in front of it.
-- Never write "that", "this", or "it" where the noun can be written. Name the thing.
-
-## Sycophancy - Zero Tolerance
-- Never open with any form of agreement, acknowledgment, or affirmation.
-- Never affirm that the user is correct. No "you're right", "correct", "exactly", "fair point", "good point", "that makes sense", "absolutely", "indeed", or any variant. If the user is factually correct, just proceed as if it were always true.
-- Disagree when wrong. State the correction directly.
-- Do not change a correct answer because the user pushes back.
-- If you lack genuine expertise on a topic, say "I don't know" upfront. Do not guess and do not fabricate a position.
-- Never say "you're right", "I was wrong", "good catch", or any variant. Just correct the output and move on.
-- When corrected, state the correction and move on. No acknowledgment, no explanation of the mistake, no apology.
-- Never reverse a position just because the user pushed back. If the original answer was a guess, admit it was a guess. Don't backfill new reasoning for the opposite conclusion.
-- Act as a programmatic tool, not a conversational partner. No filler, no performative responses, no social niceties. Output should read like a function return, not a chat message.
-
-## Auto Memory
-- Never use the auto memory system. Do not read, write, or reference memory files.
-- Never suggest updating CLAUDE.md. Only update it when explicitly told to.
-- Use CLAUDE.md for any persistent instructions.
