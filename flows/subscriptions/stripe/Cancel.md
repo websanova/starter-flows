@@ -1,124 +1,98 @@
 # Subscription Cancel - Stripe
 
 Status: draft
-Updated: 2026-08-25
+Updated: 2026-09-02
 
-## Purpose & Scope
+## Description
 
-Cancelling a subscription from a dedicated confirm page.
+A User cancels their Stripe Subscription from a dedicated confirm page, and access runs to the end of the paid term rather than stopping on confirm. Nothing is charged and nothing is refunded.
 
-## Actors & Entities
+## Terms
 
-Actors
+| Term | Description |
+| --- | --- |
+| API | The back end. Holds the API records and talks to the providers. |
+| API Subscription | The API record mirroring the Stripe Subscription. Stripe id, plan, interval, status. |
+| API User | The User's record on the API side. |
+| App | The front end the User is looking at, web or mobile. |
+| Auth User | The signed in User's data held by the App. |
+| Stripe Subscription | The subscription at Stripe. |
+| User | The human using the App. Never the App and never the API. |
 
-- User - confirms on the cancel page.
-- Client App - hides or disables the control off subscription state, calls the endpoint, refreshes the auth user.
-- API - owns the gate, calls Stripe, writes the row off the response.
-- Stripe - flags the subscription, fires the webhook.
+## Requirements
 
-Entities
-
-- Local subscription row - the gate is read off it, the cancelled marker and the end date are written to it.
-- Stripe Subscription - status unchanged, `cancel_at_period_end` set, `cancel_at` holding the term end.
+- Authenticated Users only.
+- Cancel a Stripe Subscription that is live and not already cancelled.
+- The control leads to a dedicated confirm page rather than an inline button or a dialog.
+- The page states what cancelling does before the User commits. Access runs to the end of the paid term, no further charge, no refund.
+- Confirm is the only action on the page.
+- The App hides the control on the same rule, and the API decides it again on every request.
+- A cancelled API Subscription counts as subscribed until the stored end date passes.
+- Nothing is charged and nothing is refunded.
+- The API writes the API Subscription off Stripe's response, and the matching Stripe webhook rewrites the same fields as a backstop.
+- The response is the answer. Nothing settles afterwards, so there is nothing to poll.
 
 ## Flow
 
-1. Cancel is gated on a live subscription that is not already cancelled. The client hides or disables the control off the same state, that is display only, the API re-checks it.
-2. The control leads to a dedicated page rather than an inline button or a modal. The page states what cancelling does before the user commits. Access runs to the end of the paid term, no further charge, no refund. Confirm is the only action on it.
-3. User confirms. Client hits the cancel endpoint. No body, the subscription is resolved from the authenticated user.
-   1. Re-check the gate against the local subscription row. Refuse if there is no live subscription. Already cancelled is not a refusal, the request is already satisfied, so return the current state.
-   2. Call `subscriptions.update(stripe_sub_id, { cancel_at_period_end: true })`. Stripe returns the updated subscription in the same call. Status still `active`, `cancel_at_period_end` true, `cancel_at` set to the current period end.
-   3. Write the local row off the returned object. The cancelled marker comes from `cancel_at_period_end` and the end date from `cancel_at`, both set on that same response. Not from `current_period_end`, which is not on the subscription at all, it sits on the subscription items. The row stays subscribed for access purposes until the stored date passes.
-   4. If Stripe errors, that error goes back to the client for display and the local row is left untouched.
-4. The response is the answer. Nothing is pending, so the client does not poll.
-5. Client refreshes the auth user so everything reading subscription state picks up the cancelled row. One refresh, not a poll.
-6. Take the success action, back to billing, a confirmation page, wherever.
-7. Stripe fires a subscription updated webhook afterwards (`customer.subscription.updated`) carrying the same fields the API already wrote. Idempotent, the handler rewrites what is already there.
+1. User opens the billing page. The cancel control shows only on a live Stripe Subscription that is not already cancelled.
+   1. Hiding the control is display. The API reads the same rule again on the request, so the hidden control was never the rule.
+2. The control leads to a dedicated confirm page. The page states that access runs to the end of the paid term, that nothing further is charged and that nothing is refunded. Confirm is the only action on it.
+3. User confirms. The App calls the API. No body, the Stripe Subscription is resolved from the API User.
+   1. Re-read the API Subscription and refuse when there is no live Stripe Subscription.
+   2. A Stripe Subscription that is already cancelled is not a refusal. The request is already satisfied, so return the current state and change nothing at Stripe. A double submit, a second tab and a direct call all land here.
+   3. Update the Stripe Subscription with `cancel_at_period_end` set to true. Stripe returns the updated Stripe Subscription in the same call, status still `active`, `cancel_at_period_end` true, `cancel_at` holding the term end.
+   4. Write the API Subscription off the returned object. The cancelled marker comes from `cancel_at_period_end` and the end date from `cancel_at`, both on that same response. See the note below.
+   5. Stripe erroring on the update errors back for display. The API Subscription is left as it is and the User retries.
+4. The response is the answer. Nothing is pending, so the App does not poll.
+   1. App refreshes the Auth User so everything reading subscription state picks up the cancelled API Subscription. One refresh, not a poll.
+   2. Take the success action, back to billing or a confirmation page.
+5. Stripe fires `customer.subscription.updated` afterwards carrying the same fields the API already wrote, so the handler rewrites what is already there. The same handler writes the API Subscription for a cancel done in the Stripe Dashboard.
+   1. The event and the response write carry the same fields either way, so whichever lands second rewrites the same values.
+6. A cancelled API Subscription counts as subscribed until the stored end date passes. The Stripe Subscription stays `active` at Stripe for the same window.
 
 ## Diagram
 
 ```mermaid
 flowchart LR
-    A[User hits cancel] --> B{Live subscription,<br/>not already cancelled?}
+    A[User hits cancel on the billing page] --> B{Live Stripe Subscription,<br/>not already cancelled?}
 
-    B -->|no| C[Control hidden / refused]
-    B -->|yes| D["Cancel page<br/>runs to date, no refund"]
+    B -->|no| C[Control hidden, request refused]
+    B -->|yes| D["Confirm page<br/>runs to the term end, no refund"]
 
     D --> E[User confirms]
     E --> F["POST /subscription/cancel"]
 
-    F --> G[Re-check gate API side]
-    G --> H["subscriptions.update<br/>cancel_at_period_end: true"]
+    F --> G[Re-read the API Subscription]
+    G -->|already cancelled| G1[Return the current state,<br/>nothing changes at Stripe]
+    G -->|live| H["subscriptions.update<br/>cancel_at_period_end: true"]
+
     H --> I{Result}
+    I -->|error| J[Relay the error,<br/>API Subscription untouched]
+    I -->|ok| K["Write the API Subscription off the response<br/>cancelled marker and end date"]
 
-    I -->|error| J[Return error, row untouched]
-    I -->|ok| K["Write row off response<br/>cancelled + ends_at"]
-
-    K --> L[Return, nothing to poll]
-    L --> M[Client refreshes auth user]
-    M --> N[Success action]
-
-    K -.-> O["customer.subscription.updated<br/>lands later, same fields, no-op"]
+    K --> L[Refresh the Auth User,<br/>success action]
+    K -.-> M["customer.subscription.updated<br/>lands after, same fields"]
 ```
 
-## States
+## Notes
 
-Local subscription row.
+### Cancel at the end of the term over cancelling on the spot
 
-| State | Meaning |
-| ----- | ------- |
-| active | Renewing. Cancel is available |
-| cancelled | Cancel accepted. Still subscribed for access, will not renew, ends at the stored date |
+Cancelling on the spot cuts access that is already paid for, which means either the User forfeits the remainder or a proration and a refund have to be settled. Neither belongs in a self-serve cancel.
 
-Allowed transitions
+### Note on 3.4 - where the end date comes from
 
-| From | To | Trigger |
-| ---- | -- | ------- |
-| active | cancelled | Cancel confirmed, gate passed |
-| active | active | Cancel refused, no live subscription |
-| cancelled | cancelled | Webhook lands, same fields rewritten |
+Both fields come off the same update response. The end date is `cancel_at`, not `current_period_end`, which is not on the Stripe Subscription at all and sits on the subscription items instead.
 
-## Rules
+### Note on 3.4 - when Stripe holds the cancel and the API Subscription write fails
 
-- Authenticated user required.
-- The gate lives on the API. The client hides the control off the same state, that is display only.
-- Refuse when there is no live subscription. Already cancelled is not a refusal.
-- State is written off the Stripe response. The webhook is never waited on.
-- The response is the answer. No polling.
-- A cancelled row counts as subscribed until the stored end date passes.
-- Webhook handling is idempotent.
+Stripe holds the cancel and the App still shows a renewing Stripe Subscription. The `customer.subscription.updated` event lands and corrects the API Subscription. Both failing on the same cancel leaves the API Subscription renewing with nothing to correct it, which is the one case a reconcile covers.
 
-## Edge & Error Cases
+## Todo
 
-| Case | Cause | Expected behavior |
-| ---- | ----- | ----------------- |
-| Cancel while already cancelled | Double submit, second tab, direct call | Return the existing cancelled state. Nothing changes at Stripe |
-| Cancel with no subscription | Endpoint called directly, or client state stale | Refuse |
-| Client shows the control when it should not | Client state stale against the subscription | API refuses. The hidden button was never the rule |
-| Stripe errors on update | Provider unavailable | Error back, local row untouched, user retries |
-| Stripe update succeeds, local write fails | Partial failure | Stripe holds the cancel, the app still shows renewing. The webhook lands and corrects the row. If the webhook is also dropped, nothing corrects it and the row needs a reconcile |
-| Webhook arrives before the response is written | Asynchronous, no fixed timing | Same fields either way, last write wins |
-| Cancelled in the Stripe Dashboard | Out of band | The same webhook handler writes the row |
-| Webhook never arrives | Delivery dropped or failed the attempts | No-op as long as the response write landed, the row already holds the state. The partial failure above is the only case left uncovered |
-
-## Decisions
-
-Cancel at the end of the term, not immediately. Cancelling on the spot cuts access already paid for, which means either the user forfeits the remainder or a proration and a refund have to be settled. Neither belongs in a self-serve cancel.
-
-## TODO
-
-Now
-
-- Decide where the confirm page reads the end date from, since it states when access runs out.
-- Pin the subscription states that pass the gate, in one place both the client and the API read.
-
-Later
-
+- Where the confirm page reads the end date from, since it states when access runs out.
+- Pin the Stripe Subscription states that pass the gate in one place the App and the API both read.
 - Immediate cancel as an admin action.
-- Reconcile job for a cancel that succeeded at Stripe and left the local row renewing.
-
-Out of scope
-
-- Resume.
+- Reconcile for a cancel that succeeded at Stripe and left the API Subscription renewing.
+- The term end transition and the subscription deleted webhook.
 - Plan change.
-- The period end transition and the subscription deleted webhook.
