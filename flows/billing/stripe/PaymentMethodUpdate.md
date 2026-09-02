@@ -127,17 +127,13 @@ Leaving the writes to the webhook alone puts the User in front of a spinner for 
 
 Detaching the old Stripe Payment Method keeps exactly one against the Stripe Customer, which is what a single brand and last4 on the API Payment Method can describe and what every screen showing the Stripe Payment Method assumes. Keeping a list buys a picker, a default marker and a delete path on every one of those screens.
 
-### Arriving from subscribe
-
-Subscribe refuses a User who already has a Stripe Subscription, and a past due or unpaid one comes back as `payment_required` rather than the already subscribed error, so the App can send the User here to replace the Stripe Payment Method the failed renewal was charged to. See the [subscription create flow](../../subscriptions/stripe/Create.md). A refusal of that kind means a Stripe Subscription that has been billed, so the Stripe Payment Method is on file and the route guard has nothing to turn away. Sending them here rather than to payment recovery is still the wrong move though, since nothing here settles what they owe. See the note below.
-
 ### A past due User is not resolved here
 
 This flow swaps the Stripe Payment Method on file and stops. It does not look for an invoice a failed renewal left open, does not charge one, and does not report on one. A User who is behind on payment can walk through this whole flow, get a success, and still be past due at the end of it, because replacing a Stripe Payment Method does not prompt Stripe to retry anything.
 
 That is deliberate. Resolving a failed renewal is a different job with a different answer. The Stripe Payment Method on file might be fine and only need a bank challenge cleared, in which case sending the User here to type a card in again asks them for something that was never the problem. It is also the one case where the User might need to be charged before they get their access back, and charging is not what this page does.
 
-So the App sends a past due User to the payment recovery flow instead, which reads the open invoice and decides from there. It collects a Stripe Payment Method itself when that turns out to be what is needed. See the [subscription guards flow](../../subscriptions/Guards.md).
+So a past due User defaults to billing until the App handles them. See the [subscription guards flow](../../subscriptions/Guards.md).
 
 ### Note on 1.1 - opening the Stripe Setup Intent on page load
 
