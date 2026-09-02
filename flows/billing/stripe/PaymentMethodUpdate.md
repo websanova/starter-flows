@@ -36,7 +36,8 @@ A User replaces the Stripe Payment Method held against them, from the account pa
 - Make the new Stripe Payment Method the default for both the Stripe Customer and the Stripe Subscription, and remove the old one.
 - Write the API Payment Method's brand and last4 for display.
 - An API sync call does the work while the User waits, and a Stripe webhook runs the same work as a backstop.
-- Nothing is charged and no invoice is created. The new Stripe Payment Method is what the next renewal invoice bills.
+- Settle the invoice a failed renewal left open, if there is one, against the new Stripe Payment Method while the User is still on the page.
+- Nothing else is charged and no invoice is created. The new Stripe Payment Method is what the next renewal invoice bills.
 
 ## Flow
 
@@ -68,14 +69,19 @@ A User replaces the Stripe Payment Method held against them, from the account pa
    3. Set `default_payment_method` on the Stripe Subscription to the same Stripe Payment Method. A Stripe Subscription level default overrides the Stripe Customer level one, so an old Stripe Payment Method left pinned there bills at the next renewal. Nothing fails at update time, it surfaces a month later. A User with no Stripe Subscription skips this and the rest of the writes still run.
    4. Detach the old Stripe Payment Method, otherwise every update leaves another one sitting on the Stripe Customer. One that is already detached is not an error.
    5. Write the API Payment Method's brand and last4.
-   6. Both paths are idempotent. The same Stripe Setup Intent can arrive twice on either.
-   7. Every write lands before the sync call responds, since the App reads the result off the Auth User it refreshes next.
+   6. Charge the Stripe Subscription's latest invoice if it is still open, which is the renewal that failed and sent the User here in the first place. Only the sync call does this, since it is the only path with a User in front of it. See the note below.
+   7. Both paths are idempotent. The same Stripe Setup Intent can arrive twice on either.
+   8. Every write lands before the sync call responds, since the App reads the result off the Auth User it refreshes next.
 7. The sync call is what the User waits on, so its response is the answer and there is nothing to poll for.
    1. On success the App refreshes the Auth User and sends the User back to billing, where the new brand and last4 are what shows.
    2. On failure the User is held on the page with the message. The Stripe Setup Intent is confirmed and kept, so submitting again retries the sync rather than asking for the Stripe Payment Method a second time.
-   3. The webhook is not a second thing to wait for. It covers the User who closed the tab or never came back from the bank, and lands as a no-op when the sync call already ran.
+   3. A success carries what happened to the open invoice when there was one to charge, and carries nothing at all when there wasn't, so a User who is not behind on payment sees the same response as always. The Stripe Payment Method is on file in every case, and none of these are failures of the update.
+   4. Paid means the User is current again. The App refreshes the Auth User and goes back to billing as it would have anyway.
+   5. Needing authentication carries the secret the App confirms the invoice's payment against, so the User clears the bank challenge on the page they are already standing on. Then refresh the Auth User. Stripe reports the invoice and the Stripe Subscription itself, so the status arrives on its own and there is nothing to post back.
+   6. Refused carries a message and holds the User on the page. The new Stripe Payment Method is still the one on file, so there is nothing to redo unless they want to try a different one.
+   7. The webhook is not a second thing to wait for. It covers the User who closed the tab or never came back from the bank, and lands as a no-op when the sync call already ran.
 8. A Stripe Setup Intent is opened for everyone who lands on the page. There is no Stripe Subscription and no API record behind an unconfirmed one, and Stripe ages it out on its own, so there is nothing to clean up.
-9. Nothing is charged. The current cycle is already paid and the new Stripe Payment Method is what the next renewal invoice bills.
+9. Nothing is charged beyond an invoice that was already owed. A User who is current has a paid up cycle and nothing open, so the new Stripe Payment Method just waits for the next renewal invoice.
 
 ## Diagram
 
@@ -105,8 +111,17 @@ flowchart LR
     L --> M["Stripe Subscription<br/>default_payment_method"]
     M --> N[Detach the old Stripe Payment Method]
     N --> O["API Payment Method<br/>brand and last4"]
-    O --> P[Refresh the Auth User]
-    P --> Q[Back to billing]
+    O --> S{"Open invoice?<br/>sync call only"}
+
+    S -->|none| P
+    S -->|pay| T{Result}
+
+    T -->|paid| P
+    T -->|requires action| U["App confirms against<br/>the invoice secret"]
+    U --> P
+    T -->|refused| V["Message on the page,<br/>Stripe Payment Method still on file"]
+
+    P[Refresh the Auth User] --> Q[Back to billing]
     Q --> R["Next renewal invoice bills<br/>the new Stripe Payment Method"]
 ```
 
@@ -126,7 +141,13 @@ Detaching the old Stripe Payment Method keeps exactly one against the Stripe Cus
 
 ### Arriving from subscribe
 
-Subscribe refuses a User who already has a Stripe Subscription, and a past due or unpaid one comes back as `payment_required` rather than the already subscribed error, so the App can send the User here to replace the Stripe Payment Method the failed renewal was charged to. See the [subscription create flow](../../subscriptions/stripe/Create.md). A refusal of that kind means a Stripe Subscription that has been billed, so the Stripe Payment Method is on file and the route guard has nothing to turn away. What happens to the invoice that failed belongs to dunning and sits outside this flow.
+Subscribe refuses a User who already has a Stripe Subscription, and a past due or unpaid one comes back as `payment_required` rather than the already subscribed error, so the App can send the User here to replace the Stripe Payment Method the failed renewal was charged to. See the [subscription create flow](../../subscriptions/stripe/Create.md). A refusal of that kind means a Stripe Subscription that has been billed, so the Stripe Payment Method is on file and the route guard has nothing to turn away. The invoice that failed is charged here, see the note below. Everything after that, the retries and the notices that go with them, belongs to dunning and sits outside this flow.
+
+### Charging the open invoice rather than leaving it to Stripe
+
+Replacing the Stripe Payment Method does not prompt Stripe to try the invoice again. It waits for its own next scheduled attempt, which is days away on a past due Stripe Subscription and never comes at all on an unpaid one, where the retries have already run out. So a User who does exactly what they were asked to do gets a success message and stays locked out, in the unpaid case permanently. Charging it here is what closes that.
+
+The bank challenge is the other half of it. A retry Stripe runs on its own has nobody at the keyboard, so a Stripe Payment Method whose bank wants authentication fails that way every single time and no number of retries gets past it. The one moment the challenge can be answered is while the User is still on the page, which is this one, so the response carries the secret back rather than swallowing it.
 
 ### Note on 1.1 - opening the Stripe Setup Intent on page load
 
@@ -134,10 +155,6 @@ The page does one job, so arriving on it is the User declaring intent already an
 
 ## Todo
 
-- Confirm the API sets the Stripe Subscription's `default_payment_method` to the new Stripe Payment Method rather than clearing it to fall back on the Stripe Customer default, and that one of the two is used everywhere.
-- Confirm what a past due or unpaid Stripe Subscription does after a successful update. Whether anything retries the open invoice, or whether the status stands until Stripe charges again on its own schedule, and what the Auth User reads in the meantime.
-- Confirm what brand and last4 hold for a wallet or a bank redirect Stripe Payment Method, and whether the flag the route guard reads tracks those two fields.
-- Manual reconcile for a Stripe Payment Method that confirmed at Stripe where neither the sync call nor the webhook ran. Stripe holds the new Stripe Payment Method, nothing is defaulted, and the renewal bills the old one.
+- What is left of a past due or unpaid Stripe Subscription once the invoice charged here does not settle. The retries, the notices that tell the User it failed, and how many attempts they have left. Dunning owns all of it and this flow only covers the one attempt made while the User is standing there.
+- Manual reconcile for a Stripe Payment Method that confirmed at Stripe where neither the sync call nor the webhook ran. Stripe holds the new Stripe Payment Method attached to the Stripe Customer, nothing is defaulted at either level, and the API still shows the old brand and last4, so the next renewal bills the old Stripe Payment Method and nothing on any screen says so. It takes both writers failing on the same update, and the webhook retries itself, so this is thin. Closing it means a sweep that finds succeeded Stripe Setup Intents whose Stripe Payment Method is not the Stripe Customer default and runs the same writes over them.
 - Multiple Stripe Payment Methods on file. The flow assumes exactly one throughout.
-- Dunning and failed renewals.
-- Removing the Stripe Payment Method. See the [payment method delete flow](PaymentMethodDelete.md).
