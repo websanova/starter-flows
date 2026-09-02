@@ -1,140 +1,134 @@
 # Billing Address Update - Stripe (Address Element)
 
 Status: draft
-Updated: 2026-08-29
+Updated: 2026-09-01
 
-## Purpose & Scope
+## Description
 
-Saving a billing address from the account pages, collected in a Stripe Address Element rather than a form of our own. There is no intent, no client secret, no confirm and no webhook. The element is a widget and nothing it collects goes to Stripe from the browser. Its value comes back to the client, and the address only reaches Stripe through our own customer update on the server.
+A User changes the billing address held against them, from the account pages, collected in a Stripe Billing Address Element rather than a form of the App's own. The address goes to Stripe first and only reaches the API Address if Stripe accepts it, and the response is the whole answer.
 
-The page updates an address that already exists. The billing page only links to it when there is one, the route is guarded on the same thing so a direct hit is sent back rather than coming up empty, and the first address is collected by subscribe in its own session element, so there is no add path here. A user who never subscribes never sets one, which is right, since nothing is billing them.
+## Terms
 
-The address goes to Stripe first and only reaches the local record if Stripe accepts it. If it doesn't, the request errors and nothing changes. A customer is always there to update, since an address on file means subscribe already made one, so arriving here without one is a broken state rather than a first address.
+| Term | Description |
+| --- | --- |
+| API | The back end. Holds the API records and talks to the providers. |
+| API Address | The API record holding the billing name and address. |
+| API User | The User's record on the API side. |
+| App | The front end the User is looking at, web or mobile. |
+| Auth User | The signed in User's data held by the App. |
+| Stripe Billing Address Element | The Stripe Element collecting the billing address and name. |
+| Stripe Checkout Session | The Stripe object a checkout runs on. Carries the line items, the address, the promotion code, the total and the Stripe Payment Method. |
+| Stripe Customer | The Stripe object holding the User's id, address and saved Stripe Payment Methods. |
+| Stripe Element | A Stripe UI component mounted by the App. |
+| Stripe Payment Element | The Stripe Element collecting the Stripe Payment Method. |
+| Stripe Payment Method | The payment method at Stripe, saved against the Stripe Customer. |
+| User | The human using the App. Never the App and never the API. |
 
-Setting `tax[validate_location]` to `immediately` returns an error and leaves the customer unchanged when the address cannot be placed, so an unplaceable address never reaches the local record. What it does not check is registration. An address that resolves cleanly in a jurisdiction you are not registered in comes back with `automatic_tax` at `not_collecting` and bills zero tax, which you may still be liable for.
+## Requirements
 
-The subscribe page collects the same address through the Checkout Session's own element and never writes it to the customer until confirm, so the two do not overlap. See the [subscription create flow](../../subscriptions/stripe/Create.md). This page is the other half, a direct customer write with no session behind it. Same element, different construction, and the reason both exist is that a session only exists while something is being bought.
-
-## Actors & Entities
-
-Actors
-
-- User - edits the address in the element on the billing address page.
-- Client App - mounts the element prefilled off the local row, reads its value, submits, renders the response.
-- API - pushes to Stripe, writes the local row.
-- Stripe - validates the address against a tax jurisdiction, stores it on the customer.
-
-Entities
-
-- Local address row - name, country, line1, line2, city, postal code, state.
-- Stripe Customer - carries `address` and `name`. Created by subscribe, so one is already there by the time this page is reachable.
-- Address Element - a form widget and nothing more. It holds no intent, stores nothing at Stripe, and has no server side of its own.
+- Authenticated Users only.
+- Change an address that already exists. There is no add path here, since the first address is collected during subscribe.
+- The billing page links here only when an address is on file, and the route is guarded on the same thing.
+- Collect the address with the Stripe Billing Address Element, so field layout and country rules come from Stripe.
+- Style the Stripe Element with the App's own appearance so the page matches the rest of the App.
+- Collect a billing name alongside the address, since who pays is not necessarily whose account it is.
+- Verify the address resolves to a real tax jurisdiction before saving it. An address Stripe cannot place is refused and nothing changes.
+- The address reaches Stripe first. The API Address is written only once Stripe accepts it.
+- Nothing is charged, no invoice is created and no proration happens. The change applies from the next renewal invoice.
+- The response is the answer. Nothing settles afterwards, so there is no webhook and nothing to poll.
 
 ## Flow
 
 1. User opens the billing address page. There is no API call on load. Nothing has to be fetched because there is no secret to mount against.
    1. Load stripe.js if it isn't already on the page.
-   2. Build an Elements instance with `stripe.elements({ appearance, locale })`. `mode` and `currency` are only required by the payment and express checkout elements, so an address only instance needs neither. It is a local call and nothing is sent to Stripe. Appearance and locale are the same objects the rest of the app's elements take.
-   3. Create the address element in billing mode, prefilled through `defaultValues` off the local address row when there is one. `defaultValues` is read once at creation, so the element goes up after the user is loaded.
-   4. The element always renders a name field and there is no turning it off. `display.name` only chooses between a full name, a split first and last, or an organization. Seed it from the account's first and last name while nothing has been saved, and let the stored billing name win from then on, since who pays is not necessarily whose account it is.
+   2. Build an Elements instance with `stripe.elements({ appearance, locale })`. Both `mode` and `currency` are only required by the Stripe Payment Element and the express checkout element, so an address only instance needs neither. The call is local and nothing is sent to Stripe. Appearance and locale are the same objects the rest of the App's Stripe Elements take.
+   3. Create the Stripe Billing Address Element in billing mode, prefilled through `defaultValues` off the API Address when there is one. Stripe reads `defaultValues` once at creation, so the Stripe Element goes up after the Auth User is loaded. See the note below.
+   4. The Stripe Billing Address Element always renders a name field and there is no turning it off. Setting `display.name` only chooses between a full name, a split first and last, or an organization. Seed it from the account's first and last name while nothing has been saved, and let the stored billing name win from then on.
    5. Country is an ISO alpha-2 select and the field layout follows the country, so the shape of an address is Stripe's problem rather than a hand rolled form's. Labels, postal formats and whether a region field appears at all come with it.
-   6. Neither `contacts` nor `customerSessionClientSecret` is passed, so the element stays a plain form and never renders the addresses Stripe has saved against the customer.
-   7. stripe.js failing to load leaves the user with nowhere to enter anything. Show the failure rather than an empty page where the form should be.
-2. User edits the address. The change event reports `complete` along with the value. Submit stays disabled until it is complete, and nothing has left the browser at any point.
-3. User submits. The client reads the value off the element and sends it to the API.
-   1. Validate the basic shape. It doesn't need to be anything fancy, the element has already enforced the country's own field rules and Stripe verifies the address properly on the next call. This is a backstop for a request that did not come from the element, not the validation the user sees, and nothing here should be built to render field errors.
-   2. Load the user's Stripe customer id. There is always one, since the route is guarded on an address being on file and an address on file means subscribe already created it. If there isn't, error out rather than creating one. Same backstop as the shape check above and for the same case, a request that did not come through the page.
-   3. Update `address` and `name` with `tax[validate_location]` set to `immediately` to ensure the address resolves to a valid tax jurisdiction. `name` is `customer.name`, which sits alongside `address` on the customer rather than inside it.
-   4. Send every field on every save, empty where the user cleared it. Stripe only touches what it is sent, so a field left out of the call keeps whatever was on the customer before. A country change is where that bites, since the element stops rendering a state for a country that has none and the old subdivision stays sitting under the new country. An empty string is what clears one.
-   5. If the response is a success we can proceed to write the local row, otherwise relay the error to the front end to display for the user.
-4. Refresh the auth user and take the success action. The local row is what prefills the element next time, so it has to be the one that was just written.
+   6. Neither `contacts` nor `customerSessionClientSecret` is passed, so the Stripe Element stays a plain form and never renders the addresses Stripe has saved against the Stripe Customer.
+   7. Failing to load stripe.js leaves the User with nowhere to enter anything. Show the failure rather than an empty page where the form should be.
+2. User edits the address. The change event reports `complete` along with the value. Submit stays disabled until the value is complete, and nothing has left the browser at any point.
+3. User submits. The App reads the value off the Stripe Billing Address Element and sends it to the API.
+   1. Validate the basic shape. The check does not need to be anything fancy, since the Stripe Billing Address Element has already enforced the country's own field rules and Stripe verifies the address properly on the next call. This is a backstop for a request that did not come from the Stripe Element, not the validation the User sees, and nothing here should be built to render field errors.
+   2. Load the API User's Stripe Customer id. There is always one, since the route is guarded on an address being on file and an address on file means subscribe already created the Stripe Customer. If there isn't one, error out rather than creating one. Same backstop as the shape check above and for the same case, a request that did not come through the page.
+   3. Update `address` and `name` on the Stripe Customer with `tax[validate_location]` set to `immediately`, so the address has to resolve to a valid tax jurisdiction. The `name` field is `customer.name`, which sits alongside `address` on the Stripe Customer rather than inside it. See the note below.
+   4. Send every field on every save, empty where the User cleared it. Stripe only touches what it is sent, so a field left out of the call keeps whatever was on the Stripe Customer before. A country change is where that bites, since the Stripe Billing Address Element stops rendering a state for a country that has none and the old subdivision stays sitting under the new country. An empty string is what clears one.
+   5. An address Stripe cannot place errors back for display and nothing is written anywhere. Stripe leaves the Stripe Customer unchanged, so there is nothing to undo.
+   6. Write the API Address once Stripe returns a success. See the note below.
+4. App refreshes the Auth User and takes the success action. The API Address is what prefills the Stripe Billing Address Element next time, so it has to be the one just written.
 5. Nothing is charged and no invoice is created. The current cycle is already finalized and its tax is locked at the rate that applied when it was issued.
-6. The change applies from the next renewal invoice. Stripe recomputes tax off the customer address every time it creates one, so nothing on the subscription has to be re-pointed.
-7. The payment method's `billing_details.address` is a separate field and is not touched by this. That one is AVS data the bank checks against the payment method. Stripe only falls back to it for tax when the customer carries no address, which holds until the first successful save. Editing the address here does not change it, and editing the payment method does not change the tax address.
-8. The response is the answer. Nothing asynchronous, no webhook, no polling.
+6. The change applies from the next renewal invoice. Stripe recomputes tax off the Stripe Customer's address every time it creates one, so nothing on the subscription has to be re-pointed. See the note below.
+7. The Stripe Payment Method's `billing_details.address` is a separate field and nothing here touches it. That one is AVS data the bank checks against the Stripe Payment Method. Stripe only falls back to it for tax when the Stripe Customer carries no address, which holds until the first successful save. Editing the address here does not change it, and editing the Stripe Payment Method does not change the tax address.
 
 ## Diagram
 
 ```mermaid
 flowchart LR
     A[User opens the billing address page] --> B["Load stripe.js, build Elements<br/>appearance and locale, nothing else"]
-    B --> C["createAddressElement, billing mode<br/>prefilled from the local row"]
+    B --> C["createAddressElement, billing mode<br/>prefilled from the API Address"]
     C --> D[User edits. Submit gated on complete.<br/>Nothing has left the browser]
-    D --> E["Read the element value<br/>PUT /billing/address"]
+    D --> E["App reads the Stripe Element value<br/>PUT /billing/address"]
 
     E --> F{Shape valid?}
     F -->|no| F1[Reject, nothing pushed]
-    F -->|yes| G{Stripe customer id?}
+    F -->|yes| G{Stripe Customer id?}
 
-    G -->|none| H[Reject. No customer means the page<br/>was opened directly]
+    G -->|none| H[Reject. No Stripe Customer means<br/>the page was opened directly]
     G -->|exists| I["customers.update, every field sent<br/>address, name, validate_location"]
 
     I --> J{Result}
     J -->|error| J1["Relay the error,<br/>nothing written anywhere"]
-    J -->|success| K[Write local row]
+    J -->|success| K[Write the API Address]
 
-    K --> L[Refresh the auth user,<br/>success action]
-    L --> M["Next renewal invoice<br/>computes tax off the new address"]
+    K --> L[Refresh the Auth User,<br/>success action]
+    L --> M["Next renewal invoice computes tax<br/>off the new address"]
 ```
-
-## Rules
-
-- Authenticated user required.
-- The address is collected in a Stripe Address Element. There is no form of our own, no field rules of our own and no country list of our own.
-- Update only. The billing page links here when an address is on file and offers nothing when there isn't, and the route is guarded on it, since subscribe collects the first one.
-- No intent, no client secret, no confirm, no 3DS and no webhook. The element is a widget and the address reaches Stripe only through our own customer update.
-- The element always renders a name field. `display.name` only changes its shape, so the billing name is stored rather than collected and thrown away.
-- Neither `contacts` nor `customerSessionClientSecret` is passed. The element never renders Stripe's saved addresses.
-- API side shape validation is a backstop for requests that did not come from the element. It is not what the user sees and should not grow field error handling.
-- A Stripe customer is always there to update. No customer id is an error, not a local write and not a reason to create one.
-- Every address field goes on every save, empty where it was cleared. A field left out of the call keeps its old value on the customer.
-- Push to Stripe first. The local row is written only on a successful update.
-- The local address row needs `state` and `name` columns. The element collects both.
-- Never write `billing_details.address` on the payment method. Tax reads the customer address while one is set, AVS reads the payment method address.
-- Nothing is charged, no invoice is created, no proration.
-- The current cycle is not recomputed. Its tax is locked at finalization.
-- The response is the answer. Nothing asynchronous, no webhook, no polling.
-
-## Edge & Error Cases
-
-| Case | Cause | Expected behavior |
-| ---- | ----- | ----------------- |
-| stripe.js fails to load | Network, blocker, provider down | Show the failure. There is no fallback form to fall back to |
-| Submit pressed on an incomplete address | Should not happen, the button is gated on the element's complete flag | Nothing is sent. The element draws its own field errors |
-| Shape validation fails | Request did not come from the element | Reject before anything is pushed. Nothing is written locally or at Stripe |
-| No address on file | User never subscribed | Guarded route, sent back to billing before the page loads. Subscribe collects the first address |
-| No Stripe customer id | Request did not come through the page | Reject. Nothing is written locally and no customer is created. A backstop behind the guard |
-| User clears an optional field | line2 or city emptied, or a country change that drops the state | The field goes as an empty string and Stripe clears it. Leaving it out would keep the old value on the customer while the local row goes empty |
-| Address resolves to no tax jurisdiction | Stripe cannot place it | The update errors, the error is relayed, nothing is written anywhere |
-| Stripe errors on the customer update | Provider unavailable | Error back, local row untouched, user retries |
-| Stripe write succeeds, local write fails | Partial failure | Stripe is correct and tax is right, the page shows the old address. Retry is idempotent, the same address pushes again |
-| User loaded before the auth user resolves | Element created with no defaults | Prefill is missed and the element comes up empty. Mount after the user is available, which behind the auth guard it always is |
-| Address saved as a renewal is being created | Race between the write and Stripe creating the invoice | Whichever address is on the customer when Stripe creates the invoice is the one it computes off. No mid invoice recompute |
-
-## Decisions
-
-The element rather than a form of our own. `tax[validate_location]` at `immediately` makes address correctness a hard requirement rather than a nicety, and getting there by hand means an ISO alpha-2 country list, per country subdivision lists, per country postal rules and labels, and translations for all of it. Stripe ships that and keeps it current. The cost is that validation stops being ours, so zod rules, field labels and their translations go with the form.
-
-Plain Elements rather than the Checkout Session SDK. `createBillingAddressElement()` only exists on a session, and there is no session outside subscribe. The element instance is the same type either way, so the difference is confined to how it is constructed and where the value is sent afterwards.
-
-No customer is created here. The page is update only, so one already exists, and a request without one is a broken state rather than a first address. Creating it would open a customer at Stripe for someone who has never paid and hand back a success, which reads as the address being saved somewhere it matters. Subscribe creates the customer and pushes the first address through its session when the time comes.
-
-No webhook. There is no intent, no confirm and no challenge, so nothing can settle after the response. There is nothing to poll for and nothing to reconcile against on the happy path.
 
 ## Notes
 
-### Note on 1 - no address autocomplete here
+### The Stripe Billing Address Element over a form of the App's own
 
-Stripe only lends its Google Maps key when a Payment Element is in the same Elements group, which subscribe has and this page does not. Bringing our own is `autocomplete: { mode: 'google_maps_api', apiKey: '...' }`, which means a Google Maps Platform key and Google's billing behind it. Out of scope.
+Setting `tax[validate_location]` to `immediately` makes address correctness a hard requirement rather than a nicety, and getting there by hand means an ISO alpha-2 country list, per country subdivision lists, per country postal rules and labels, and translations for all of it. Stripe ships that and keeps it current. The cost is that validation stops being the App's, so field rules, field labels and their translations go with the form.
 
-## TODO
+### No Stripe Customer is created here
 
-Later
+The page changes an address that exists, so a Stripe Customer already exists too, and a request without one is a broken state rather than a first address. Creating one would open a Stripe Customer at Stripe for someone who has never paid and hand back a success, which reads as the address being saved somewhere it matters. Subscribe creates the Stripe Customer and pushes the first address through its Stripe Checkout Session when the time comes.
 
-- Reconcile job for an address that saved at Stripe and failed to write locally.
+### How this page differs from subscribe
 
-Out of scope
+Subscribe collects the same address through the Stripe Checkout Session's own Stripe Billing Address Element and never writes it to the Stripe Customer until confirm, so the two do not overlap. See the [subscription create flow](../../subscriptions/stripe/Create.md). This page is the other half, a direct write to the Stripe Customer with no Stripe Checkout Session behind it. Same Stripe Element, different construction, and the reason both exist is that a Stripe Checkout Session only exists while something is being bought.
 
-- Tax IDs, VAT numbers, reverse charge.
+There is no intent, no client secret, no confirm and no webhook on this path. The Stripe Element is a widget and nothing it collects goes to Stripe from the browser. Its value comes back to the App, and the address only reaches Stripe through the API's own update.
+
+### The API Address fields
+
+The API Address needs `state` and `name` fields. The Stripe Billing Address Element collects both.
+
+Never write `billing_details.address` on the Stripe Payment Method from here. Tax reads the Stripe Customer's address while one is set, AVS reads the Stripe Payment Method's address, and the two are answering different questions.
+
+### No address autocomplete here
+
+Stripe only lends its Google Maps key when a Stripe Payment Element is in the same Elements group, which subscribe has and this page does not. Bringing our own is `autocomplete: { mode: 'google_maps_api', apiKey: '...' }`, which means a Google Maps Platform key and Google's billing behind it. Out of scope.
+
+### Note on 1.3 - mounting before the Auth User resolves
+
+Stripe reads `defaultValues` once, when the Stripe Element is created, so a Stripe Element built before the Auth User arrives comes up empty and stays empty. Behind the auth guard the Auth User is always available, so this is a matter of ordering the mount after the load rather than a case to handle.
+
+### Note on 3.3 - what validate_location does not check
+
+Setting `tax[validate_location]` to `immediately` returns an error and leaves the Stripe Customer unchanged when the address cannot be placed, so an unplaceable address never reaches the API Address. What it does not check is registration. An address that resolves cleanly in a jurisdiction you are not registered in comes back with `automatic_tax` at `not_collecting` and bills zero tax, which you may still be liable for.
+
+### Note on 3.6 - when Stripe accepts and the API write fails
+
+Stripe is correct and tax is already right, only the API Address is behind, and the page keeps showing the old address. A retry pushes the same address again and is idempotent, so there is nothing to reconcile between the two attempts.
+
+### Note on 6 - saving while a renewal invoice is being created
+
+Whichever address is on the Stripe Customer at the moment Stripe creates the invoice is the one it computes tax off. There is no mid invoice recompute, so a save that lands a moment late applies to the invoice after it.
+
+## Todo
+
+- Reconcile job for an address that saved at Stripe and failed to write to the API Address.
+- Tax IDs, VAT numbers and reverse charge.
 - Reissuing an invoice for a cycle already finalized.
-- Payment method billing details.
+- Billing details on the Stripe Payment Method.
