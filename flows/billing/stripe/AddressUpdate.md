@@ -1,6 +1,6 @@
 # Billing Address Update - Stripe (Address Element)
 
-Status: draft
+Status: done
 Updated: 2026-09-01
 
 ## Description

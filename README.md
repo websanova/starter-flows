@@ -11,13 +11,13 @@ Feature flow specs and setup docs for the starter projects.
 | Flow | Status | Updated |
 | ---- | ------ | ------- |
 | [Subscription Create - Stripe (Checkout Sessions, Payment Element)](flows/subscriptions/stripe/Create.md) | done | 2026-08-31 |
-| [Subscription Create - Stripe (Hosted Checkout)](flows/subscriptions/stripe/CreateHosted.md) | ref | 2026-08-31 |
-| [Subscription Create - Stripe (Embedded Checkout)](flows/subscriptions/stripe/CreateEmbedded.md) | ref | 2026-08-31 |
+| [Subscription Create - Stripe (Hosted Checkout)](flows/subscriptions/stripe/CreateHosted.md) | ref | 2026-09-01 |
+| [Subscription Create - Stripe (Embedded Checkout)](flows/subscriptions/stripe/CreateEmbedded.md) | ref | 2026-09-01 |
 | [Subscription Cancel - Stripe](flows/subscriptions/stripe/Cancel.md) | draft | 2026-08-17 |
 | [Subscription Resume - Stripe](flows/subscriptions/stripe/Resume.md) | draft | 2026-08-17 |
 | [Billing Payment Method Update - Stripe (Payment Element)](flows/billing/stripe/PaymentMethodUpdate.md) | draft | 2026-08-17 |
 | [Billing Payment Method Delete - Stripe](flows/billing/stripe/PaymentMethodDelete.md) | draft | 2026-08-17 |
-| [Billing Address Update - Stripe](flows/billing/stripe/AddressUpdate.md) | draft | 2026-09-01 |
+| [Billing Address Update - Stripe](flows/billing/stripe/AddressUpdate.md) | done | 2026-09-01 |
 | [Subscription Guards](flows/subscriptions/Guards.md) | wip | 2026-08-30 |
 
 A `ref` flow is a strategy that was evaluated and not taken. The one that was taken sits beside it.
