@@ -1,7 +1,7 @@
 # Terms
 
 Status: done
-Updated: 2026-08-31
+Updated: 2026-09-02
 
 The master vocabulary. Every flow and doc in this repo draws its terms from here, word for word.
 
@@ -21,5 +21,6 @@ The master vocabulary. Every flow and doc in this repo draws its terms from here
 | Stripe Element | A Stripe UI component mounted by the App. |
 | Stripe Payment Element | The Stripe Element collecting the Stripe Payment Method. |
 | Stripe Payment Method | The payment method at Stripe, saved against the Stripe Customer. |
+| Stripe Setup Intent | The Stripe object that stores a Stripe Payment Method against a Stripe Customer without charging it. |
 | Stripe Subscription | The subscription at Stripe. |
 | User | The human using the App. Never the App and never the API. |

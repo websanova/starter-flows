@@ -1,172 +1,143 @@
 # Billing Payment Method Update - Stripe (Payment Element)
 
-Status: draft
-Updated: 2026-08-29
+Status: done
+Updated: 2026-09-02
 
-## Purpose & Scope
+## Description
 
-Replacing the payment method on file with the Payment Element. The user already entered a valid payment method during subscribe, so a customer and a payment method exist. This is a swap, not a first capture. A SetupIntent is created on page load and the element mounts straight off its secret. Nothing is charged, the current cycle is already paid, the new payment method is what the next renewal invoice bills.
+A User replaces the Stripe Payment Method held against them, from the account pages, entered in a Stripe Payment Element that is mounted and ready the moment the page opens. Confirming stores the Stripe Payment Method and an API sync call is what makes it the one on file, and nothing is charged along the way.
 
-The page is dedicated to this one job, so arriving on it is already the user declaring intent. The element is mounted and ready on arrival rather than sitting behind an additional button, which would ask for the same declaration twice.
+## Terms
 
-It is also only reachable with a payment method already on file. The billing page guards the route and sends anyone without one back, so the page never comes up empty over a customer it has nothing to replace for. The API keeps its own check for a request that did not come through the page.
+| Term | Description |
+| --- | --- |
+| API | The back end. Holds the API records and talks to the providers. |
+| API Payment Method | The API record holding the Stripe Payment Method's brand and last4. |
+| API User | The User's record on the API side. |
+| App | The front end the User is looking at, web or mobile. |
+| Auth User | The signed in User's data held by the App. |
+| Stripe Customer | The Stripe object holding the User's id, address and saved Stripe Payment Methods. |
+| Stripe Element | A Stripe UI component mounted by the App. |
+| Stripe Payment Element | The Stripe Element collecting the Stripe Payment Method. |
+| Stripe Payment Method | The payment method at Stripe, saved against the Stripe Customer. |
+| Stripe Setup Intent | The Stripe object that stores a Stripe Payment Method against a Stripe Customer without charging it. |
+| Stripe Subscription | The subscription at Stripe. |
+| User | The human using the App. Never the App and never the API. |
 
-The cost is a SetupIntent opened for every visitor. Unlike create there is no subscription and no local row behind it, an unconfirmed SetupIntent goes stale on Stripe on its own, so there is nothing to clean up.
+## Requirements
 
-## Actors & Entities
-
-Actors
-
-- User - enters the new payment method in the Payment Element.
-- Client App - requests the setup intent on load, mounts the element, confirms, syncs the confirmed intent.
-- API - creates the SetupIntent, repoints the defaults, detaches the old payment method, writes the local row. It does that on the sync call the client makes and again on the webhook, whichever lands first.
-- Stripe - issues the SetupIntent, runs 3DS, attaches the payment method, fires the webhook.
-
-Entities
-
-- User record - holds the Stripe customer id. Must already exist, the payment method being replaced was entered during subscribe.
-- Stripe Customer - carries `invoice_settings.default_payment_method`, the customer level default.
-- Subscription - carries its own `default_payment_method`, which overrides the customer level one.
-- SetupIntent - created on page load with `usage: off_session`. No amount, no price, nothing about the subscription.
-- PaymentMethod - old one detached, new one attached and defaulted. Two separate operations.
-- Local billing row - brand and last4. Display only.
+- Authenticated Users only.
+- Replace a Stripe Payment Method that already exists. There is no add path here, since the first one is collected during subscribe.
+- The billing page links here only when a Stripe Payment Method is on file, and the route is guarded on the same thing.
+- Collect the new Stripe Payment Method with the Stripe Payment Element, mounted and ready when the page opens.
+- Style the Stripe Element with the App's own appearance so the page matches the rest of the App.
+- Handle bank authentication challenges (3DS), including one that takes the User off the page and returns them.
+- A refused Stripe Payment Method leaves the User on the page to correct it, with nothing changed anywhere.
+- Make the new Stripe Payment Method the default for both the Stripe Customer and the Stripe Subscription, and remove the old one.
+- Write the API Payment Method's brand and last4 for display.
+- An API sync call does the work while the User waits, and a Stripe webhook runs the same work as a backstop.
+- Nothing is charged and no invoice is created. The new Stripe Payment Method is what the next renewal invoice bills.
 
 ## Flow
 
-1. User lands on the dedicated billing update page. The route is guarded on a payment method being on file, so a user with nothing to replace is sent back to billing before the page loads.
-2. On page load, without waiting for any user action, the client hits the API for a setup intent. Nothing to send, the customer is the authenticated user. The element cannot mount without a secret, so this fires before the form is usable rather than behind a save or a change payment method button.
-   1. Load the user's Stripe customer id from your DB. It has to already exist, the payment method being replaced was entered during subscribe. No customer id means there is nothing to update, error back. The guard on the route means this is a backstop for a direct hit rather than something the user can walk into.
-   2. Create a SetupIntent on Stripe with `customer` and `usage: 'off_session'`. The `off_session` part matters, the payment method gets charged by the renewal with nobody at the keyboard, and that is what sets the mandate up for it.
-   3. No amount, no price, nothing about the subscription. A SetupIntent only stores a payment method.
-   4. If it errors out, that error needs to get sent back to the client for display.
-   5. Return the client secret. Unlike create there is no `type` to branch on, it is always a setup.
-   6. A SetupIntent is opened for anyone who lands on the page. Unlike create there is no subscription and no local row behind it, an unconfirmed SetupIntent just goes stale on Stripe, so there is nothing to clean up.
-3. Element mounts against that secret with `elements({ clientSecret })`, then `paymentElement.mount(target)`. Same as create, no mode, no amount, no currency, Stripe reads it off the intent.
-4. User enters the new payment method and hits save.
-5. Call `confirmSetup({ elements, clientSecret, confirmParams: { return_url }, redirect: 'if_required' })`. The `return_url` is mandatory.
-6. Response is success / error / 3DS. Nothing is being charged but the bank can still want the payment method verified, so 3DS is on the table exactly like create. It either runs in a dialog and resolves inline, or sends the browser away to the bank and back to your return url.
-7. If it redirected, the user comes back to a freshly loaded page with no state. Stripe appends `setup_intent_client_secret` to the return url. Read it and call `retrieveSetupIntent` to see how it landed rather than starting the flow over. Only one key to look for here, there is no payment variant.
-8. On success the payment method is attached to the Stripe customer and that is all. It is not the default and nothing will charge it. Attaching and defaulting are two separate things, and this is where the flow is easy to get wrong.
-9. The confirmed intent still has to be turned into the payment method on file, and there are two paths into that. The client posts the setup intent id to a sync endpoint as soon as the confirm resolves, and Stripe fires `setup_intent.succeeded` carrying the same SetupIntent with its `payment_method`. Both run the same writes and whichever arrives first does them:
-   1. Set `invoice_settings.default_payment_method` on the Stripe customer to the new payment method. That is what a future invoice reads.
-   2. Set `default_payment_method` on the subscription to the same payment method, or clear it. A subscription level default overrides the customer level one, so if the old payment method is still pinned on the subscription the renewal charges the old payment method no matter what the customer record says. Nothing fails now, it surfaces a month later on the renewal.
-   3. Detach the old payment method, otherwise every update leaves another payment method sitting on the customer.
-   4. Write the new brand and last4 to the local row for display.
-   5. Has to be idempotent. Two paths write and the same setup intent can arrive twice on either.
-10. The sync call is what the user waits on, so its response is the answer and there is nothing to poll for. Reload the auth user off the back of it and the payment method on file is the new one. The webhook is not a second thing to wait for, it covers the customer who closed the tab or never came back from the bank, and lands as a no-op when the sync already ran.
-11. Take the success action, redirect back to billing, wherever. A sync that errors leaves the user on the page with the message and the confirmed intent still in hand, so submitting again retries the sync rather than asking for the card a second time.
-12. Nothing is charged by any of this. The current cycle is already paid, the new payment method gets used by the next renewal invoice.
+1. User opens the payment method page. The route is guarded on a Stripe Payment Method being on file, so a User with nothing to replace goes back to billing before the page loads.
+   1. The App asks the API for a Stripe Setup Intent on load, without waiting for the User to do anything. See the note below.
+   2. Load the API User's Stripe Customer id. There is always one, since a Stripe Payment Method on file means subscribe already created the Stripe Customer. If there isn't one, error out rather than creating one. A backstop for a request that did not come through the page.
+   3. Create the Stripe Setup Intent with the Stripe Customer and `usage` set to `off_session`. The renewal charges with nobody at the keyboard, and the mandate that allows it is what `off_session` sets up.
+   4. No amount, no price, nothing about the Stripe Subscription. A Stripe Setup Intent only ever stores a Stripe Payment Method.
+   5. Stripe erroring on the create errors back for display. Without a secret there is nothing to mount, so the page cannot continue.
+   6. Return the client secret.
+2. The App mounts the Stripe Payment Element against that secret.
+   1. Load stripe.js if it isn't already on the page.
+   2. Build an Elements instance off the client secret, with the same appearance and locale objects the rest of the App's Stripe Elements take. Neither `mode` nor `currency` is passed, Stripe reads what it needs off the Stripe Setup Intent.
+   3. The appearance is a snapshot taken when the instance is created. A Stripe Element has no access to the page's own custom properties, so a colour scheme or breakpoint change is pushed into the mounted instance rather than cascading into it.
+   4. The Stripe Element mounts while the loading state is still up, so its container is hidden rather than removed. Taking the container out of the document tears the mount down.
+   5. Anything that stops the mount, a dead stripe.js among them, shows the failure. An empty form with a live submit button under it is the one outcome to avoid.
+3. User enters the new Stripe Payment Method and submits. The App confirms the Stripe Setup Intent with a `return_url` and `redirect` set to `if_required`.
+   1. A bank challenge either runs in a dialog and resolves inline, or sends the User away to the bank and back to the return url. Nothing is being charged and the bank can still want the Stripe Payment Method verified.
+   2. A refusal leaves the Stripe Setup Intent confirmable and the Stripe Element standing. The User corrects the Stripe Payment Method and submits again on the same secret, with no new Stripe Setup Intent.
+   3. The return url is the page's own url with Stripe's return keys stripped off it. A second attempt that carried the first attempt's secret back would resume a Stripe Setup Intent that is already spent.
+4. Landing back from a bank. The page loads with no state and Stripe has appended the Stripe Setup Intent's secret to the url.
+   1. Read the secret and retrieve the Stripe Setup Intent rather than opening a second one. A create here spends a Stripe Setup Intent that nothing mounts and buries a challenge the User already passed.
+   2. Anything other than a success remounts the Stripe Element against the same secret and shows what came back, so the User tries again without a new Stripe Setup Intent.
+   3. A success goes straight to the sync call. The confirm is over and only the writes are left.
+5. A confirmed Stripe Setup Intent attaches the Stripe Payment Method to the Stripe Customer and that is all. It is not the default and nothing will charge it. Attaching and defaulting are two separate things, and this is where the flow is easy to get wrong.
+6. Two paths turn the confirmed Stripe Setup Intent into the Stripe Payment Method on file. The App posts its id to the API sync call as soon as the confirm resolves, and Stripe fires `setup_intent.succeeded` carrying the same Stripe Setup Intent. Both run the same writes and whichever arrives first does them.
+   1. The sync call checks that the Stripe Setup Intent belongs to the authenticated User's Stripe Customer and that it succeeded, and rejects anything else. The webhook is verified by its signature.
+   2. Set `invoice_settings.default_payment_method` on the Stripe Customer to the new Stripe Payment Method. That is what a future invoice reads.
+   3. Set `default_payment_method` on the Stripe Subscription to the same Stripe Payment Method. A Stripe Subscription level default overrides the Stripe Customer level one, so an old Stripe Payment Method left pinned there bills at the next renewal. Nothing fails at update time, it surfaces a month later. A User with no Stripe Subscription skips this and the rest of the writes still run.
+   4. Detach the old Stripe Payment Method, otherwise every update leaves another one sitting on the Stripe Customer. One that is already detached is not an error.
+   5. Write the API Payment Method's brand and last4.
+   6. Both paths are idempotent. The same Stripe Setup Intent can arrive twice on either.
+   7. Every write lands before the sync call responds, since the App reads the result off the Auth User it refreshes next.
+7. The sync call is what the User waits on, so its response is the answer and there is nothing to poll for.
+   1. On success the App refreshes the Auth User and sends the User back to billing, where the new brand and last4 are what shows.
+   2. On failure the User is held on the page with the message. The Stripe Setup Intent is confirmed and kept, so submitting again retries the sync rather than asking for the Stripe Payment Method a second time.
+   3. The webhook is not a second thing to wait for. It covers the User who closed the tab or never came back from the bank, and lands as a no-op when the sync call already ran.
+8. A Stripe Setup Intent is opened for everyone who lands on the page. There is no Stripe Subscription and no API record behind an unconfirmed one, and Stripe ages it out on its own, so there is nothing to clean up.
+9. Nothing is charged. The current cycle is already paid and the new Stripe Payment Method is what the next renewal invoice bills.
 
 ## Diagram
 
 ```mermaid
 flowchart LR
-    A[Billing update page] -->|on load| C["POST /payment-method/intent"]
-    C --> D[Load Stripe customer id]
-    D --> E["setupIntents.create<br/>usage: off_session"]
-    E --> F[Return client_secret]
+    A[User opens the payment method page] -->|on load| B["POST /payment-method/intent"]
+    B --> C[Load the Stripe Customer id]
+    C --> D["setupIntents.create<br/>usage: off_session"]
+    D --> E[Return the client secret]
 
-    F --> G["elements({ clientSecret })<br/>mount element"]
-    G --> H[User hits save]
-    H --> I[confirmSetup]
-    I --> J{Result}
+    E --> F["Elements off the secret<br/>mount the Stripe Payment Element"]
+    F --> G[User submits]
+    G --> H[confirmSetup]
+    H --> I{Result}
 
-    J -->|declined| H
-    J -->|3DS redirect| J1["Back at return_url<br/>retrieveSetupIntent"]
-    J -->|success| K
-    J1 --> K
+    I -->|refused| G
+    I -->|challenge redirect| I1["Back at the return url<br/>retrieveSetupIntent"]
+    I1 -->|not succeeded| F
+    I -->|succeeded| J
+    I1 -->|succeeded| J
 
-    K["Payment method attached to customer<br/>not default yet"] --> L1["POST /payment-method/sync"]
-    K --> L2["Stripe fires<br/>setup_intent.succeeded"]
+    J["Stripe Payment Method attached to the<br/>Stripe Customer, nothing defaulted"] --> K1["POST /payment-method/sync"]
+    J --> K2["Stripe fires<br/>setup_intent.succeeded"]
 
-    L1 --> M["Customer invoice_settings<br/>default_payment_method = new pm"]
-    L2 --> M
-    M --> N["Subscription default_payment_method<br/>= new pm or cleared"]
-    N --> O[Detach old pm]
-    O --> P["Local row -> new brand, last4"]
-    P --> Q[Refresh the auth user]
-    Q --> R[Success action]
-    R --> S["Next renewal invoice<br/>charges the new payment method"]
+    K1 --> L["Stripe Customer<br/>invoice_settings.default_payment_method"]
+    K2 --> L
+    L --> M["Stripe Subscription<br/>default_payment_method"]
+    M --> N[Detach the old Stripe Payment Method]
+    N --> O["API Payment Method<br/>brand and last4"]
+    O --> P[Refresh the Auth User]
+    P --> Q[Back to billing]
+    Q --> R["Next renewal invoice bills<br/>the new Stripe Payment Method"]
 ```
 
-## States
+## Notes
 
-SetupIntent, plus two states of this flow's own. `requires_payment_method`, `requires_action` and `succeeded` are Stripe's. `repointed` and `stale` are ours, Stripe has no such status. The local row has no status here, only payment method fields.
+### The Stripe Payment Element on a page of its own
 
-| State | Meaning |
-| ----- | ------- |
-| requires_payment_method | Created on page load, element mounted against it, no payment method entered |
-| requires_action | 3DS, either a dialog or a bank redirect |
-| succeeded | Payment method attached to the customer. Not default, nothing repointed, nothing will charge it |
-| repointed | Sync call or webhook processed. Customer and subscription defaults moved, old payment method detached, local row written |
+A bank challenge can send the browser away and bring it back to a cold url with the secret on it. A dedicated page comes back up as itself, reads the secret and retrieves the Stripe Setup Intent. A dialog or an inline section has to work out that it is mid flow and rebuild the state it was in before the redirect. Same result, more work.
 
-Allowed transitions
+### The sync call alongside the webhook
 
-| From | To | Trigger |
-| ---- | -- | ------- |
-| none | requires_payment_method | Page load, SetupIntent created |
-| requires_payment_method | requires_action | confirmSetup, bank wants the payment method verified |
-| requires_payment_method | succeeded | confirmSetup, no challenge |
-| requires_action | succeeded | Challenge passed inline or at the return url |
-| requires_payment_method | requires_payment_method | Declined. Same secret stays confirmable, user retries |
-| succeeded | repointed | Sync call or `setup_intent.succeeded`, whichever lands first |
-| requires_payment_method | stale | User abandons. Stripe ages it out, nothing local to clean |
+Leaving the writes to the webhook alone puts the User in front of a spinner for something that has already succeeded, and the obvious thing to poll on, the last4, does not change when the same Stripe Payment Method is entered again. The sync call gives the page a straight answer to wait on. The webhook stays because the browser can be closed or sent to the bank and never come back, and the webhook is the only path that always arrives. Two writers is the cost and idempotency is what pays for it.
 
-## Rules
+### One Stripe Payment Method on file
 
-- Authenticated user required.
-- A Stripe customer and a payment method must already exist. The route is guarded on the payment method, and no customer id on the API side is an error, not a create.
-- Setting `usage: off_session` is mandatory. The renewal charges with nobody at the keyboard, that is what the mandate is for.
-- Attaching is not defaulting. Success on the SetupIntent alone changes nothing about what gets billed.
-- Both defaults have to be handled. The subscription level default overrides the customer level one, so repointing only the customer leaves the old payment method billing at the next renewal.
-- Detach the old payment method, or every update leaves another payment method on the customer.
-- A confirmed intent changes nothing on its own. The sync call repoints for the user who is still on the page, the webhook covers the one who is not.
-- Both paths are idempotent, the same setup intent can arrive twice on either.
-- The sync response is the answer. Nothing is polled.
-- Nothing is charged. The current cycle is already paid.
+Detaching the old Stripe Payment Method keeps exactly one against the Stripe Customer, which is what a single brand and last4 on the API Payment Method can describe and what every screen showing the Stripe Payment Method assumes. Keeping a list buys a picker, a default marker and a delete path on every one of those screens.
 
-## Edge & Error Cases
+### Arriving from subscribe
 
-| Case | Cause | Expected behavior |
-| ---- | ----- | ----------------- |
-| No payment method on file | User never subscribed | Guarded route, sent back to billing before the page loads. Nothing to replace and this flow does not create one |
-| No Stripe customer id | The id was never saved, or the request did not come through the page | Error back to the client. A backstop, the guard means it is not a path the user can walk into |
-| Payment method declined | Bank refused | Element stays mounted against the same secret, user corrects and submits again. No new secret needed |
-| 3DS sends the browser away | Bank requires a challenge page | User returns to a cold page. Read `setup_intent_client_secret` off the url and `retrieveSetupIntent` rather than restarting |
-| Abandoned page | SetupIntent opened for every visitor | Unconfirmed intent goes stale on Stripe on its own. No local row behind it, nothing to clean up |
-| Subscription default left pinned | Only the customer level default repointed | Renewal charges the old payment method. Nothing fails at update time, it surfaces a month later |
-| Old payment method not detached | Detach step skipped | Payment methods pile up on the customer, one per update |
-| New payment method is the one already on file | User re-enters the same details | Stripe issues a new payment method id. Repoint and detach the old one as normal. Last4 not changing costs nothing, the sync response is what the client goes on |
-| Sync call fails after a successful confirm | API unreachable, or it errored mid write | User is held on the page with the message. The intent is already confirmed, so submitting again retries the sync without asking for the card again, and the webhook lands regardless |
-| Webhook lands before the sync call | Asynchronous, ordering is not guaranteed | Writes are already done. The sync call finds nothing to change and returns the same answer |
-| Webhook and sync both arrive | Normal case | Second one through is a no-op |
-| Neither path runs | User closed the tab mid confirm and the webhook was dropped | Payment method is attached at Stripe but nothing is defaulted and the row still shows the old payment method. The renewal charges the old payment method. Needs a manual sync |
-| Repoint succeeds, local row write fails | Partial failure mid write | Stripe is correct, display is stale until the other path runs or the user syncs again |
+Subscribe refuses a User who already has a Stripe Subscription, and a past due or unpaid one comes back as `payment_required` rather than the already subscribed error, so the App can send the User here to replace the Stripe Payment Method the failed renewal was charged to. See the [subscription create flow](../../subscriptions/stripe/Create.md). A refusal of that kind means a Stripe Subscription that has been billed, so the Stripe Payment Method is on file and the route guard has nothing to turn away. What happens to the invoice that failed belongs to dunning and sits outside this flow.
 
-## Decisions
+### Note on 1.1 - opening the Stripe Setup Intent on page load
 
-Dedicated page over an inline form or a dialog. 3DS can send the browser to the bank and back to a cold url with the secret on it. The dedicated page comes back up as itself, reads the secret and retrieves the intent. A dialog or an inline section has to work out it is mid flow and rebuild the state it was in before the redirect. Same result, more work.
+The page does one job, so arriving on it is the User declaring intent already and a button asking for the same declaration is the second time. The Stripe Element also cannot mount without a secret, so the call has to land before the form is usable whichever way it is triggered. A button would lower the number of abandoned Stripe Setup Intents rather than remove them, and an abandoned one costs nothing.
 
-The dedicated page fetches the intent on load. There is no need for additional setup or buttons here since hitting the page is the intent already. Gating it behind an additional button would only lower the count of stale SetupIntents, not remove them.
+## Todo
 
-The repoint runs on a sync call and on the webhook rather than on the webhook alone. Doing it only on the webhook means the user watches a spinner for something that has already succeeded, and the obvious thing to poll on, last4, does not change when they re-enter the same card. The sync call gives the page a straight answer to wait on. The webhook stays because the browser can be closed or sent to the bank and never come back, and it is the only path that always arrives. Two writers is the cost, and idempotency is what pays it.
-
-Detach the old payment method rather than keeping a list. One payment method on file is the model everywhere else in the flow, and the local row holds a single brand and last4.
-
-## TODO
-
-Now
-
-- Decide whether the subscription level default gets set to the new payment method or cleared. Clearing leans on the customer default, setting it is explicit. Pick one and use it everywhere.
-- Decide the behavior when a payment method exists with no subscription. The repoint has no subscription to touch.
-
-Later
-
-- Manual sync command to reconcile the payment method on file against Stripe when both the sync call and the webhook are missed.
-- Multiple payment methods on file. The flow assumes exactly one throughout.
-
-Out of scope
-
-- First payment method capture. That is the create flow.
-- Payment method removal. See the delete flow.
+- Confirm the API sets the Stripe Subscription's `default_payment_method` to the new Stripe Payment Method rather than clearing it to fall back on the Stripe Customer default, and that one of the two is used everywhere.
+- Confirm what a past due or unpaid Stripe Subscription does after a successful update. Whether anything retries the open invoice, or whether the status stands until Stripe charges again on its own schedule, and what the Auth User reads in the meantime.
+- Confirm what brand and last4 hold for a wallet or a bank redirect Stripe Payment Method, and whether the flag the route guard reads tracks those two fields.
+- Manual reconcile for a Stripe Payment Method that confirmed at Stripe where neither the sync call nor the webhook ran. Stripe holds the new Stripe Payment Method, nothing is defaulted, and the renewal bills the old one.
+- Multiple Stripe Payment Methods on file. The flow assumes exactly one throughout.
 - Dunning and failed renewals.
+- Removing the Stripe Payment Method. See the [payment method delete flow](PaymentMethodDelete.md).
