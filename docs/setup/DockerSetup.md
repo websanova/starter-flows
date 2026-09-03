@@ -102,10 +102,7 @@ flowchart LR
     MYSQL --> MYSQL_P["localhost:3306"]
     REDIS --> REDIS_P["localhost:6379"]
     STRIPE --> STRIPE_P["not published"]
-```
 
-```mermaid
-flowchart LR
     SPA["Starter Vue SPA"] --> APP["app<br/>(node:22-alpine)"]
     SPA --> ADMIN["admin<br/>(node:22-alpine)"]
     SPA --> NODE["node<br/>(node:22-alpine)"]
@@ -113,10 +110,7 @@ flowchart LR
     APP --> APP_P["localhost:5173"]
     ADMIN --> ADMIN_P["localhost:5174"]
     NODE --> NODE_P["not published"]
-```
 
-```mermaid
-flowchart LR
     FLOWS["Starter Flows"] --> NGINX["flows<br/>(nginx:alpine)"]
     NGINX --> NGINX_P["localhost:8088"]
 ```
