@@ -1,7 +1,7 @@
 # Billing Payment Method Delete - Stripe
 
 Status: draft
-Updated: 2026-09-02
+Updated: 2026-09-03
 
 ## Description
 
@@ -39,21 +39,18 @@ A User removes the Stripe Payment Method held against them, from the account pag
 ## Flow
 
 1. User opens the billing page. The delete control shows only when a Stripe Payment Method is on file and nothing further is going to be billed.
-   1. Nothing further is going to be billed once the Stripe Subscription has ended, or while it is cancelled and running out the paid term. A live Stripe Subscription that renews is still going to be billed.
+   1. Nothing further is going to be billed once the Stripe Subscription has ended, or while it is cancelled and running out the paid term.
    2. Hiding the control is display. The API reads the same rule again on the request, so the hidden control was never the rule.
 2. User hits delete. The App calls the API. No body, the Stripe Payment Method is resolved from the API User.
-   1. Re-read the API Subscription and refuse while anything is still going to be billed. A User who resumed the Stripe Subscription in another tab between the page rendering and the request is refused here.
-   2. A paid term that ran out between the page rendering and the request is still allowed. The gate only gets more permissive with time.
-   3. Nothing on file, already removed or never there, returns a success. There is nothing to detach.
-   4. Detach the Stripe Payment Method from the Stripe Customer. The Stripe Customer's `invoice_settings.default_payment_method` comes off with the detach, so there is no separate unset call.
-   5. A Stripe Payment Method Stripe already holds as detached, from a Stripe Dashboard removal or a retried request, is not an error. Carry on to the API Payment Method.
-   6. Stripe erroring on the detach errors back for display. The API Payment Method is left as it is and the User retries.
-   7. Clear the API Payment Method's brand and last4. See the note below.
+   1. Re-read the API Subscription and refuse while anything is still going to be billed. See the note below.
+   2. Nothing on file, already removed or never there, returns a success. There is nothing to detach.
+   3. Detach the Stripe Payment Method from the Stripe Customer. The Stripe Customer's `invoice_settings.default_payment_method` comes off with the detach, so there is no separate unset call.
+   4. A Stripe Payment Method that Stripe already holds as detached, from a Stripe Dashboard removal or a retried request, is not an error. Carry on to the API Payment Method.
+   5. Stripe erroring on the detach errors back for display. The API Payment Method is left as it is and the User retries.
+   6. Clear the API Payment Method's brand and last4. See the note below.
 3. App refreshes the Auth User and the billing page comes back with no Stripe Payment Method on file and no delete control.
 4. Stripe fires `payment_method.detached` afterwards. The API Payment Method is already clear, so the handler lands as a no-op.
 5. Removal is permanent. The Stripe Payment Method is detached rather than deleted and can never be attached to a Stripe Customer again. See the note below.
-6. Nothing is charged and no invoice is created.
-7. A User who subscribes again later goes through the [subscription create flow](../../subscriptions/stripe/Create.md), which collects a Stripe Payment Method from scratch.
 
 ## Diagram
 
@@ -91,7 +88,11 @@ Cancelled with the paid term still running and ended both mean no invoice is com
 
 There is no Stripe Setup Intent, no confirm and no bank challenge, so nothing can settle after the response and there is nothing to poll. That is what separates this from the [payment method update flow](PaymentMethodUpdate.md), where the browser confirms first and the writes follow.
 
-### Note on 2.7 - when Stripe detaches and the API Payment Method write fails
+### Note on 2.1 - a Stripe Subscription resumed mid-request
+
+A User who resumes the Stripe Subscription in another tab between the page rendering and the request hits the same re-read here. The gate refuses it the same as a Stripe Subscription that was never cancelled.
+
+### Note on 2.6 - when Stripe detaches and the API Payment Method write fails
 
 The Stripe Payment Method is gone at Stripe and the billing page still shows a brand and last4. Nothing renews, since the gate only passes when nothing further is billed, so there is no billing consequence. A retry takes the already detached path and clears the API Payment Method.
 
@@ -102,4 +103,4 @@ The Stripe Payment Method is gone at Stripe and the billing page still shows a b
 - Behavior for a User with a Stripe Payment Method on file and no API Subscription at all.
 - Reconcile for a detach that succeeded at Stripe and left the API Payment Method populated.
 - Handle `payment_method.detached` for a Stripe Payment Method removed out of band, from the Stripe Dashboard, where the API Payment Method is still populated.
-- Multiple Stripe Payment Methods on file. The flow assumes one throughout.
+- Multiple Stripe Payment Methods on a Stripe Customer. A Stripe Customer should never hold more than one, but the API has no way to detect one that accumulates outside the app's control without reconciling every API User holding a Stripe id and no Stripe Payment Method against Stripe directly. Detaching every Stripe Payment Method on the Stripe Customer at delete time is out of scope for now.

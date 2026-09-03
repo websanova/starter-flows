@@ -16,7 +16,7 @@ Feature flow specs and setup docs for the starter projects.
 | [Subscription Cancel - Stripe](flows/subscriptions/stripe/Cancel.md) | draft | 2026-09-02 |
 | [Subscription Resume - Stripe](flows/subscriptions/stripe/Resume.md) | draft | 2026-09-02 |
 | [Billing Payment Method Update - Stripe (Payment Element)](flows/billing/stripe/PaymentMethodUpdate.md) | done | 2026-09-02 |
-| [Billing Payment Method Delete - Stripe](flows/billing/stripe/PaymentMethodDelete.md) | draft | 2026-09-02 |
+| [Billing Payment Method Delete - Stripe](flows/billing/stripe/PaymentMethodDelete.md) | draft | 2026-09-03 |
 | [Billing Address Update - Stripe](flows/billing/stripe/AddressUpdate.md) | done | 2026-09-01 |
 | [Subscription Guards](flows/subscriptions/Guards.md) | wip | 2026-08-30 |
 
