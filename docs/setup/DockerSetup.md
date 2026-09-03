@@ -1,6 +1,6 @@
 # Docker Setup
 
-Status: wip
+Status: done
 Updated: 2026-09-02
 
 ## Layout
@@ -12,7 +12,7 @@ Updated: 2026-09-02
 | starter-laravel-api | redis | `localhost:6379` | `redis:6379` | Cache, published for a desktop client on the host |
 | starter-laravel-api | stripe | not published | none | Stripe CLI, dials out and forwards inward |
 | starter-vue-spa | app | `http://localhost:5173` | none | The App |
-| starter-vue-spa | admin | `http://localhost:5174` | none | The Admin App |
+| starter-vue-spa | admin | `http://localhost:5174` | none | The Admin |
 | starter-vue-spa | node | not published | none | Install and one-off commands |
 | starter-flows | flows | `http://localhost:8088` | none | Markdown viewer for `flows/` and `docs/` |
 
@@ -58,7 +58,11 @@ The official `stripe/stripe-cli` image running `listen`, which opens an outbound
 
 The repo holds two front ends, `app` and `admin`, built on a `shared/` directory they both draw from. Yarn workspaces ties all three together under one root `package.json`, so the packages for both front ends install once into a single `node_modules` at the root of the repo.
 
-The repo is mounted into each container at `/repo`, so a container reads the same files sitting on the host. The exception is `node_modules`, which lives in a Docker volume mounted over `/repo/node_modules` rather than on the host. Keeping the install inside Docker means every container shares one copy, packages built for the container's Linux never mix with a copy installed on the host for a different platform, and clearing the install is `docker compose down -v` rather than deleting a folder.
+The repo is mounted into each container at `/repo`, so a container reads the same files sitting on the host directory. Editing a file on the host edits the file the container sees, no copying involved.
+
+The exception is `node_modules`, which is a Docker volume mounted over `/repo/node_modules` rather than a directory on the host. A volume is storage Docker manages itself, a thing of its own rather than part of any container. All three containers mount the same one, so a single install serves every container, and the install stays put when the containers are thrown away and rebuilt. Wiping it takes `docker compose down -v`, where the `-v` is what deletes volumes.
+
+Keeping the install off the host also keeps the two apart. Packages that build native binaries build them for the container's Linux, and a `yarn` run on the host would build the same packages for the host's platform. Two copies in one directory means one of them is wrong.
 
 Vite only accepts connections from inside its own container unless told otherwise, so `http://localhost:5173` on the host gets connection refused even with the port published and the container up. Each Vite config reads `VITE_HOST` from `.env.development`, set to `0.0.0.0`, which makes the dev server accept connections from outside the container.
 
