@@ -98,9 +98,4 @@ The Stripe Payment Method is gone at Stripe and the billing page still shows a b
 
 ## Todo
 
-- Confirmation step before the delete. Removal is permanent and the same card entered again is a new Stripe Payment Method.
-- Pin the Stripe Subscription states that pass the gate in one place the App and the API both read.
-- Behavior for a User with a Stripe Payment Method on file and no API Subscription at all.
-- Reconcile for a detach that succeeded at Stripe and left the API Payment Method populated.
-- Handle `payment_method.detached` for a Stripe Payment Method removed out of band, from the Stripe Dashboard, where the API Payment Method is still populated.
 - Multiple Stripe Payment Methods on a Stripe Customer. A Stripe Customer should never hold more than one, but the API has no way to detect one that accumulates outside the app's control without reconciling every API User holding a Stripe id and no Stripe Payment Method against Stripe directly. Detaching every Stripe Payment Method on the Stripe Customer at delete time is out of scope for now.
