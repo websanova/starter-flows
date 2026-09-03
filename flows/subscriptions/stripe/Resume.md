@@ -87,19 +87,3 @@ flowchart LR
 ### Refusing a resume with no Stripe Payment Method on file
 
 Stripe does not reject one. Clearing `cancel_at_period_end` generates no invoice and attempts no payment, so there is nothing for Stripe to validate against, the Stripe Subscription is `active` throughout, and a Stripe Customer with no Stripe Payment Method is a legal state. The failure lands at the renewal instead, where the invoice cannot be paid and the Stripe Subscription drops into dunning. Letting the resume through trades one refusal now for a guaranteed failed payment weeks later.
-
-### A Stripe Payment Method removed during the paid term
-
-The [payment method delete flow](../../billing/stripe/PaymentMethodDelete.md) allows removal once the Stripe Subscription is cancelled, and the detach takes the Stripe Customer's default with it, so a cancelled User can arrive at resume with nothing on file. They put a Stripe Payment Method back through the [payment method update flow](../../billing/stripe/PaymentMethodUpdate.md) and come back. The Stripe Subscription and the rest of the paid term are still there.
-
-### Note on 3.5 - when Stripe resumes and the API Subscription write fails
-
-Stripe renews the Stripe Subscription and the App still shows it cancelled. The `customer.subscription.updated` event lands and corrects the API Subscription. Both failing on the same resume leaves the API Subscription cancelled with nothing to correct it, which is the one case a reconcile covers.
-
-## Todo
-
-- Pin the Stripe Subscription states that pass the gate in one place the App and the API both read.
-- Whether an ended Stripe Subscription gets a resume affordance at all, or drops the User into create.
-- Reconcile for a resume that succeeded at Stripe and left the API Subscription cancelled.
-- A User with no Stripe Payment Method on file has nowhere to add one. The payment method update flow is guarded on one already being on file, so the route back from a refused resume is not built.
-- Plan change.

@@ -83,16 +83,3 @@ Cancelling on the spot cuts access that is already paid for, which means either 
 ### Note on 3.4 - where the end date comes from
 
 Both fields come off the same update response. The end date is `cancel_at`, not `current_period_end`, which is not on the Stripe Subscription at all and sits on the subscription items instead.
-
-### Note on 3.4 - when Stripe holds the cancel and the API Subscription write fails
-
-Stripe holds the cancel and the App still shows a renewing Stripe Subscription. The `customer.subscription.updated` event lands and corrects the API Subscription. Both failing on the same cancel leaves the API Subscription renewing with nothing to correct it, which is the one case a reconcile covers.
-
-## Todo
-
-- Where the confirm page reads the end date from, since it states when access runs out.
-- Pin the Stripe Subscription states that pass the gate in one place the App and the API both read.
-- Immediate cancel as an admin action.
-- Reconcile for a cancel that succeeded at Stripe and left the API Subscription renewing.
-- The term end transition and the subscription deleted webhook.
-- Plan change.
