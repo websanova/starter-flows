@@ -56,27 +56,29 @@ The official `stripe/stripe-cli` image running `listen`, which opens an outbound
 
 ## Starter Vue SPA
 
-The repo holds two front ends, `app` and `admin`, built on a `shared/` directory they both draw from. Yarn workspaces ties all three together under one root `package.json`, so the packages for both front ends install once into a single `node_modules` at the root of the repo.
+Everything lives in one dependency tree. The root `package.json` lists all the packages, `app/package.json` and `admin/package.json` list none. Both front ends import `shared/`, so they have to use the same copy of everything.
 
-The repo is mounted into each container at `/repo`, so a container reads the same files sitting on the host directory. Editing a file on the host edits the file the container sees, no copying involved.
+That copy is the `node_modules` volume. All three containers mount it at the same path, so one install serves all of them. Giving each app its own install would create two copies of the same packages that could drift apart, with `shared/` compiled against both. The repo itself is mounted in from the host at `/repo`, the volume covers `node_modules` alone.
 
-The exception is `node_modules`, which is a Docker volume mounted over `/repo/node_modules` rather than a directory on the host. A volume is storage Docker manages itself, a thing of its own rather than part of any container. All three containers mount the same one, so a single install serves every container, and the install stays put when the containers are thrown away and rebuilt. Wiping it takes `docker compose down -v`, where the `-v` is what deletes volumes.
+The `node` container is just a shell. It runs nothing, so `./dev install` has somewhere to run that is not a container currently serving a dev server. It also still works when `app` and `admin` are broken or stopped.
 
-Keeping the install off the host also keeps the two apart. Packages that build native binaries build them for the container's Linux, and a `yarn` run on the host would build the same packages for the host's platform. Two copies in one directory means one of them is wrong.
+The `app` and `admin` containers are split only for ports, 5173 and 5174, and so one Vite restarts without touching the other. They are otherwise identical, same image, same volume, different `APP` value.
 
-Vite only accepts connections from inside its own container unless told otherwise, so `http://localhost:5173` on the host gets connection refused even with the port published and the container up. Each Vite config reads `VITE_HOST` from `.env.development`, set to `0.0.0.0`, which makes the dev server accept connections from outside the container.
+No Dockerfile. Three stock `node:22-alpine` containers and one volume. Separate installs would mean building images or duplicating the tree, to isolate two apps that are meant to stay on identical versions.
+
+Vite accepts connections only from inside its own container by default, so `http://localhost:5173` on the host would refuse the connection. Each Vite config reads `VITE_HOST` from `.env.development`, set to `0.0.0.0`.
 
 ### app
 
-Stock `node:22-alpine`, running `yarn workspace app run dev` on port 5173 through `docker/node/entrypoint.sh`, which starts the dev server only when `node_modules` is populated, then holds the container open with `tail -f /dev/null`. Holding the container open means a crashed dev server does not take the container down with it, and `./dev sh app` still works.
+Runs `yarn workspace app run dev` on port 5173 through `docker/node/entrypoint.sh`, which starts the dev server only when `node_modules` is populated, then holds the container open with `tail -f /dev/null`. A crashed dev server does not take the container down with it, and `./dev sh app` still works.
 
 ### admin
 
-Stock `node:22-alpine`, identical to `app` apart from `APP=admin` and port 5174.
+Same, with `APP=admin` on port 5174.
 
 ### node
 
-Stock `node:22-alpine` with no port and no dev server, kept alive by `tail -f /dev/null`. The install and one-off command target, so `./dev install` and `./dev yarn ...` do not disturb either running dev server.
+Idle, the target for `./dev install` and `./dev yarn ...`.
 
 ## Starter Flows
 
