@@ -6,7 +6,7 @@ Feature flow specs and setup docs for the starter projects.
 | --- | ------ | ------- |
 | [Terms](docs/conventions/Terms.md) | done | 2026-08-31 |
 | [Status](docs/conventions/Status.md) | done | 2026-08-31 |
-| [Docker Setup](docs/setup/DockerSetup.md) | wip | 2026-08-31 |
+| [Docker Setup](docs/setup/DockerSetup.md) | wip | 2026-09-02 |
 
 | Flow | Status | Updated |
 | ---- | ------ | ------- |
