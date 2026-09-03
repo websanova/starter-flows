@@ -26,13 +26,15 @@ Every repo bind mounts its working tree into the container, so edits apply live 
 
 Built from `docker/php/Dockerfile` on `php:8.4-fpm`, with everything the API needs baked into the image.
 
-- `pdo_mysql`
-- `zip`
-- `bcmath`
-- `gd` - configured with JPEG support
-- `redis` - installed through PECL
-- `composer` - copied in from the official Composer image
-- `mysqldump` - copied in from the MySQL 8.0 image, so database dumps and backups run inside the container without a second toolchain
+- Extensions
+    - `pdo_mysql`
+    - `zip`
+    - `bcmath`
+    - `gd` - configured with JPEG support
+    - `redis` - installed through PECL
+- Binaries
+    - `composer` - copied in from the official Composer image
+    - `mysqldump` - copied in from the MySQL 8.0 image, so database dumps and backups run inside the container without a second toolchain
 
 Custom image over Laravel Sail. Adding an extension here is one line in the Dockerfile and a rebuild, where Sail wraps the same job in its own publish and override layer. Once the image needs anything past the defaults, Sail is more to work around than to use.
 
@@ -91,52 +93,30 @@ The config sends `Cache-Control: no-store` on everything and turns on `autoindex
 
 ```mermaid
 flowchart LR
-    subgraph API["Starter Laravel API"]
-        direction LR
-        PHP["php<br/>built from docker/php<br/>php:8.4-fpm<br/>pdo_mysql, zip, bcmath, gd, redis<br/>composer, mysqldump<br/>artisan serve 8000<br/>runs as host uid/gid"]
-        MYSQL["mysql<br/>mysql:8.0<br/>db laravel<br/>volume mysql_data"]
-        REDIS["redis<br/>redis:7-alpine<br/>no volume"]
-        STRIPE["stripe<br/>stripe/stripe-cli<br/>listen and forward"]
-    end
-    H1["host :8000"] --> PHP
-    H2["host :3306"] --> MYSQL
-    H3["host :6379"] --> REDIS
-    PHP --> MYSQL
-    PHP --> REDIS
-    STRIPE -->|"/stripe/webhook"| PHP
+    API["Starter Laravel API"] --> PHP["php<br/>(php:8.4-fpm)"]
+    API --> MYSQL["mysql<br/>(mysql:8.0)"]
+    API --> REDIS["redis<br/>(redis:7-alpine)"]
+    API --> STRIPE["stripe<br/>(stripe/stripe-cli)"]
+
+    PHP --> PHP_P["localhost:8000"]
+    MYSQL --> MYSQL_P["localhost:3306"]
+    REDIS --> REDIS_P["localhost:6379"]
+    STRIPE --> STRIPE_P["not published"]
 ```
 
 ```mermaid
 flowchart LR
-    subgraph SPA["Starter Vue SPA"]
-        direction LR
-        APP["app<br/>node:22-alpine<br/>APP=app<br/>vite dev 5173"]
-        ADMIN["admin<br/>node:22-alpine<br/>APP=admin<br/>vite dev 5174"]
-        NODE["node<br/>node:22-alpine<br/>idle<br/>yarn install target"]
-        VOL["volume node_modules<br/>mounted at /repo/node_modules"]
-    end
-    H4["host :5173"] --> APP
-    H5["host :5174"] --> ADMIN
-    APP --- VOL
-    ADMIN --- VOL
-    NODE --- VOL
-    APP -->|"VITE_API_URL"| EXT["host :8000<br/>Starter Laravel API"]
-    ADMIN -->|"VITE_API_URL"| EXT
+    SPA["Starter Vue SPA"] --> APP["app<br/>(node:22-alpine)"]
+    SPA --> ADMIN["admin<br/>(node:22-alpine)"]
+    SPA --> NODE["node<br/>(node:22-alpine)"]
+
+    APP --> APP_P["localhost:5173"]
+    ADMIN --> ADMIN_P["localhost:5174"]
+    NODE --> NODE_P["not published"]
 ```
 
 ```mermaid
 flowchart LR
-    subgraph FLOWS["Starter Flows"]
-        direction LR
-        NGINX["flows<br/>nginx:alpine<br/>autoindex json<br/>text/markdown<br/>no-store"]
-        MOUNTS["read-only mounts<br/>viewer/index.html<br/>viewer/nginx.conf<br/>viewer/vendor<br/>viewer/favicons<br/>flows/<br/>docs/"]
-    end
-    H6["host :8088"] --> NGINX
-    NGINX --- MOUNTS
+    FLOWS["Starter Flows"] --> NGINX["flows<br/>(nginx:alpine)"]
+    NGINX --> NGINX_P["localhost:8088"]
 ```
-
-## Todo
-
-- The Starter Vue SPA docker doc calls the wrapper `./run install`, the script in the repo is `./dev`.
-- No shared network across the three stacks. Cross-repo calls go out to the host and back in.
-- Redis has no volume, so cached data is lost on every recreate.
