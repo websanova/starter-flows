@@ -5,14 +5,12 @@ Feature flow specs and setup docs for the starter projects.
 | Doc | Status | Updated |
 | --- | ------ | ------- |
 | [Terms](docs/conventions/Terms.md) | done | 2026-08-31 |
-| [Status](docs/conventions/Status.md) | done | 2026-08-31 |
+| [Status](docs/conventions/Status.md) | done | 2026-09-04 |
 | [Docker Setup](docs/setup/DockerSetup.md) | done | 2026-09-02 |
 
 | Flow | Status | Updated |
 | ---- | ------ | ------- |
-| [Subscription Create - Stripe (Checkout Sessions, Payment Element)](flows/subscription/stripe/Create.md) | done | 2026-08-31 |
-| [Subscription Create - Stripe (Hosted Checkout)](flows/subscription/stripe/CreateHosted.md) | ref | 2026-09-01 |
-| [Subscription Create - Stripe (Embedded Checkout)](flows/subscription/stripe/CreateEmbedded.md) | ref | 2026-09-01 |
+| [Subscription Create - Stripe (Checkout Sessions, Payment Element)](flows/subscription/stripe/Create.md) | done | 2026-09-04 |
 | [Subscription Cancel - Stripe](flows/subscription/stripe/Cancel.md) | done | 2026-09-04 |
 | [Subscription Resume - Stripe](flows/subscription/stripe/Resume.md) | draft | 2026-09-02 |
 | [Subscription Update - Stripe](flows/subscription/stripe/Update.md) | wip | 2026-09-04 |
@@ -20,6 +18,11 @@ Feature flow specs and setup docs for the starter projects.
 | [Payment Method Update - Stripe (Payment Element)](flows/payment-method/stripe/Update.md) | done | 2026-09-03 |
 | [Payment Method Delete - Stripe](flows/payment-method/stripe/Delete.md) | done | 2026-09-03 |
 | [Address Update - Stripe (Address Element)](flows/address/stripe/Update.md) | done | 2026-09-03 |
+
+| Ref | Status | Updated |
+| --- | ------ | ------- |
+| [Subscription Create - Stripe (Hosted Checkout)](refs/subscription/stripe/CreateHosted.md) | ref | 2026-09-01 |
+| [Subscription Create - Stripe (Embedded Checkout)](refs/subscription/stripe/CreateEmbedded.md) | ref | 2026-09-01 |
 
 ## Projects
 
@@ -47,7 +50,7 @@ Every status keyword is defined in [docs/conventions/Status.md](docs/conventions
 
 ## Docker
 
-Markdown viewer for `flows/` and `docs/` at http://localhost:8088.
+Markdown viewer for `flows/`, `docs/` and `refs/` at http://localhost:8088.
 
 ```bash
 docker compose up -d      # start
@@ -57,11 +60,11 @@ docker compose ps         # status
 docker compose logs -f    # tail nginx logs
 ```
 
-Everything is bind mounted read-only. Edits to `flows/*.md`, `docs/*.md` and `viewer/index.html` are live, no restart. Only `nginx.conf` needs one.
+Everything is bind mounted read-only. Edits to `flows/*.md`, `docs/*.md`, `refs/*.md` and `viewer/index.html` are live, no restart. Only `nginx.conf` needs one.
 
 ## Deploy
 
-If you want to deploy the flows publicly, just serve the viewer directory and create a couple aliases for the `flows` and `docs` folders.
+If you want to deploy the flows publicly, just serve the viewer directory and create a couple aliases for the `flows`, `docs` and `refs` folders.
 
 ```nginx
 server {
@@ -82,6 +85,13 @@ server {
 
     location /docs/ {
         alias /srv/starter-flows/docs/;
+        autoindex on;
+        autoindex_format json;
+        default_type text/markdown;
+    }
+
+    location /refs/ {
+        alias /srv/starter-flows/refs/;
         autoindex on;
         autoindex_format json;
         default_type text/markdown;

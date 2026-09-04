@@ -11,4 +11,5 @@ services:
       - ./viewer/favicons:/usr/share/nginx/html/favicons:ro
       - ./flows:/usr/share/nginx/html/flows:ro
       - ./docs:/usr/share/nginx/html/docs:ro
+      - ./refs:/usr/share/nginx/html/refs:ro
     restart: unless-stopped

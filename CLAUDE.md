@@ -9,7 +9,7 @@
 
 ## Repo Purpose
 - This repo contains specs and reference documentation only. No application code.
-- Two kinds of file. A flow in `flows/` is the source of truth for a feature. A doc in `docs/` describes something that is not a feature, a setup, an environment, a shared reference.
+- Three kinds of file. A flow in `flows/` is the source of truth for a feature. A doc in `docs/` describes something that is not a feature, a setup, an environment, a shared reference. A ref in `refs/` is a strategy that was evaluated and not taken, kept for comparison and never built.
 - Implementation happens in the starter repos. This repo plans, code repos execute.
 - Everything here is implementation-agnostic. The same flow holds for Laravel/Cashier, Rails, Django, Vue, React, or mobile.
 - Never reference a specific library, framework, package, or file path.
@@ -92,9 +92,8 @@
   - File names are PascalCase, spelled out. The viewer splits them on the capitals for display, so `PaymentMethodUpdate.md` reads as "Payment Method Update".
   - Directory names stay lowercase and hyphenated.
   - `flows/subscriptions/Guards.md`, `flows/subscriptions/stripe/Create.md`, `flows/billing/stripe/PaymentMethodUpdate.md`.
-  - A flow kept for comparison and never built sits beside the one that was taken and carries `Status: ref`. The badge is what tells them apart, there is no separate directory.
 - Header lines at top of every flow:
-  - `Status: wip | draft | ready | done | ref`, defined in [docs/conventions/Status.md](docs/conventions/Status.md)
+  - `Status: wip | draft | ready | done`, defined in [docs/conventions/Status.md](docs/conventions/Status.md)
   - `Updated: YYYY-MM-DD`
 - Fixed section order, every file:
   1. `Description`
@@ -148,3 +147,10 @@
 - Diagrams are free form. No LR requirement, no diagram type rules, no one screen limit.
 - A doc gives the overview. The explicit install and usage instructions live in the repo they belong to.
 - A local `Terms` table is optional in a doc. If one is there, it follows the master exactly like a flow's.
+
+## Refs
+- Location: `refs/<area>/<Feature>.md`. A provider takes its own level when the ref is provider specific, `refs/<area>/<provider>/<Feature>.md`. PascalCase file names and lowercase directories, same as a flow.
+- Header lines at top of every ref:
+  - `Status: wip | ref`, defined in [docs/conventions/Status.md](docs/conventions/Status.md)
+  - `Updated: YYYY-MM-DD`
+- A ref is a flow that was not taken, so it carries the flow section order, the flow diagram rules and everything else a flow carries.
