@@ -13,7 +13,7 @@ Feature flow specs and setup docs for the starter projects.
 | [Subscription Create - Stripe (Checkout Sessions, Payment Element)](flows/subscription/stripe/Create.md) | done | 2026-08-31 |
 | [Subscription Create - Stripe (Hosted Checkout)](flows/subscription/stripe/CreateHosted.md) | ref | 2026-09-01 |
 | [Subscription Create - Stripe (Embedded Checkout)](flows/subscription/stripe/CreateEmbedded.md) | ref | 2026-09-01 |
-| [Subscription Cancel - Stripe](flows/subscription/stripe/Cancel.md) | draft | 2026-09-02 |
+| [Subscription Cancel - Stripe](flows/subscription/stripe/Cancel.md) | done | 2026-09-04 |
 | [Subscription Resume - Stripe](flows/subscription/stripe/Resume.md) | draft | 2026-09-02 |
 | [Subscription Guards](flows/subscription/Guards.md) | wip | 2026-09-03 |
 | [Payment Method Update - Stripe (Payment Element)](flows/payment-method/stripe/Update.md) | done | 2026-09-03 |
