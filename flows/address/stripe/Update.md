@@ -1,7 +1,7 @@
-# Billing Address Update - Stripe (Address Element)
+# Address Update - Stripe (Address Element)
 
 Status: done
-Updated: 2026-09-01
+Updated: 2026-09-03
 
 ## Description
 
@@ -96,7 +96,7 @@ The page changes an address that exists, so a Stripe Customer already exists too
 
 ### How this page differs from subscribe
 
-Subscribe collects the same address through the Stripe Checkout Session's own Stripe Billing Address Element and never writes it to the Stripe Customer until confirm, so the two do not overlap. See the [subscription create flow](../../subscriptions/stripe/Create.md). This page is the other half, a direct write to the Stripe Customer with no Stripe Checkout Session behind it. Same Stripe Element, different construction, and the reason both exist is that a Stripe Checkout Session only exists while something is being bought.
+Subscribe collects the same address through the Stripe Checkout Session's own Stripe Billing Address Element and never writes it to the Stripe Customer until confirm, so the two do not overlap. See the [subscription create flow](../../subscription/stripe/Create.md). This page is the other half, a direct write to the Stripe Customer with no Stripe Checkout Session behind it. Same Stripe Element, different construction, and the reason both exist is that a Stripe Checkout Session only exists while something is being bought.
 
 There is no intent, no client secret, no confirm and no webhook on this path. The Stripe Element is a widget and nothing it collects goes to Stripe from the browser. Its value comes back to the App, and the address only reaches Stripe through the API's own update.
 

@@ -1,7 +1,7 @@
-# Billing Payment Method Update - Stripe (Payment Element)
+# Payment Method Update - Stripe (Payment Element)
 
 Status: done
-Updated: 2026-09-02
+Updated: 2026-09-03
 
 ## Description
 
@@ -133,7 +133,7 @@ This flow swaps the Stripe Payment Method on file and stops. It does not look fo
 
 That is deliberate. Resolving a failed renewal is a different job with a different answer. The Stripe Payment Method on file might be fine and only need a bank challenge cleared, in which case sending the User here to type a card in again asks them for something that was never the problem. It is also the one case where the User might need to be charged before they get their access back, and charging is not what this page does.
 
-So a past due User defaults to billing until the App handles them. See the [subscription guards flow](../../subscriptions/Guards.md).
+So a past due User defaults to billing until the App handles them. See the [subscription guards flow](../../subscription/Guards.md).
 
 ### Note on 1.1 - opening the Stripe Setup Intent on page load
 

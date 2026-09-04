@@ -1,7 +1,7 @@
 # Subscription Guards
 
 Status: wip
-Updated: 2026-08-30
+Updated: 2026-09-03
 
 
 ## Notes
@@ -15,7 +15,7 @@ Updated: 2026-08-30
 
 ---
 
-* Dunning and failed renewals. Moved here from the [payment method update flow](../billing/stripe/PaymentMethodUpdate.md), since what it really decides is what a User can still do while their payment is failing, which is a guard question rather than a card question.
+* Dunning and failed renewals. Moved here from the [payment method update flow](../payment-method/stripe/Update.md), since what it really decides is what a User can still do while their payment is failing, which is a guard question rather than a card question.
 
   When a renewal fails, Stripe retries on its own schedule, a handful of attempts over a couple of weeks depending on the policy set in the dashboard. The Stripe Subscription sits at `past_due` for that whole window and moves to `unpaid` once the attempts run out. Cashier treats both as not active by default, so `is_subscribed` is false the moment the first renewal fails and the User is locked out of everything behind the subscribed guard, for weeks, while Stripe is still trying and while they may well have no idea anything is wrong.
 
