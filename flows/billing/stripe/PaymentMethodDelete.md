@@ -56,7 +56,7 @@ A User removes the Stripe Payment Method held against them, from the account pag
 
 ```mermaid
 flowchart LR
-    A[User hits delete on the billing page] --> B["DELETE /billing/payment-method"]
+    A[User hits delete on the billing page] --> B["DELETE /payment-method"]
     B --> C{API Subscription<br/>still chargeable?}
 
     C -->|live and renewing| D[Refuse, nothing touched]
