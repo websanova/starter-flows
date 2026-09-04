@@ -515,6 +515,15 @@
 
         const groupOf = name => name.slice(0, name.lastIndexOf('/'));
 
+        // Browser tab title. The full path without the root, so
+        // flows/payment-method/stripe/Update.md reads "Payment Method Stripe Update".
+        // Directories are lowercase and hyphenated, file names are PascalCase.
+        const titleOf = name => slug(name)
+            .split('/')
+            .slice(1)
+            .map(part => words(part.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')))
+            .join(' ');
+
         const fail = (title, detail) => {
             el.innerHTML = '<div class="error"><strong>' + title + '</strong><p>' + detail + '</p></div>';
         };
@@ -687,7 +696,7 @@
 
         async function load (name, keepScroll) {
             current = name;
-            document.title = 'Starter | ' + words(slug(base(name)));
+            document.title = 'Starter | ' + titleOf(name);
             writeStore({ root: root, [root]: name });
 
             try {
