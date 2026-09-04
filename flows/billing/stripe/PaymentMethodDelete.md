@@ -29,7 +29,7 @@ A User removes the Stripe Payment Method held against them, from the account pag
 - The billing page shows the control only when a Stripe Payment Method is on file.
 - Allowed only when nothing further is going to be billed. A Stripe Subscription that has ended qualifies, so does one that is cancelled and running out the paid term.
 - Refused while the Stripe Subscription is live and renewing.
-- The App hides the control on the same rule, and the API decides it again on every request.
+- The App shows the control whenever a Stripe Payment Method is on file, and tells the User why when nothing can be removed yet. The API decides it again on every request.
 - Removal takes the Stripe Payment Method off the Stripe Customer along with the Stripe Customer's default.
 - Clear the API Payment Method's brand and last4.
 - Removal is permanent. The same card entered again is a different Stripe Payment Method.
@@ -38,9 +38,9 @@ A User removes the Stripe Payment Method held against them, from the account pag
 
 ## Flow
 
-1. User opens the billing page. The delete control shows only when a Stripe Payment Method is on file and nothing further is going to be billed.
+1. User opens the billing page. The delete control shows only when a Stripe Payment Method is on file.
    1. Nothing further is going to be billed once the Stripe Subscription has ended, or while it is cancelled and running out the paid term.
-   2. Hiding the control is display. The API reads the same rule again on the request, so the hidden control was never the rule.
+   2. Refusing in the App is display. The API reads the same rule again on the request, so what the App said was never the rule.
 2. User hits delete. The App calls the API. No body, the Stripe Payment Method is resolved from the API User.
    1. Re-read the API Subscription and refuse while anything is still going to be billed. See the note below.
    2. Nothing on file, already removed or never there, returns a success. There is nothing to detach.
