@@ -1,11 +1,11 @@
 # Subscription Update - Stripe
 
-Status: wip
-Updated: 2026-09-04
+Status: draft
+Updated: 2026-09-06
 
 ## Description
 
-A User on a live Stripe Subscription changes the plan or the interval they are on. The existing Stripe Subscription carries on with a different price against it, so nothing is cancelled and nothing is created.
+A User on an active Stripe Subscription changes the plan, the interval, or both. The existing Stripe Subscription carries on with a different price against it, so nothing is cancelled and nothing is created, and the difference is charged on confirm.
 
 ## Terms
 
@@ -25,38 +25,49 @@ A User on a live Stripe Subscription changes the plan or the interval they are o
 ## Requirements
 
 - Authenticated Users only.
-- Change the plan, the interval, or both, on a live Stripe Subscription.
+- Change the plan, the interval, or both, on an active Stripe Subscription.
 - Keep the existing Stripe Subscription. Nothing is cancelled and nothing is created.
+- Refused on anything other than an active Stripe Subscription. Trialing, past due and unpaid each refuse with their own error. See the [subscription guards flow](../Guards.md).
+- A cancelled Stripe Subscription still inside the term shows the resume control and never the change control. See the [subscription resume flow](Resume.md).
+- Refused when no Stripe Payment Method resolves.
 - The control leads to a dedicated confirm page rather than an inline picker.
 - The page states the plan, the interval, what is charged now and what the next renewal costs, before the User commits.
-- Refused when there is no live Stripe Subscription. Past due and unpaid refuse with their own error. See the [subscription guards flow](../Guards.md).
-- A cancelled Stripe Subscription still inside the term goes through the [subscription resume flow](Resume.md) first.
-- Refused when no Stripe Payment Method resolves.
+- The difference is prorated and charged on confirm.
+- A downgrade leaves a credit on the Stripe Customer rather than a refund.
+- A charge the bank wants authenticated is challenged on the confirm page.
+- A declined charge leaves the User on the changed plan with an unpaid invoice.
 - The App hides the control on the same rule, and the API decides it again on every request.
 - The API writes the API Subscription off Stripe's response, and the matching Stripe webhook rewrites the same fields as a backstop.
 
 ## Flow
 
-1. User opens the billing page. The change control shows only on a live Stripe Subscription.
-   1. Hiding the control is display. The API reads the same rule again on the request, so the hidden control was never the rule.
-2. User picks a plan and an interval. The plan currently on the Stripe Subscription is marked and cannot be picked.
-3. The pick leads to a dedicated confirm page stating the plan, the interval, what is charged now and what the next renewal costs. Confirm is the only action on it.
+1. User opens the billing page. The change control shows only on an active Stripe Subscription with a Stripe Payment Method on file.
+   1. A cancelled Stripe Subscription still inside the term shows the resume control and never the change control. The User resumes first and changes plan after.
+   2. Hiding the control is display. The API reads the same rule again on the request, so the hidden control was never the rule.
+2. User picks a plan and an interval. Only the plan and interval combination currently on the Stripe Subscription is marked and cannot be picked, so the same plan on a different interval is a valid pick.
+3. The pick leads to a dedicated confirm page. The API previews the change at Stripe so the page states the plan, the interval, what is charged now and what the next renewal costs. A downgrade states the credit in place of a charge. Confirm is the only action on it.
 4. User confirms. The App calls the API with the plan and the interval. The Stripe Subscription is resolved from the API User.
-   1. Re-read the API Subscription and refuse when there is no live Stripe Subscription.
+   1. Re-read the API Subscription and refuse anything other than an active Stripe Subscription. No Stripe Subscription at all, trialing, past due, unpaid and cancelled inside the term each refuse.
    2. Refuse a plan or an interval the API does not know.
-   3. A plan and interval already on the Stripe Subscription is not a refusal. The request is already satisfied, so return the current state and change nothing at Stripe.
-   4. Update the Stripe Subscription's item with the new price. Stripe returns the updated Stripe Subscription in the same call.
-   5. Write the API Subscription off the returned object, plan and interval.
-   6. Stripe erroring on the update errors back for display. The API Subscription is left as it is and the User retries.
-5. App refreshes the Auth User so everything reading subscription state picks up the changed API Subscription, then takes the success action.
+   3. Refuse when no Stripe Payment Method resolves. Read `default_payment_method` on the Stripe Subscription, falling back to `invoice_settings.default_payment_method` on the Stripe Customer, which is the order the charge itself reads. Not the API Payment Method, which is display and lags the webhook.
+   4. A plan and interval already on the Stripe Subscription is not a refusal. The request is already satisfied, so return the current state and change nothing at Stripe.
+   5. Update the Stripe Subscription's item with the new price, prorating and invoicing on the spot. Stripe returns the updated Stripe Subscription in the same call.
+   6. Write the API Subscription off the returned object, plan and interval.
+   7. Read the proration invoice off the same call. Paid, or nothing owed on a downgrade, ends the call. A charge the bank wants authenticated returns the invoice's confirmation secret. A declined charge returns the failure with the price change already applied. See the note below.
+   8. Stripe erroring on the update itself errors back for display. The API Subscription is left as it is and the User retries.
+5. The App acts on what came back.
+   1. Nothing owed or the charge cleared, refresh the Auth User so everything reading subscription state picks up the changed API Subscription, then take the success action.
+   2. A confirmation secret mounts the bank challenge on the confirm page. Clearing the challenge refreshes the Auth User and takes the success action.
+   3. A declined charge states that the plan changed and the payment did not, and sends the User to settle the invoice.
 6. Stripe fires `customer.subscription.updated` afterwards carrying the same fields the API already wrote, so the handler rewrites what is already there. The same handler writes the API Subscription for a change done in the Stripe Dashboard.
 
 ## Diagram
 
 ```mermaid
 flowchart LR
-    A[User hits change plan on the billing page] --> B{Live Stripe Subscription,<br/>Stripe Payment Method on file?}
+    A[User hits change plan on the billing page] --> B{Active Stripe Subscription,<br/>Stripe Payment Method on file?}
 
+    B -->|cancelled inside the term| B1[Resume control shows<br/>in place of the change control]
     B -->|no| C[Control hidden, request refused]
     B -->|yes| D[User picks a plan and an interval]
 
@@ -65,25 +76,38 @@ flowchart LR
     F --> G["POST /subscription/update"]
 
     G --> H{Re-read the API Subscription}
-    H -->|no live Stripe Subscription| H1[Refuse]
-    H -->|same plan and interval| H2[Return the current state,<br/>nothing changes at Stripe]
-    H -->|live, different plan| I["subscriptions.update<br/>new price on the item"]
+    H -->|not active| H1[Refuse]
+    H -->|unknown plan or interval| H2[Refuse]
+    H -->|no Stripe Payment Method| H3[Refuse]
+    H -->|same plan and interval| H4[Return the current state,<br/>nothing changes at Stripe]
+    H -->|active, different plan or interval| I["subscriptions.update<br/>new price on the item,<br/>prorate and invoice now"]
 
     I --> J{Result}
     J -->|error| K[Relay the error,<br/>API Subscription untouched]
     J -->|ok| L[Write the API Subscription off the response<br/>plan and interval]
 
-    L --> M[Refresh the Auth User,<br/>success action]
-    L -.-> N["customer.subscription.updated<br/>lands after, same fields"]
+    L --> M{Proration invoice}
+    M -->|paid, or nothing owed| N[Refresh the Auth User,<br/>success action]
+    M -->|needs bank authentication| O[Challenge on the confirm page] --> N
+    M -->|declined| P[Plan changed, invoice unpaid,<br/>User sent to settle it]
+
+    L -.-> Q["customer.subscription.updated<br/>lands after, same fields"]
 ```
+
+## Notes
+
+### Charging the difference on confirm over riding it to the next renewal
+
+Immediate proration over deferring the difference, because deferring hands the User the higher plan for the rest of the term at the old price. An upgrade taken the day after a renewal runs almost a full period before costing anything, and the pattern is repeatable. Charging on confirm keeps what the User pays and what the User has in step, at the cost of a payment that can fail in the middle of the change.
+
+### Downgrades leave a credit
+
+Stripe does not refund on its own. The unused portion of the old plan comes back as a negative line item that sits as credit on the Stripe Customer and eats into the next invoice. A refund is a separate deliberate action against the original charge, and nothing here takes one.
+
+### Note on 4.7 - a declined charge does not roll the price change back
+
+Stripe applies the price to the Stripe Subscription and raises the invoice as two separate things, so the price change stands whether or not the invoice is paid. Rolling the price back would buy nothing. The invoice exists either way, sits unpaid either way, and drops the Stripe Subscription into `past_due` on Stripe's retry schedule either way. The User is blocked by the same guard on both sides of a rollback, so the change stays and the User is sent to settle the invoice. See the [subscription guards flow](../Guards.md).
 
 ## Todo
 
-- Proration. Whether the change bills on the spot for the difference, rides to the next renewal, or splits by direction. Everything below hangs off this one.
-- The immediate charge, if there is one. It is an invoice that can be refused or can need bank authentication (3DS), and neither has a path here.
-- Downgrades. Whether money already paid comes back as a credit on the Stripe Customer, a refund, or nothing.
-- Plan limits on a downgrade, where the User is already over the new plan's limit at the moment they confirm.
-- A trialing Stripe Subscription changing plan, and whether the trial end moves.
-- Interval change on its own, monthly to yearly, and whether it reads differently from a plan change to the User.
-- Promotion codes and tax carried on the existing Stripe Subscription, and what a price change does to both.
-- Whether the response is the answer or something settles afterwards that the App has to wait on.
+- Changing plan during a trial is refused outright. Revisit once a trial is tied to a specific plan rather than to the Stripe Subscription.
