@@ -1,7 +1,7 @@
 # Subscription Resume - Stripe
 
-Status: draft
-Updated: 2026-09-02
+Status: done
+Updated: 2026-09-06
 
 ## Description
 
