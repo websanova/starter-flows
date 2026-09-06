@@ -87,3 +87,15 @@ flowchart LR
 ### Refusing a resume with no Stripe Payment Method on file
 
 Stripe does not reject one. Clearing `cancel_at_period_end` generates no invoice and attempts no payment, so there is nothing for Stripe to validate against, the Stripe Subscription is `active` throughout, and a Stripe Customer with no Stripe Payment Method is a legal state. The failure lands at the renewal instead, where the invoice cannot be paid and the Stripe Subscription drops into dunning. Letting the resume through trades one refusal now for a guaranteed failed payment weeks later.
+
+### Cancelled with no Stripe Payment Method on file
+
+Rare in practice. The Stripe Payment Method is stored during subscribe and a cancellation does not touch it, so the only way to arrive here is a User who deleted the card themselves after cancelling. It is a real state though, and it is a dead one. The resume control is hidden and the API refuses, so there is nothing to resume until a card is back on the Stripe Customer.
+
+Restoring one is the payment method flow's job. Resume has no opinion on how the User gets a card back, only that it will not run until one resolves.
+
+### Plan controls while cancelled
+
+Anywhere plans are listed, a cancelled Stripe Subscription still inside the term has exactly one thing on offer, resuming the plan and interval it already carries. Every other control on that surface leads somewhere that refuses, so none of them belong there. Absent rather than disabled, since a disabled control still needs a label and there is no honest one to put on it.
+
+The same applies to an interval toggle. Resume takes no plan and no interval, so a toggle that changes what the resume control appears to offer is describing something the flow cannot do.
