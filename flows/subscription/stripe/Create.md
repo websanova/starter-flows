@@ -1,7 +1,7 @@
 # Subscription Create - Stripe (Checkout Sessions, Payment Element)
 
 Status: done
-Updated: 2026-09-04
+Updated: 2026-09-06
 
 ## Description
 
@@ -207,3 +207,4 @@ The secret is written going into the confirm and cleared as soon as the call lan
 - A Stripe Payment Method that cannot be charged at trial end. Nothing is charged at signup on a trial, so one that will fail is indistinguishable from one that will not until the first real invoice runs with no User on the page. The failure arrives as a webhook, and the Stripe Subscription has to carry state that forces the User back into entering a Stripe Payment Method.
 - Asking Stripe for the Stripe Customer's live Stripe Subscriptions on every create rather than reading the API Subscription, to close the window where two confirms seconds apart both go through.
 - A Stripe Checkout Session that ages out while the page sits open untouched. Step 8.3 covers a dead secret found on the way back from a bank, nothing covers a page standing for longer than Stripe keeps the Stripe Checkout Session usable.
+- Trial eligibility is restricted to a single plan, always the cheapest one. Which plan that is, how the API identifies it, and what the App shows a User who picks any other plan are not pinned down.
