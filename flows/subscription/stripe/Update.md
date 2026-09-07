@@ -1,6 +1,6 @@
 # Subscription Update - Stripe
 
-Status: draft
+Status: done
 Updated: 2026-09-07
 
 ## Description
