@@ -1,7 +1,7 @@
 # Payment Method Update - Stripe (Payment Element)
 
 Status: done
-Updated: 2026-09-03
+Updated: 2026-09-06
 
 ## Description
 
@@ -143,3 +143,4 @@ The page does one job, so arriving on it is the User declaring intent already an
 
 - Manual reconcile for a Stripe Payment Method that confirmed at Stripe where neither the sync call nor the webhook ran. Stripe holds the new Stripe Payment Method attached to the Stripe Customer, nothing is defaulted at either level, and the API still shows the old brand and last4, so the next renewal bills the old Stripe Payment Method and nothing on any screen says so. It takes both writers failing on the same update, and the webhook retries itself, so this is thin. Closing it means a sweep that finds succeeded Stripe Setup Intents whose Stripe Payment Method is not the Stripe Customer default and runs the same writes over them.
 - Multiple Stripe Payment Methods on file. The flow assumes exactly one throughout.
+- A cancelled User who removes their Stripe Payment Method has no way back. Delete allows removal the moment nothing further is billed, [resume](../../subscription/stripe/Resume.md) refuses without a Stripe Payment Method that resolves, and this page is guarded on one being on file, so there is nothing to open. Closing it means taking a Stripe Payment Method whether or not one is on file, which carries the Stripe Customer being created here for a User who has never subscribed, a detach that no-ops when there was nothing to replace, and a Stripe Subscription default write that skips one Stripe has already ended.
