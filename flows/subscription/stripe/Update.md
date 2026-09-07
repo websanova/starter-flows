@@ -31,8 +31,7 @@ A User on an active Stripe Subscription changes the plan, the interval, or both.
 - A cancelled Stripe Subscription still inside the term shows the resume control and never the change control. See the [subscription resume flow](Resume.md).
 - Refused when no Stripe Payment Method resolves.
 - The control leads to a dedicated confirm page rather than an inline picker.
-- The page states the plan, the interval, what is charged now and what the next renewal costs, before the User commits.
-- The amounts on the confirm page come from Stripe, not from the API's own price list.
+- The page states the plan and the interval being changed to. No amounts are shown.
 - The difference is prorated and charged on confirm.
 - A downgrade leaves a credit on the Stripe Customer rather than a refund.
 - A charge the bank wants authenticated is challenged on the confirm page.
@@ -46,12 +45,7 @@ A User on an active Stripe Subscription changes the plan, the interval, or both.
    1. A cancelled Stripe Subscription still inside the term shows the resume control and never the change control. The User resumes first and changes plan after.
    2. Hiding the control is display. The API reads the same rule again on the request, so the hidden control was never the rule.
 2. User picks a plan and an interval. Only the plan and interval combination currently on the Stripe Subscription is marked and cannot be picked, so the same plan on a different interval is a valid pick.
-3. The pick leads to a dedicated confirm page. Confirm is the only action on it.
-   1. The App fires off an API call on load with the plan and the interval, `GET /subscription/update-preview`. The call is required to fetch the costs of the Subscription change for display to the User on the App side.
-   2. The API runs the same guards as 4.1 to 4.3. The Stripe Subscription must be active, the plan and interval known, and a Stripe Payment Method must resolve.
-   3. Request the preview invoice from Stripe for the Stripe Subscription carrying the new price. Stripe prorates and returns the invoice without creating it. The amount due is what is charged now, the recurring total is what the next renewal costs. The amounts are an estimate, which should be made clear to the User on the App. See the note below.
-   4. The page states the plan, the interval, the amount charged now and the next renewal cost. A downgrade states the credit in place of a charge.
-   5. The call erroring leaves the page with no amounts, so confirm is not offered. The User is shown the error and returns to the pick.
+3. The pick leads to a dedicated confirm page stating the plan and the interval being changed to. Confirm is the only action on it and no amounts are shown.
 4. User confirms. The App calls the API with the plan and the interval, `POST /subscription/update`. The Stripe Subscription is resolved from the API User.
    1. Re-read the API Subscription and refuse anything other than an active Stripe Subscription. No Stripe Subscription at all, trialing, past due, unpaid and cancelled inside the term each refuse.
    2. Refuse a plan or an interval the API does not know.
@@ -77,9 +71,7 @@ flowchart LR
     B -->|no| C[Control hidden, request refused]
     B -->|yes| D[User picks a plan and an interval]
 
-    D --> E1["GET /subscription/update-preview<br/>invoices.createPreview,<br/>nothing created at Stripe"]
-    E1 -->|error| E2[No amounts, no confirm,<br/>back to the pick]
-    E1 -->|ok| E["Confirm page<br/>plan, interval, charged now, next renewal"]
+    D --> E["Confirm page<br/>plan and interval, no amounts"]
     E --> F[User confirms]
     F --> G["POST /subscription/update"]
 
@@ -113,10 +105,6 @@ Immediate proration over deferring the difference, because deferring hands the U
 ### Downgrades leave a credit
 
 Stripe does not refund on its own. The unused portion of the old plan comes back as a negative line item that sits as credit on the Stripe Customer and eats into the next invoice. A refund is a separate deliberate action against the original charge, and nothing here takes one.
-
-### Note on 3.3 - the amounts are a quote
-
-The confirm at 4.5 computes the charge again from scratch. Stripe prorates off the moment the call lands, so a User who sits on the confirm page is charged a slightly smaller difference than the page states. The numbers are what the change costs now, not a locked price.
 
 ### Note on 4.7 - a declined charge does not roll the price change back
 
