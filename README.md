@@ -18,6 +18,7 @@ Feature flow specs and setup docs for the starter projects.
 | [Payment Method Update - Stripe (Payment Element)](flows/payment-method/stripe/Update.md) | done | 2026-09-06 |
 | [Payment Method Delete - Stripe](flows/payment-method/stripe/Delete.md) | done | 2026-09-03 |
 | [Address Update - Stripe (Address Element)](flows/address/stripe/Update.md) | done | 2026-09-03 |
+| [Account Delete](flows/account/Delete.md) | wip | 2026-09-07 |
 
 | Ref | Status | Updated |
 | --- | ------ | ------- |
