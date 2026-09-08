@@ -470,12 +470,20 @@
             sequence: { useMaxWidth: false }
         });
 
-        // The docker viewer is bind mounted and edited live, so it polls. A deployed
-        // copy only changes on deploy, so the initial load is enough.
+        // The docker viewer is bind mounted and edited live, so it polls files.json
+        // and the open document. A deployed copy only changes on deploy, so it loads once.
         const POLL_MS = ['localhost', '127.0.0.1'].includes(location.hostname) ? 2000 : 0;
 
-        // Full path from the site root -> { mtime, status }, e.g. flows/subscriptions/stripe/create.md
-        const meta = new Map();
+        // Manifest entries, { path, status, updated }, in the order files.json lists them.
+        let files = [];
+
+        // Last bodies seen. A poll renders only when the body actually changed.
+        let filesRaw = '';
+        let docRaw = '';
+
+        // Holds the document requested at boot alongside files.json, so a deep
+        // link costs one round trip instead of two.
+        let preload = null;
 
         // Last root used and the last file open in each, so clicking between the
         // tabs and refreshing both land back where you were. Private browsing
@@ -530,7 +538,13 @@
             el.innerHTML = '<div class="error"><strong>' + title + '</strong><p>' + detail + '</p></div>';
         };
 
-        const readStatus = text => (text.match(/^Status:\s*(done|draft|ready|ref|wip)/mi) || [])[1] || '';
+        // Nothing can render without a manifest, so the tabs and the sidebar go too.
+        const fatal = (title, detail) => {
+            tabs.innerHTML = '';
+            nav.innerHTML = '';
+
+            fail(title, detail);
+        };
 
         const encodePath = path => path.split('/').map(encodeURIComponent).join('/');
 
@@ -542,37 +556,43 @@
             return ROOTS.includes(first) ? first : null;
         };
 
-        // Walks a root and every directory under it. Names come back as full
-        // paths, e.g. flows/subscriptions/stripe/create-hosted.md.
-        async function listDir (path) {
-            const res = await fetch(encodePath(path), { cache: 'no-store' });
+        // A bare #flows names a tab and no document, so only a hash carrying a
+        // path resolves to a file.
+        const hashName = () => {
+            const want = location.hash.slice(1);
+
+            return hashRoot() && want.includes('/') ? want + '.md' : null;
+        };
+
+        // The sidebar is listed by hand in files.json, the same way the README
+        // table is. Nothing walks the directories.
+        async function fetchFiles () {
+            const res = await fetch('files.json', { cache: 'no-store' });
 
             if (! res.ok) {
                 throw new Error(res.status + ' ' + res.statusText);
             }
 
-            const out = [];
+            return res.text();
+        }
 
-            for (const e of await res.json()) {
-                if (e.type === 'directory') {
-                    out.push(...await listDir(path + e.name + '/'));
-                }
-                else if (e.name.endsWith('.md')) {
-                    out.push({ ...e, name: path + e.name });
+        function parseFiles (text) {
+            const list = JSON.parse(text);
+
+            if (! Array.isArray(list) || ! list.length) {
+                throw new Error('Expected a non-empty array of entries.');
+            }
+
+            for (const e of list) {
+                if (! e || typeof e.path !== 'string' || ! e.path.endsWith('.md')) {
+                    throw new Error('Every entry needs a path ending in .md.');
                 }
             }
 
-            return out;
+            return list;
         }
 
-        async function fetchIndex () {
-            return (await listDir(root + '/')).sort((a, b) => {
-                const ad = groupOf(a.name);
-                const bd = groupOf(b.name);
-
-                return ad === bd ? base(a.name).localeCompare(base(b.name)) : ad.localeCompare(bd);
-            });
-        }
+        const inRoot = () => files.filter(e => e.path.startsWith(root + '/'));
 
         async function fetchDoc (name) {
             const res = await fetch(encodePath(name), { cache: 'no-store' });
@@ -616,16 +636,16 @@
             nav.innerHTML = '';
 
             if (! list.length) {
-                nav.innerHTML = '<p class="empty">Nothing in <code>' + root + '/</code> yet.</p>';
+                nav.innerHTML = '<p class="empty">Nothing listed under <code>' + root + '/</code> in files.json.</p>';
 
                 return;
             }
 
-            // List is sorted by full path, so files in a directory are contiguous.
+            // files.json groups its entries by directory, so headings stay contiguous.
             let group = null;
 
             for (const e of list) {
-                const dir = groupOf(e.name);
+                const dir = groupOf(e.path);
 
                 // The tab already names the root, so the heading drops it.
                 const heading = dir === root ? '' : dir.slice(root.length + 1);
@@ -644,22 +664,20 @@
 
                 const a = document.createElement('a');
 
-                a.href = '#' + slug(e.name);
-                a.className = (e.name === current ? 'active' : '') + (heading ? ' nested' : '');
+                a.href = '#' + slug(e.path);
+                a.className = (e.path === current ? 'active' : '') + (heading ? ' nested' : '');
 
                 const label = document.createElement('span');
 
                 label.className = 'name';
-                label.textContent = words(slug(base(e.name)));
+                label.textContent = words(slug(base(e.path)));
                 a.appendChild(label);
 
-                const status = (meta.get(e.name) || {}).status;
-
-                if (status) {
+                if (e.status) {
                     const badge = document.createElement('span');
 
-                    badge.className = 'badge ' + status.toLowerCase();
-                    badge.textContent = status;
+                    badge.className = 'badge ' + e.status.toLowerCase();
+                    badge.textContent = e.status;
                     a.appendChild(badge);
                 }
 
@@ -701,94 +719,116 @@
             document.title = 'Starter | ' + titleOf(name);
             writeStore({ root: root, [root]: name });
 
-            try {
-                const text = await fetchDoc(name);
+            const pending = preload && preload.name === name ? preload.promise : fetchDoc(name);
 
-                meta.set(name, { ...(meta.get(name) || {}), status: readStatus(text) });
+            preload = null;
+
+            try {
+                const text = await pending;
+
+                docRaw = text;
 
                 await render(text, keepScroll);
             }
             catch (e) {
+                docRaw = '';
+
                 fail('Could not load ' + name, e.message);
             }
         }
 
-        async function sync (initial) {
-            // A hash pointing at the other tab switches the tab before listing.
+        // Resolves the hash against the manifest already in memory, so a tab
+        // click paints the sidebar with no request at all.
+        async function show () {
+            const first = location.hash.slice(1).split('/')[0];
+
+            if (first && ! ROOTS.includes(first)) {
+                current = null;
+
+                renderTabs();
+                renderNav(inRoot());
+                fail('Unknown tab', '<code>' + first + '</code> is not one of ' + ROOTS.join(', ') + '.');
+
+                return;
+            }
+
             root = hashRoot() || root;
 
             renderTabs();
 
-            let list;
+            const list = inRoot();
+            const paths = new Set(list.map(e => e.path));
+            const want = hashName();
 
-            try {
-                list = await fetchIndex();
-            }
-            catch (e) {
-                if (initial) {
-                    fail('Could not list ' + root, e.message
-                        + '<br>Check the container is up with <code>docker compose up -d</code> '
-                        + 'and that a <code>' + root + '/</code> directory exists.');
-                }
+            if (want && ! paths.has(want)) {
+                current = null;
+
+                renderNav(list);
+                fail('Not in files.json', '<code>' + want + '</code> has no entry, so the viewer has nothing to open.');
 
                 return;
-            }
-
-            const names = new Set(list.map(e => e.name));
-            const changed = [];
-
-            for (const e of list) {
-                const prev = meta.get(e.name);
-
-                if (! prev || prev.mtime !== e.mtime) {
-                    meta.set(e.name, { mtime: e.mtime, status: prev ? prev.status : '' });
-                    changed.push(e.name);
-                }
-            }
-
-            // Only prune the active root. The other tab's statuses stay cached.
-            for (const name of [...meta.keys()]) {
-                if (name.startsWith(root + '/') && ! names.has(name)) {
-                    meta.delete(name);
-                }
             }
 
             // Hash first so links and refreshes win, then the file last open in
             // this tab, then whatever is at the top of the list.
-            const want = location.hash.slice(1) + '.md';
             const last = readStore()[root];
-            const target = names.has(want) ? want
-                : names.has(last) ? last
-                : (list[0] ? list[0].name : null);
+            const target = want || (paths.has(last) ? last : (list[0] ? list[0].path : null));
 
             if (! target) {
                 current = null;
                 document.title = 'Starter Flows';
+
                 renderNav(list);
-                el.innerHTML = '<p class="empty">Nothing in <code>' + root + '/</code> yet.</p>';
+                el.innerHTML = '<p class="empty">Nothing listed under <code>' + root + '/</code> in files.json.</p>';
 
                 return;
             }
 
-            // Pull statuses for anything that changed but is not the open doc.
-            // load() reads the status off the open doc for free.
-            await Promise.all(changed.filter(n => n !== target).map(async name => {
-                try {
-                    meta.get(name).status = readStatus(await fetchDoc(name));
-                }
-                catch (e) {
-                    // Listed but unreadable. Leave the badge blank.
-                }
-            }));
-
-            if (target !== current || changed.includes(target)) {
-                await load(target, target === current);
-            }
+            // Marked active before the fetch, so the sidebar is correct while
+            // the document is still in flight.
+            current = target;
 
             renderNav(list);
+
+            await load(target);
         }
 
-        async function tick (initial) {
+        // Localhost only. Re-reads the manifest and the open document, rendering
+        // only on a changed body so mermaid is not re-run and the scroll holds.
+        async function refresh () {
+            try {
+                const text = await fetchFiles();
+
+                if (text !== filesRaw) {
+                    files = parseFiles(text);
+                    filesRaw = text;
+
+                    renderNav(inRoot());
+                }
+            }
+            catch (e) {
+                // A failed poll leaves the working sidebar alone.
+            }
+
+            if (! current) {
+                return;
+            }
+
+            try {
+                const text = await fetchDoc(current);
+
+                if (text !== docRaw) {
+                    docRaw = text;
+
+                    await render(text, true);
+                }
+            }
+            catch (e) {
+                // A failed poll leaves the rendered document alone.
+            }
+        }
+
+        async function tick () {
             if (busy) {
                 return;
             }
@@ -796,10 +836,43 @@
             busy = true;
 
             try {
-                await sync(initial);
+                await refresh();
             }
             finally {
                 busy = false;
+            }
+        }
+
+        async function boot () {
+            const early = hashName();
+
+            if (early) {
+                // Sent alongside files.json rather than after it. The rejection is
+                // caught here so a bad deep link cannot surface as an unhandled one.
+                preload = { name: early, promise: fetchDoc(early) };
+
+                preload.promise.catch(() => {});
+            }
+
+            let text;
+
+            try {
+                text = await fetchFiles();
+                files = parseFiles(text);
+            }
+            catch (e) {
+                fatal('Could not load files.json', e.message
+                    + '<br>The sidebar is listed by hand in <code>viewer/files.json</code>.');
+
+                return;
+            }
+
+            filesRaw = text;
+
+            await show();
+
+            if (POLL_MS) {
+                setInterval(tick, POLL_MS);
             }
         }
 
@@ -814,13 +887,9 @@
 
         window.addEventListener('keydown', e => e.key === 'Escape' && closeDrawer());
 
-        window.addEventListener('hashchange', () => tick());
+        window.addEventListener('hashchange', () => show());
 
-        await tick(true);
-
-        if (POLL_MS) {
-            setInterval(tick, POLL_MS);
-        }
+        await boot();
     </script>
 </body>
 </html>

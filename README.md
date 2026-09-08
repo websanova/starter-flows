@@ -4,13 +4,13 @@ Feature flow specs and setup docs for the starter projects.
 
 | Doc | Status | Updated |
 | --- | ------ | ------- |
-| [Terms](docs/conventions/Terms.md) | done | 2026-08-31 |
+| [Terms](docs/conventions/Terms.md) | done | 2026-09-02 |
 | [Status](docs/conventions/Status.md) | done | 2026-09-04 |
 | [Docker Setup](docs/setup/DockerSetup.md) | done | 2026-09-02 |
 
 | Flow | Status | Updated |
 | ---- | ------ | ------- |
-| [Subscription Create - Stripe (Checkout Sessions, Payment Element)](flows/subscription/stripe/Create.md) | done | 2026-09-04 |
+| [Subscription Create - Stripe (Checkout Sessions, Payment Element)](flows/subscription/stripe/Create.md) | done | 2026-09-06 |
 | [Subscription Cancel - Stripe](flows/subscription/stripe/Cancel.md) | done | 2026-09-04 |
 | [Subscription Resume - Stripe](flows/subscription/stripe/Resume.md) | done | 2026-09-06 |
 | [Subscription Update - Stripe](flows/subscription/stripe/Update.md) | done | 2026-09-07 |
@@ -49,6 +49,8 @@ Work the flow out here first, then paste it into a session in the target code re
 
 Every status keyword is defined in [docs/conventions/Status.md](docs/conventions/Status.md). Section template in [CLAUDE.md](CLAUDE.md).
 
+The viewer sidebar reads [viewer/files.json](viewer/files.json), a hand kept list of every file with its status and updated date. A new flow, doc or ref needs a line there as well as a row in the tables above.
+
 ## Docker
 
 Markdown viewer for `flows/`, `docs/` and `refs/` at http://localhost:8088.
@@ -61,7 +63,9 @@ docker compose ps         # status
 docker compose logs -f    # tail nginx logs
 ```
 
-Everything is bind mounted read-only. Edits to `flows/*.md`, `docs/*.md`, `refs/*.md` and `viewer/index.html` are live, no restart. Only `nginx.conf` needs one.
+Everything is bind mounted read-only. Edits to `flows/*.md`, `docs/*.md`, `refs/*.md`, `viewer/files.json` and `viewer/index.html` are live, no restart. Only `nginx.conf` needs one.
+
+On localhost the viewer polls `files.json` and the open document every two seconds and repaints on a change. A deployed copy skips the poll and loads once.
 
 ## Deploy
 
@@ -73,22 +77,16 @@ server {
 
     location /flows/ {
         alias /path/to/app/dir/flows/;
-        autoindex on;
-        autoindex_format json;
         default_type text/markdown;
     }
 
     location /docs/ {
         alias /path/to/app/dir/docs/;
-        autoindex on;
-        autoindex_format json;
         default_type text/markdown;
     }
 
     location /refs/ {
         alias /path/to/app/dir/refs/;
-        autoindex on;
-        autoindex_format json;
         default_type text/markdown;
     }
 }

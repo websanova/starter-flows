@@ -1,0 +1,18 @@
+[
+    { "path": "docs/conventions/Terms.md", "status": "done", "updated": "2026-09-02" },
+    { "path": "docs/conventions/Status.md", "status": "done", "updated": "2026-09-04" },
+    { "path": "docs/setup/DockerSetup.md", "status": "done", "updated": "2026-09-02" },
+
+    { "path": "flows/subscription/stripe/Create.md", "status": "done", "updated": "2026-09-06" },
+    { "path": "flows/subscription/stripe/Cancel.md", "status": "done", "updated": "2026-09-04" },
+    { "path": "flows/subscription/stripe/Resume.md", "status": "done", "updated": "2026-09-06" },
+    { "path": "flows/subscription/stripe/Update.md", "status": "done", "updated": "2026-09-07" },
+    { "path": "flows/subscription/Guards.md", "status": "wip", "updated": "2026-09-03" },
+    { "path": "flows/payment-method/stripe/Update.md", "status": "done", "updated": "2026-09-06" },
+    { "path": "flows/payment-method/stripe/Delete.md", "status": "done", "updated": "2026-09-03" },
+    { "path": "flows/address/stripe/Update.md", "status": "done", "updated": "2026-09-03" },
+    { "path": "flows/account/Delete.md", "status": "wip", "updated": "2026-09-07" },
+
+    { "path": "refs/subscription/stripe/CreateHosted.md", "status": "ref", "updated": "2026-09-01" },
+    { "path": "refs/subscription/stripe/CreateEmbedded.md", "status": "ref", "updated": "2026-09-01" }
+]
