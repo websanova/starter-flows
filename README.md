@@ -69,30 +69,24 @@ If you want to deploy the flows publicly, just serve the viewer directory and cr
 
 ```nginx
 server {
-    listen 80;
-    server_name flows.example.com;
-
-    root /srv/starter-flows/viewer;
-    index index.html;
-
     add_header Cache-Control "no-store" always;
 
     location /flows/ {
-        alias /srv/starter-flows/flows/;
+        alias /path/to/app/dir/flows/;
         autoindex on;
         autoindex_format json;
         default_type text/markdown;
     }
 
     location /docs/ {
-        alias /srv/starter-flows/docs/;
+        alias /path/to/app/dir/docs/;
         autoindex on;
         autoindex_format json;
         default_type text/markdown;
     }
 
     location /refs/ {
-        alias /srv/starter-flows/refs/;
+        alias /path/to/app/dir/refs/;
         autoindex on;
         autoindex_format json;
         default_type text/markdown;
