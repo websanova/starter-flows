@@ -470,7 +470,9 @@
             sequence: { useMaxWidth: false }
         });
 
-        const POLL_MS = 2000;
+        // The docker viewer is bind mounted and edited live, so it polls. A deployed
+        // copy only changes on deploy, so the initial load is enough.
+        const POLL_MS = ['localhost', '127.0.0.1'].includes(location.hostname) ? 2000 : 0;
 
         // Full path from the site root -> { mtime, status }, e.g. flows/subscriptions/stripe/create.md
         const meta = new Map();
@@ -816,7 +818,9 @@
 
         await tick(true);
 
-        setInterval(tick, POLL_MS);
+        if (POLL_MS) {
+            setInterval(tick, POLL_MS);
+        }
     </script>
 </body>
 </html>
