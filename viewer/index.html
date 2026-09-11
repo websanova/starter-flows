@@ -589,7 +589,9 @@
                 }
             }
 
-            return list;
+            // A wip file is unfinished, so it stays out of the sidebar and out of
+            // the deep link lookup until its status moves on.
+            return list.filter(e => e.status !== 'wip');
         }
 
         const inRoot = () => files.filter(e => e.path.startsWith(root + '/'));
