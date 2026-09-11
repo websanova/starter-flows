@@ -27,13 +27,11 @@ Feature flow specs and setup docs for the starter projects.
 
 ## Projects
 
-API
-
-* [Starter Laravel API](https://github.com/websanova/starter-laravel-api)
-
-APP
-
-* [Starter Vue SPA](https://github.com/websanova/starter-vue-spa)
+| Project | Repo | Demo |
+| ------- | ---- | ---- |
+| Starter Flows | [starter-flows](https://github.com/websanova/starter-flows) | [flows](https://starter-flows.websanova.com) |
+| Starter Laravel API | [starter-laravel-api](https://github.com/websanova/starter-laravel-api) | [api](https://starter-laravel-api.websanova.com) |
+| Starter Vue SPA | [starter-vue-spa](https://github.com/websanova/starter-vue-spa) | [app](https://starter-vue-spa-app.websanova.com), [admin](https://starter-vue-spa-admin.websanova.com) |
 
 ## How It Works
 
