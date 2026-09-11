@@ -95,3 +95,7 @@ server {
 ## License
 
 MIT - see [LICENSE](LICENSE).
+
+---
+
+Built and maintained by [Rob](https://www.websanova.com/about). I take freelance and contract work, including MVP projects built on the Starters. Check out the [hire page](https://www.websanova.com/hire) for more info.
