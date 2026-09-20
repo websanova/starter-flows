@@ -1,7 +1,7 @@
 # Docker Setup
 
 Status: done
-Updated: 2026-09-02
+Updated: 2026-09-20
 
 ## Layout
 
@@ -10,6 +10,7 @@ Updated: 2026-09-02
 | starter-laravel-api | php | `http://localhost:8000` | `php:8000` | The API |
 | starter-laravel-api | mysql | `localhost:3306` | `mysql:3306` | Database, published for a desktop client on the host |
 | starter-laravel-api | redis | `localhost:6379` | `redis:6379` | Cache, published for a desktop client on the host |
+| starter-laravel-api | mailpit | `http://localhost:8025` | `mailpit:1025` | Mail catcher, SMTP on 1025 and the inbox on 8025 |
 | starter-laravel-api | stripe | not published | none | Stripe CLI, dials out and forwards inward |
 | starter-vue-spa | app | `http://localhost:5173` | none | The App |
 | starter-vue-spa | admin | `http://localhost:5174` | none | The Admin |
@@ -49,6 +50,12 @@ Stock `mysql:8.0`. Database `laravel`, user `laravel`. Data persists in the name
 ### redis
 
 Stock `redis:7-alpine` with no volume, so the cache is discarded on recreate. Reached by the PHP container at hostname `redis`.
+
+### mailpit
+
+Stock `axllent/mailpit` with no volume, so the mailbox is empty again after a recreate. Everything the API sends over SMTP stops here instead of going out, and the inbox is at `http://localhost:8025`.
+
+Port 1025 is the SMTP port the php container talks to at hostname `mailpit`, 8025 is the web UI on the host. The repo `.env` already points `MAIL_HOST` and `MAIL_PORT` there, and compose sets both on the php container too, so a stale `.env` still lands in the catcher rather than reaching for a real mail server.
 
 ### stripe
 
@@ -102,11 +109,13 @@ flowchart LR
     API["Starter Laravel API"] --> PHP["php<br/>(php:8.4-fpm)"]
     API --> MYSQL["mysql<br/>(mysql:8.0)"]
     API --> REDIS["redis<br/>(redis:7-alpine)"]
+    API --> MAILPIT["mailpit<br/>(axllent/mailpit)"]
     API --> STRIPE["stripe<br/>(stripe/stripe-cli)"]
 
     PHP --> PHP_P["localhost:8000"]
     MYSQL --> MYSQL_P["localhost:3306"]
     REDIS --> REDIS_P["localhost:6379"]
+    MAILPIT --> MAILPIT_P["localhost:8025"]
     STRIPE --> STRIPE_P["not published"]
 
     SPA["Starter Vue SPA"] --> APP["app<br/>(node:22-alpine)"]
