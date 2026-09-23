@@ -9,7 +9,7 @@
 
 ## Repo Purpose
 - This repo contains specs and reference documentation only. No application code.
-- Three kinds of file. A flow in `flows/` is the source of truth for a feature. A doc in `docs/` describes something that is not a feature, a setup, an environment, a shared reference. A ref in `refs/` is a strategy that was evaluated and not taken, kept for comparison and never built.
+- Three kinds of file. A flow in `viewer/specs/flows/` is the source of truth for a feature. A doc in `viewer/specs/docs/` describes something that is not a feature, a setup, an environment, a shared reference. A ref in `viewer/specs/refs/` is a strategy that was evaluated and not taken, kept for comparison and never built.
 - Implementation happens in the starter repos. This repo plans, code repos execute.
 - Everything here is implementation-agnostic. The same flow holds for Laravel/Cashier, Rails, Django, Vue, React, or mobile.
 - Never reference a specific library, framework, package, or file path.
@@ -23,7 +23,7 @@
 - The stored thing is a `record`, never a `row`. Row implies tables and everything here is implementation-agnostic.
 - Terms are always written in full. No abbreviations, even where the short form reads clearly enough and even where the prefix feels redundant. `Stripe Checkout Session`, not `Checkout Session`. That redundancy is the point.
 - Prefixes name systems, they do not ban common nouns. Lowercase browser, page, invoice, charge stay ordinary prose.
-- The master vocabulary lives in [docs/conventions/Terms.md](docs/conventions/Terms.md).
+- The master vocabulary lives in [viewer/specs/docs/conventions/Terms.md](viewer/specs/docs/conventions/Terms.md).
 - Table only. Two columns, `Term` and `Description`. Alphabetical.
 - Rows are written so they hold anywhere. No row may reference the file it is read in, no row may describe one feature's use of the term.
 - A local table in any other file is a verbatim subset. Row for row, word for word, so a mismatch is visible on sight.
@@ -88,12 +88,12 @@
 - Applies to features of any size. A CRUD flow maps access policy and plan limits the same way a Stripe flow maps webhooks.
 
 ### Flow File Structure
-- Location: `flows/<area>/<Feature>.md`. A provider takes its own level when the flow is provider specific, `flows/<area>/<provider>/<Feature>.md`.
+- Location: `viewer/specs/flows/<area>/<Feature>.md`. A provider takes its own level when the flow is provider specific, `viewer/specs/flows/<area>/<provider>/<Feature>.md`.
   - File names are PascalCase, spelled out. The viewer splits them on the capitals for display, so `PaymentMethodUpdate.md` reads as "Payment Method Update".
   - Directory names stay lowercase and hyphenated.
-  - `flows/subscriptions/Guards.md`, `flows/subscriptions/stripe/Create.md`, `flows/billing/stripe/PaymentMethodUpdate.md`.
+  - `viewer/specs/flows/subscriptions/Guards.md`, `viewer/specs/flows/subscriptions/stripe/Create.md`, `viewer/specs/flows/billing/stripe/PaymentMethodUpdate.md`.
 - Header lines at top of every flow:
-  - `Status: wip | draft | ready | done`, defined in [docs/conventions/Status.md](docs/conventions/Status.md)
+  - `Status: wip | draft | ready | done`, defined in [viewer/specs/docs/conventions/Status.md](viewer/specs/docs/conventions/Status.md)
   - `Updated: YYYY-MM-DD`
 - Fixed section order, every file:
   1. `Description`
@@ -137,11 +137,11 @@
 - More than one diagram per flow is fine. One giant diagram is not.
 
 ## Docs
-- Location: `docs/<area>/<Topic>.md`, PascalCase file names and lowercase directories, same as a flow.
-  - `docs/conventions/` holds the files that define how this repo works, `Terms.md` and `Status.md`. `docs/setup/` holds the files that describe a system.
+- Location: `viewer/specs/docs/<area>/<Topic>.md`, PascalCase file names and lowercase directories, same as a flow.
+  - `viewer/specs/docs/conventions/` holds the files that define how this repo works, `Terms.md` and `Status.md`. `viewer/specs/docs/setup/` holds the files that describe a system.
   - Conventions sort above setup, so the files every other file depends on sit at the top of the sidebar.
 - Header lines at top of every doc:
-  - `Status: wip | done`, defined in [docs/conventions/Status.md](docs/conventions/Status.md)
+  - `Status: wip | done`, defined in [viewer/specs/docs/conventions/Status.md](viewer/specs/docs/conventions/Status.md)
   - `Updated: YYYY-MM-DD`
 - No fixed structure. Sections, order and length are whatever the topic needs.
 - Diagrams are free form. No LR requirement, no diagram type rules, no one screen limit.
@@ -149,8 +149,8 @@
 - A local `Terms` table is optional in a doc. If one is there, it follows the master exactly like a flow's.
 
 ## Refs
-- Location: `refs/<area>/<Feature>.md`. A provider takes its own level when the ref is provider specific, `refs/<area>/<provider>/<Feature>.md`. PascalCase file names and lowercase directories, same as a flow.
+- Location: `viewer/specs/refs/<area>/<Feature>.md`. A provider takes its own level when the ref is provider specific, `viewer/specs/refs/<area>/<provider>/<Feature>.md`. PascalCase file names and lowercase directories, same as a flow.
 - Header lines at top of every ref:
-  - `Status: wip | ref`, defined in [docs/conventions/Status.md](docs/conventions/Status.md)
+  - `Status: wip | ref`, defined in [viewer/specs/docs/conventions/Status.md](viewer/specs/docs/conventions/Status.md)
   - `Updated: YYYY-MM-DD`
 - A ref is a flow that was not taken, so it carries the flow section order, the flow diagram rules and everything else a flow carries.

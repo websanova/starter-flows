@@ -596,8 +596,10 @@
 
         const inRoot = () => files.filter(e => e.path.startsWith(root + '/'));
 
+        // Manifest paths are addresses, so the specs directory is prepended here
+        // and never reaches the hash.
         async function fetchDoc (name) {
-            const res = await fetch(encodePath(name), { cache: 'no-store' });
+            const res = await fetch('specs/' + encodePath(name), { cache: 'no-store' });
 
             if (! res.ok) {
                 throw new Error(res.status + ' ' + res.statusText);
