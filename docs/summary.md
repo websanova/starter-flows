@@ -1,3 +1,5 @@
+# Summary
+
 | Doc | Status | Updated |
 | --- | ------ | ------- |
 | [Terms](../public/specs/docs/conventions/Terms.md) | done | 2026-09-02 |
