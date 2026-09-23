@@ -2,6 +2,8 @@
 
 Feature flow specs and setup docs for the starter projects.
 
+Part of the Starters, built at [Websanova](https://www.websanova.com).
+
 | Doc | Status | Updated |
 | --- | ------ | ------- |
 | [Terms](docs/conventions/Terms.md) | done | 2026-09-02 |
@@ -96,4 +98,4 @@ MIT - see [LICENSE](LICENSE).
 
 ---
 
-Built and maintained by [Rob](https://www.websanova.com/about). I take freelance and contract work, including MVP projects built on the Starters. Check out the [hire page](https://www.websanova.com/hire) for more info.
+Built and maintained by Rob at [Websanova](https://www.websanova.com). I take freelance and contract work, including MVP projects built on the Starters. Check out the [hire page](https://www.websanova.com/hire) for more info.
