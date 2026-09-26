@@ -1,7 +1,7 @@
 # Payment Method Delete - Stripe
 
 Status: done
-Updated: 2026-09-03
+Updated: 2026-09-25
 
 ## Description
 
@@ -25,7 +25,7 @@ A User removes the Stripe Payment Method held against them, from the account pag
 ## Requirements
 
 - Authenticated Users only.
-- Remove the Stripe Payment Method on file. There is no add path here, since the first one is collected during subscribe.
+- Remove the Stripe Payment Method on file.
 - The billing page shows the control only when a Stripe Payment Method is on file.
 - Allowed only when nothing further is going to be billed. A Stripe Subscription that has ended qualifies, so does one that is cancelled and running out the paid term.
 - Refused while the Stripe Subscription is live and renewing.

@@ -1,14 +1,13 @@
 # Terms
 
 Status: done
-Updated: 2026-09-02
+Updated: 2026-09-25
 
 The master vocabulary. Every flow and doc in this repo draws its terms from here, word for word.
 
 | Term | Description |
 | --- | --- |
 | API | The back end. Holds the API records and talks to the providers. |
-| API Address | The API record holding the billing name and address. |
 | API Payment Method | The API record holding the Stripe Payment Method's brand and last4. |
 | API Subscription | The API record mirroring the Stripe Subscription. Stripe id, plan, interval, status. |
 | API User | The User's record on the API side. |

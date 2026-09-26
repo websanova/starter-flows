@@ -1,7 +1,7 @@
 # Subscription Resume - Stripe
 
 Status: done
-Updated: 2026-09-06
+Updated: 2026-09-25
 
 ## Description
 
@@ -90,9 +90,9 @@ Stripe does not reject one. Clearing `cancel_at_period_end` generates no invoice
 
 ### Cancelled with no Stripe Payment Method on file
 
-Rare in practice. The Stripe Payment Method is stored during subscribe and a cancellation does not touch it, so the only way to arrive here is a User who deleted the card themselves after cancelling. It is a real state though, and it is a dead one. The resume control is hidden and the API refuses, so there is nothing to resume until a card is back on the Stripe Customer.
+Rare in practice. The Stripe Payment Method is stored during subscribe and a cancellation does not touch it, so the only way to arrive here is a User who deleted the card themselves after cancelling. The resume control is hidden and the API refuses until a card is back on the Stripe Customer.
 
-Restoring one is the payment method flow's job. Resume has no opinion on how the User gets a card back, only that it will not run until one resolves.
+Putting one there is the [payment method flow](../../payment-method/stripe/Update.md)'s job, which takes a Stripe Payment Method whether or not one is already on file. Resume has no opinion on how the User gets a card back, only that it will not run until one resolves.
 
 ### Plan controls while cancelled
 
