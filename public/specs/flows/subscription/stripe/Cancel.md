@@ -1,7 +1,7 @@
 # Subscription Cancel - Stripe
 
 Status: done
-Updated: 2026-09-04
+Updated: 2026-09-28
 
 ## Description
 
@@ -85,7 +85,9 @@ Cancelling on the spot cuts access that is already paid for, which means either 
 
 ### Note on 2.1 - the date the confirm page names
 
-The page renders before anything has been cancelled, so any date on it has to already be sitting on the Auth User. A trial carries its end date, so the trial wording has one to show. A paid term does not. The API Subscription's end date is only set once the subscription is cancelled and running out its term, and nothing else on the Auth User carries the renewal date. So either the paid page names no date and puts the term end in words, or the Auth User starts carrying the current term end. Unresolved, and it is the confirm page copy that decides it.
+The page renders before anything has been cancelled, so any date on it has to already be sitting on the Auth User. A trial carries its end date, so the trial wording has one to show. A paid term does not, since the API Subscription's end date is only set once the subscription is cancelled and running out its term, and nothing else on the Auth User carries the renewal date.
+
+So the paid wording puts the term end in words and names no date, over the Auth User carrying the current term end. That field would be sourced from a subscription item's `current_period_end` and rewritten on every renewal, and the first renewal that write is missed leaves the page naming a date in the past. The exact date is one step away either way, since `cancel_at` is written on confirm and billing carries it from then on.
 
 ### Note on 3.4 - where the end date comes from
 

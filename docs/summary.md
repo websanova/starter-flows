@@ -8,8 +8,8 @@
 
 | Flow | Status | Updated |
 | ---- | ------ | ------- |
-| [Subscription Create - Stripe (Checkout Sessions, Payment Element)](../public/specs/flows/subscription/stripe/Create.md) | done | 2026-09-25 |
-| [Subscription Cancel - Stripe](../public/specs/flows/subscription/stripe/Cancel.md) | done | 2026-09-04 |
+| [Subscription Create - Stripe (Checkout Sessions, Payment Element)](../public/specs/flows/subscription/stripe/Create.md) | done | 2026-09-28 |
+| [Subscription Cancel - Stripe](../public/specs/flows/subscription/stripe/Cancel.md) | done | 2026-09-28 |
 | [Subscription Resume - Stripe](../public/specs/flows/subscription/stripe/Resume.md) | done | 2026-09-25 |
 | [Subscription Update - Stripe](../public/specs/flows/subscription/stripe/Update.md) | done | 2026-09-07 |
 | [Subscription Guards](../public/specs/flows/subscription/Guards.md) | wip | 2026-09-25 |
