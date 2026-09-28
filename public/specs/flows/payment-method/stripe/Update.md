@@ -9,24 +9,6 @@ A User puts a Stripe Payment Method on file from the account pages, entered in a
 
 This is the housekeeping case, a User in good standing putting a Stripe Payment Method on file or swapping one for another. A User whose renewal has failed is a different flow with a different answer, and is not resolved here.
 
-## Terms
-
-| Term | Description |
-| --- | --- |
-| API | The back end. Holds the API records and talks to the providers. |
-| API Payment Method | The API record holding the Stripe Payment Method's brand and last4. |
-| API User | The User's record on the API side. |
-| App | The front end the User is looking at, web or mobile. |
-| Auth User | The signed in User's data held by the App. |
-| Stripe Billing Address Element | The Stripe Element collecting the billing address and name. |
-| Stripe Customer | The Stripe object holding the User's id, address and saved Stripe Payment Methods. |
-| Stripe Element | A Stripe UI component mounted by the App. |
-| Stripe Payment Element | The Stripe Element collecting the Stripe Payment Method. |
-| Stripe Payment Method | The payment method at Stripe, saved against the Stripe Customer. |
-| Stripe Setup Intent | The Stripe object that stores a Stripe Payment Method against a Stripe Customer without charging it. |
-| Stripe Subscription | The subscription at Stripe. |
-| User | The human using the App. Never the App and never the API. |
-
 ## Requirements
 
 - Authenticated Users only.

@@ -7,21 +7,6 @@ Updated: 2026-09-28
 
 The User works through the subscribe page, filling the address, entering a payment method and applying a promotion code, on the Stripe Checkout Session the [load flow](Create1Load.md) handed them. Everything typed goes onto the Stripe Checkout Session as the User moves, so the total, the tax and the discount are Stripe's to calculate and the App only renders them.
 
-## Terms
-
-| Term | Description |
-| --- | --- |
-| API | The back end. Holds the API records and talks to the providers. |
-| App | The front end the User is looking at, web or mobile. |
-| Stripe Billing Address Element | The Stripe Element collecting the billing address and name. |
-| Stripe Checkout Session | The Stripe object a checkout runs on. Carries the line items, the address, the promotion code, the total and the Stripe Payment Method. |
-| Stripe Customer | The Stripe object holding the User's id, address and saved Stripe Payment Methods. |
-| Stripe Element | A Stripe UI component mounted by the App. |
-| Stripe Payment Element | The Stripe Element collecting the Stripe Payment Method. |
-| Stripe Payment Method | The payment method at Stripe, saved against the Stripe Customer. |
-| Stripe Subscription | The subscription at Stripe. |
-| User | The human using the App. Never the App and never the API. |
-
 ## Requirements
 
 - Collect the address with the Stripe Billing Address Element, so field layout and country rules come from Stripe.

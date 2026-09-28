@@ -1,27 +1,11 @@
 # Subscription Create - Stripe (Embedded Checkout)
 
 Status: ref
-Updated: 2026-09-01
+Updated: 2026-09-28
 
 ## Description
 
 A User with no Stripe Subscription signs up for a plan through a Stripe Checkout Session rendered in an iframe on the App's own page. Stripe collects the address, the promotion code and the payment method, calculates tax and runs the trial, all inside its own UI, so the App has no elements to mount and no totals to render.
-
-## Terms
-
-| Term | Description |
-| --- | --- |
-| API | The back end. Holds the API records and talks to the providers. |
-| API Subscription | The API record mirroring the Stripe Subscription. Stripe id, plan, interval, status. |
-| API User | The User's record on the API side. |
-| App | The front end the User is looking at, web or mobile. |
-| Auth User | The signed in User's data held by the App. |
-| Stripe Checkout Session | The Stripe object a checkout runs on. Carries the line items, the address, the promotion code, the total and the Stripe Payment Method. |
-| Stripe Customer | The Stripe object holding the User's id, address and saved Stripe Payment Methods. |
-| Stripe Payment Element | The Stripe Element collecting the Stripe Payment Method. |
-| Stripe Payment Method | The payment method at Stripe, saved against the Stripe Customer. |
-| Stripe Subscription | The subscription at Stripe. |
-| User | The human using the App. Never the App and never the API. |
 
 ## Requirements
 

@@ -7,21 +7,6 @@ Updated: 2026-09-28
 
 A User resumes a cancelled Stripe Subscription from a dedicated confirm page, while the paid term is still running and a Stripe Payment Method resolves for the renewal. The existing Stripe Subscription carries on, so the plan and interval are not picked again and nothing is charged on confirm.
 
-## Terms
-
-| Term | Description |
-| --- | --- |
-| API | The back end. Holds the API records and talks to the providers. |
-| API Payment Method | The API record holding the Stripe Payment Method's brand and last4. |
-| API Subscription | The API record mirroring the Stripe Subscription. Stripe id, plan, interval, status. |
-| API User | The User's record on the API side. |
-| App | The front end the User is looking at, web or mobile. |
-| Auth User | The signed in User's data held by the App. |
-| Stripe Customer | The Stripe object holding the User's id, address and saved Stripe Payment Methods. |
-| Stripe Payment Method | The payment method at Stripe, saved against the Stripe Customer. |
-| Stripe Subscription | The subscription at Stripe. |
-| User | The human using the App. Never the App and never the API. |
-
 ## Requirements
 
 - Authenticated Users only.

@@ -7,24 +7,6 @@ Updated: 2026-09-28
 
 The User presses subscribe and one confirm call against the Stripe Checkout Session submits the Stripe Payment Method, creates the Stripe Subscription and settles the first invoice, handling a bank challenge and a refused charge along the way. Once the Stripe Checkout Session completes, a sync call writes the API records and a Stripe webhook runs the same writes as a backstop.
 
-## Terms
-
-| Term | Description |
-| --- | --- |
-| API | The back end. Holds the API records and talks to the providers. |
-| API Payment Method | The API record holding the Stripe Payment Method's brand and last4. |
-| API Subscription | The API record mirroring the Stripe Subscription. Stripe id, plan, interval, status. |
-| App | The front end the User is looking at, web or mobile. |
-| App Storage | Short lived storage in the App that survives a redirect away and back. |
-| Auth User | The signed in User's data held by the App. |
-| Stripe Checkout Session | The Stripe object a checkout runs on. Carries the line items, the address, the promotion code, the total and the Stripe Payment Method. |
-| Stripe Customer | The Stripe object holding the User's id, address and saved Stripe Payment Methods. |
-| Stripe Element | A Stripe UI component mounted by the App. |
-| Stripe Payment Element | The Stripe Element collecting the Stripe Payment Method. |
-| Stripe Payment Method | The payment method at Stripe, saved against the Stripe Customer. |
-| Stripe Subscription | The subscription at Stripe. |
-| User | The human using the App. Never the App and never the API. |
-
 ## Requirements
 
 - Handle bank authentication challenges (3DS), including one that takes the User off the page and returns them.

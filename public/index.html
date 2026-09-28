@@ -264,6 +264,19 @@
             color: var(--link);
         }
 
+        /* A term is body text wearing a footnote marker, never a blue link. */
+
+        a.term {
+            color: inherit;
+            text-decoration: underline dotted;
+            text-decoration-color: var(--muted);
+            text-underline-offset: 3px;
+        }
+
+        a.term:hover {
+            text-decoration-color: var(--fg);
+        }
+
         code {
             background: var(--code-bg);
             color: var(--code-fg);
@@ -485,6 +498,15 @@
         // link costs one round trip instead of two.
         let preload = null;
 
+        // The master vocabulary, longest term first so a short term never eats
+        // the head of a longer one sharing its opening words.
+        let terms = [];
+
+        // Description by term, for the tooltip an underline carries.
+        let described = new Map();
+
+        const TERMS_PATH = 'docs/conventions/Terms.md';
+
         // Last root used and the last file open in each, so clicking between the
         // tabs and refreshing both land back where you were. Private browsing
         // makes localStorage throw rather than no-op, so every touch is guarded
@@ -593,6 +615,38 @@
 
         const inRoot = () => files.filter(e => e.path.startsWith(root + '/'));
 
+        // The master table is two columns, Term and Description. The header row
+        // and the separator are the only rows that are not terms.
+        function parseTerms (text) {
+            const rows = [];
+
+            for (const line of text.split('\n')) {
+                const m = line.match(/^\|\s*([^|]+?)\s*\|\s*(.+?)\s*\|\s*$/);
+
+                if (! m || m[1] === 'Term' || /^-+$/.test(m[1])) {
+                    continue;
+                }
+
+                rows.push({ term: m[1], description: m[2] });
+            }
+
+            rows.sort((a, b) => b.term.length - a.term.length);
+
+            described = new Map(rows.map(r => [r.term, r.description]));
+
+            return rows;
+        }
+
+        const escapeRe = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+        // Terms are capitalised, so the match is case sensitive and a lowercase
+        // browser, page or charge stays ordinary prose. A trailing s or 's rides
+        // along so the plural and the possessive underline whole.
+        const termsRe = () => new RegExp(
+            '\\b(' + terms.map(t => escapeRe(t.term)).join('|') + ")('s|s)?\\b",
+            'g'
+        );
+
         // Manifest paths are addresses, so the specs directory is prepended here
         // and never reaches the hash.
         async function fetchDoc (name) {
@@ -686,6 +740,76 @@
             }
         }
 
+        // Underlines every term in the body text. The files carry no markup for
+        // this, the master table is the whole list, so it runs fresh on each
+        // render and nothing is ever written back to a file.
+        function markTerms () {
+            if (! terms.length || current === TERMS_PATH) {
+                return;
+            }
+
+            // Code and headings are not prose, and a term already inside a link
+            // cannot carry a second one.
+            const skip = /^(CODE|PRE|A|H1|H2|H3|H4|H5|H6)$/;
+            const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+            const nodes = [];
+
+            for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+                let ok = true;
+
+                for (let up = node.parentElement; up && up !== el; up = up.parentElement) {
+                    if (skip.test(up.tagName)) {
+                        ok = false;
+
+                        break;
+                    }
+                }
+
+                if (ok) {
+                    nodes.push(node);
+                }
+            }
+
+            const re = termsRe();
+
+            for (const node of nodes) {
+                const text = node.nodeValue;
+                const frag = document.createDocumentFragment();
+
+                let at = 0;
+                let m;
+
+                re.lastIndex = 0;
+
+                while ((m = re.exec(text))) {
+                    if (m.index > at) {
+                        frag.appendChild(document.createTextNode(text.slice(at, m.index)));
+                    }
+
+                    const a = document.createElement('a');
+
+                    a.className = 'term';
+                    a.href = '#' + slug(TERMS_PATH);
+                    a.title = described.get(m[1]) || '';
+                    a.textContent = m[0];
+
+                    frag.appendChild(a);
+
+                    at = m.index + m[0].length;
+                }
+
+                if (! at) {
+                    continue;
+                }
+
+                if (at < text.length) {
+                    frag.appendChild(document.createTextNode(text.slice(at)));
+                }
+
+                node.parentNode.replaceChild(frag, node);
+            }
+        }
+
         async function render (text, keepScroll) {
             const top = keepScroll ? el.scrollTop : 0;
 
@@ -707,6 +831,8 @@
                 table.replaceWith(wrap);
                 wrap.appendChild(table);
             });
+
+            markTerms();
 
             el.scrollTop = top;
 
@@ -869,6 +995,15 @@
             }
 
             filesRaw = text;
+
+            // The master vocabulary, read once. A failure costs the underlines
+            // and nothing else, so it never stops the viewer.
+            try {
+                terms = parseTerms(await fetchDoc(TERMS_PATH));
+            }
+            catch (e) {
+                terms = [];
+            }
 
             await show();
 

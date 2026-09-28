@@ -1,26 +1,11 @@
 # Payment Method Delete - Stripe
 
 Status: done
-Updated: 2026-09-25
+Updated: 2026-09-28
 
 ## Description
 
 A User removes the Stripe Payment Method held against them, from the account pages, once the Stripe Subscription can no longer be charged. Removal is permanent, and a User who subscribes again later enters a Stripe Payment Method from scratch.
-
-## Terms
-
-| Term | Description |
-| --- | --- |
-| API | The back end. Holds the API records and talks to the providers. |
-| API Payment Method | The API record holding the Stripe Payment Method's brand and last4. |
-| API Subscription | The API record mirroring the Stripe Subscription. Stripe id, plan, interval, status. |
-| API User | The User's record on the API side. |
-| App | The front end the User is looking at, web or mobile. |
-| Auth User | The signed in User's data held by the App. |
-| Stripe Customer | The Stripe object holding the User's id, address and saved Stripe Payment Methods. |
-| Stripe Payment Method | The payment method at Stripe, saved against the Stripe Customer. |
-| Stripe Subscription | The subscription at Stripe. |
-| User | The human using the App. Never the App and never the API. |
 
 ## Requirements
 

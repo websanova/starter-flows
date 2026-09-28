@@ -7,18 +7,6 @@ Updated: 2026-09-28
 
 A User cancels their Stripe Subscription from a dedicated confirm page, and access runs to the end of the paid term rather than stopping on confirm. Nothing is charged and nothing is refunded.
 
-## Terms
-
-| Term | Description |
-| --- | --- |
-| API | The back end. Holds the API records and talks to the providers. |
-| API Subscription | The API record mirroring the Stripe Subscription. Stripe id, plan, interval, status. |
-| API User | The User's record on the API side. |
-| App | The front end the User is looking at, web or mobile. |
-| Auth User | The signed in User's data held by the App. |
-| Stripe Subscription | The subscription at Stripe. |
-| User | The human using the App. Never the App and never the API. |
-
 ## Requirements
 
 - Authenticated Users only.
