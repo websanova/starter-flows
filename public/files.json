@@ -3,12 +3,14 @@
     { "path": "docs/conventions/Status.md", "status": "done", "updated": "2026-09-04" },
     { "path": "docs/setup/DockerSetup.md", "status": "done", "updated": "2026-09-02" },
 
-    { "path": "flows/subscription/stripe/Create.md", "status": "done", "updated": "2026-09-28" },
+    { "path": "flows/subscription/stripe/Create1Load.md", "status": "done", "updated": "2026-09-28" },
+    { "path": "flows/subscription/stripe/Create2UserAction.md", "status": "done", "updated": "2026-09-28" },
+    { "path": "flows/subscription/stripe/Create3Submit.md", "status": "done", "updated": "2026-09-28" },
     { "path": "flows/subscription/stripe/Cancel.md", "status": "done", "updated": "2026-09-28" },
-    { "path": "flows/subscription/stripe/Resume.md", "status": "done", "updated": "2026-09-25" },
+    { "path": "flows/subscription/stripe/Resume.md", "status": "done", "updated": "2026-09-28" },
     { "path": "flows/subscription/stripe/Update.md", "status": "done", "updated": "2026-09-07" },
     { "path": "flows/subscription/Guards.md", "status": "wip", "updated": "2026-09-25" },
-    { "path": "flows/payment-method/stripe/Update.md", "status": "done", "updated": "2026-09-25" },
+    { "path": "flows/payment-method/stripe/Update.md", "status": "done", "updated": "2026-09-28" },
     { "path": "flows/payment-method/stripe/Delete.md", "status": "done", "updated": "2026-09-25" },
     { "path": "flows/account/Delete.md", "status": "wip", "updated": "2026-09-07" },
 

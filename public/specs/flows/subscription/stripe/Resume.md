@@ -1,7 +1,7 @@
 # Subscription Resume - Stripe
 
 Status: done
-Updated: 2026-09-25
+Updated: 2026-09-28
 
 ## Description
 
@@ -39,7 +39,7 @@ A User resumes a cancelled Stripe Subscription from a dedicated confirm page, wh
 ## Flow
 
 1. User opens the billing page. The resume control shows only on a cancelled Stripe Subscription that is still inside the paid term with a Stripe Payment Method on file.
-   1. Once the end date passes there is nothing left at Stripe to resume, and the User goes through the [subscription create flow](Create.md).
+   1. Once the end date passes there is nothing left at Stripe to resume, and the User goes through the [subscription create flow](Create1Load.md).
    2. Hiding the control is display. The API reads the same rule again on the request, so the hidden control was never the rule.
 2. The control leads to a dedicated confirm page. The page states the plan, the interval and the date billing picks back up. Confirm is the only action on it.
 3. User confirms. The App calls the API. No body, the Stripe Subscription is resolved from the API User.

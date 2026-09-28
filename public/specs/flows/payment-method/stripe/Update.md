@@ -1,7 +1,7 @@
 # Payment Method Update - Stripe (Payment Element)
 
 Status: done
-Updated: 2026-09-25
+Updated: 2026-09-28
 
 ## Description
 
@@ -191,7 +191,7 @@ The Stripe Payment Method's `billing_details.address` is AVS data the bank check
 
 ### Note on 4.4 - why allow_redisplay is set to always
 
-Stripe only returns a saved Stripe Payment Method to a Stripe Checkout Session when its `allow_redisplay` is `always`. Left at the default, the Stripe Payment Method sits on the Stripe Customer and bills renewals correctly while subscribe cannot see it, so a User with a card on file gets asked for one again. See the [subscription create flow](../../subscription/stripe/Create.md).
+Stripe only returns a saved Stripe Payment Method to a Stripe Checkout Session when its `allow_redisplay` is `always`. Left at the default, the Stripe Payment Method sits on the Stripe Customer and bills renewals correctly while subscribe cannot see it, so a User with a card on file gets asked for one again. See the [subscription create flow](../../subscription/stripe/Create1Load.md).
 
 ### Note on 7.3 - what validate_location does not check
 
