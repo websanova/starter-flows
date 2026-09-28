@@ -515,23 +515,20 @@
 
         const slug = name => name.replace(/\.md$/, '');
 
-        // PascalCase file names read as sentences in the sidebar. Two passes so
-        // APIUser gives "API User" rather than "A P I User".
-        const words = name => name
-            .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
-            .replace(/([a-z0-9])([A-Z])/g, '$1 $2');
-
-        const base = name => name.slice(name.lastIndexOf('/') + 1);
-
         const groupOf = name => name.slice(0, name.lastIndexOf('/'));
 
+        // Display labels are listed by hand in files.json. Nothing is derived
+        // from the file name.
+        const labelOf = path => files.find(e => e.path === path).label;
+
         // Browser tab title. The full path without the root, so
-        // flows/payment-method/stripe/Update.md reads "Payment Method Stripe Update".
-        // Directories are lowercase and hyphenated, file names are PascalCase.
-        const titleOf = name => slug(name)
+        // flows/payment-method/stripe/Update.md reads "Payment Method Update".
+        // Directories are lowercase and hyphenated, the file carries its label.
+        const titleOf = path => slug(path)
             .split('/')
-            .slice(1)
-            .map(part => words(part.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')))
+            .slice(1, -1)
+            .map(part => part.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '))
+            .concat(labelOf(path))
             .join(' ');
 
         const fail = (title, detail) => {
@@ -674,7 +671,7 @@
                 const label = document.createElement('span');
 
                 label.className = 'name';
-                label.textContent = words(slug(base(e.path)));
+                label.textContent = e.label;
                 a.appendChild(label);
 
                 if (e.status) {
