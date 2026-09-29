@@ -28,11 +28,12 @@ A User removes the Stripe Payment Method held against them, once the Stripe Subs
 2. App calls the API when the User hits delete. No body, the Stripe Payment Method is resolved from the API User.
 3. API removes the Stripe Payment Method.
    1. Re-read the API Subscription and refuse while anything is still going to be billed. See the note below.
-   2. Return a success when nothing is on file, already removed or never there. There is nothing to detach.
+   2. Return a success when nothing is on file, already removed or never there. There is nothing to detach, and a double submit, a second tab and a direct call all land here.
    3. Detach the Stripe Payment Method from the Stripe Customer. The Stripe Customer's `invoice_settings.default_payment_method` comes off with the detach, so there is no separate unset call. One Stripe already holds as detached, from a Stripe Dashboard removal or a retried request, is not an error.
    4. Error back for display when Stripe refuses the detach. The API Payment Method is left as it is and the User retries.
    5. Clear the API Payment Method's brand and last4. See the note below.
 4. App refreshes the Auth User, and the billing page comes back with no Stripe Payment Method on file and no delete control.
+   1. Read the new state off the refreshed Auth User rather than the response body, since payment method state is spread across flags the Auth User carries and the response holds only the one record.
 5. API takes `payment_method.detached` as a no-op, since the API Payment Method is already clear.
 
 ## Diagram

@@ -34,14 +34,14 @@ A User on an active Stripe Subscription changes the plan, the interval, or both.
 5. API changes the price on the Stripe Subscription.
    1. Re-read the API Subscription and refuse anything other than an active Stripe Subscription. No Stripe Subscription at all, trialing, past due, unpaid and cancelled inside the term each refuse.
    2. Refuse a plan or an interval the API does not know.
-   3. Refuse when no Stripe Payment Method resolves. Read `default_payment_method` on the Stripe Subscription, falling back to `invoice_settings.default_payment_method` on the Stripe Customer, which is the order the charge itself reads. Not the API Payment Method, which is display and lags the webhook.
-   4. Return the current state when the plan and interval are already on the Stripe Subscription, and change nothing at Stripe.
+   3. Refuse when no Stripe Payment Method resolves. Read `default_payment_method` on the Stripe Subscription, falling back to `invoice_settings.default_payment_method` on the Stripe Customer, which is the order the charge itself reads. Not the API Payment Method, which is display and lags the webhook. See the note below.
+   4. Return the current state when the plan and interval are already on the Stripe Subscription, and change nothing at Stripe. A double submit, a second tab and a direct call all land here.
    5. Update the Stripe Subscription's item with the new price, prorating and invoicing on the spot. Stripe returns the updated Stripe Subscription in the same call.
    6. Write the API Subscription off the returned object, plan and interval.
    7. Read the proration invoice off the same call and answer with one of three, exclusive. Paid, or nothing owed on a downgrade, ends the call. A charge the bank wants authenticated returns the invoice's confirmation secret. A declined charge returns the failure with the price change already applied. See the note below.
    8. Error back for display when Stripe refuses the update itself. The API Subscription is left as it is and the User retries.
 6. App acts on which of the three came back.
-   1. Refresh the Auth User and take the success action on a settled charge, nothing owed or paid outright.
+   1. Refresh the Auth User and take the success action on a settled charge, nothing owed or paid outright. Read the new state off the refreshed Auth User rather than the response body, since subscription state is spread across flags the Auth User carries and the response holds only the one record.
    2. Hand a confirmation secret to `handleNextAction` after loading stripe.js, which runs the bank challenge. Nothing is mounted and no card is collected. Passing takes the same success action, failing shows the error and leaves the User on the confirm page. See the note below.
    3. Show the error on a failure, and refresh the Auth User on this path too since the API Subscription already carries the new plan from 5.6.
 7. API runs the same write on `customer.subscription.updated`. The event and the response carry the same fields, so whichever lands second rewrites the same values, and the same handler covers a change done in the Stripe Dashboard.
@@ -84,6 +84,10 @@ Immediate proration over deferring the difference, because deferring hands the U
 ### Downgrades leave a credit
 
 Stripe does not refund on its own. The unused portion of the old plan comes back as a negative line item that sits as credit on the Stripe Customer and eats into the next invoice. A refund is a separate deliberate action against the original charge, and nothing here takes one.
+
+### Note on 5.3 - why the Stripe Payment Method is read off Stripe
+
+The API Payment Method is display and lags the webhook, so a Stripe Payment Method that was just replaced can read as missing or stale on it. Reading `default_payment_method` on the Stripe Subscription and falling back to the Stripe Customer's `invoice_settings.default_payment_method` is the order the charge itself reads, so the check answers the same question the charge will.
 
 ### Note on 5.7 - a declined charge does not roll the price change back
 

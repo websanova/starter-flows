@@ -34,8 +34,9 @@ A User resumes a cancelled Stripe Subscription from a dedicated confirm page, wh
    4. Update the Stripe Subscription with `cancel_at_period_end` set to false. Stripe returns the updated Stripe Subscription in the same call, status still `active`, `cancel_at_period_end` false, `cancel_at` null.
    5. Write the API Subscription off the returned object, clearing the cancelled marker and the end date.
    6. Error back for display when Stripe refuses the update. The API Subscription is left as it is and the User retries.
-5. API runs the same write on `customer.subscription.updated`. The event and the response carry the same fields, so whichever lands second rewrites the same values, and the same handler covers a resume done in the Stripe Dashboard.
-6. App refreshes the Auth User and takes the success action, back to billing or a confirmation page.
+5. App refreshes the Auth User and takes the success action, back to billing or a confirmation page.
+   1. Read the new state off the refreshed Auth User rather than the response body, since subscription state is spread across flags the Auth User carries and the response holds only the one record.
+6. API runs the same write on `customer.subscription.updated`. The event and the response carry the same fields, so whichever lands second rewrites the same values, and the same handler covers a resume done in the Stripe Dashboard.
 
 ## Diagram
 
