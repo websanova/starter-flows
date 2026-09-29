@@ -139,7 +139,7 @@
         }
 
         nav .group {
-            padding: .8rem 1.2rem .25rem;
+            padding: .55rem 1.2rem .15rem;
             font-size: .7rem;
             font-weight: 600;
             letter-spacing: .04em;
@@ -152,7 +152,7 @@
             display: flex;
             align-items: center;
             gap: .5rem;
-            padding: .45rem 1.2rem;
+            padding: .28rem 1.2rem;
             color: var(--fg);
             text-decoration: none;
             font-size: .7rem;
@@ -161,6 +161,20 @@
 
         nav a.nested {
             padding-left: 2rem;
+        }
+
+        /* A flow split across files gets one heading of its own, quieter than
+           the directory above it, with the phases indented under it. */
+        nav .phase {
+            padding: .28rem 1.2rem .1rem 2rem;
+            font-size: .7rem;
+            color: var(--muted);
+            cursor: default;
+            user-select: none;
+        }
+
+        nav a.phase-item {
+            padding-left: 2.8rem;
         }
 
         nav a:hover {
@@ -539,19 +553,21 @@
 
         const groupOf = name => name.slice(0, name.lastIndexOf('/'));
 
-        // Display labels are listed by hand in files.json. Nothing is derived
-        // from the file name.
-        const labelOf = path => files.find(e => e.path === path).label;
-
         // Browser tab title. The full path without the root, so
-        // flows/payment-method/stripe/Update.md reads "Payment Method Update".
-        // Directories are lowercase and hyphenated, the file carries its label.
-        const titleOf = path => slug(path)
-            .split('/')
-            .slice(1, -1)
-            .map(part => part.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '))
-            .concat(labelOf(path))
-            .join(' ');
+        // flows/payment-method/stripe/Delete.md reads "Payment Method Stripe
+        // Delete". Directories are lowercase and hyphenated, and the labels are
+        // listed by hand in files.json, a phase carrying its group ahead of its
+        // own label. Nothing is derived from the file name.
+        const titleOf = path => {
+            const e = files.find(f => f.path === path);
+
+            return slug(path)
+                .split('/')
+                .slice(1, -1)
+                .map(part => part.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '))
+                .concat(e.group ? [e.group, e.label] : [e.label])
+                .join(' ');
+        };
 
         const fail = (title, detail) => {
             el.innerHTML = '<div class="error"><strong>' + title + '</strong><p>' + detail + '</p></div>';
@@ -698,6 +714,7 @@
 
             // files.json groups its entries by directory, so headings stay contiguous.
             let group = null;
+            let phase = null;
 
             for (const e of list) {
                 const dir = groupOf(e.path);
@@ -707,6 +724,7 @@
 
                 if (dir !== group) {
                     group = dir;
+                    phase = null;
 
                     if (heading) {
                         const head = document.createElement('div');
@@ -717,10 +735,31 @@
                     }
                 }
 
+                // A row carrying a group is one phase of a flow split across
+                // files, so the phases listed together take a heading of their
+                // own. Rows without one render flat.
+                const belongs = e.group || null;
+
+                if (belongs !== phase) {
+                    phase = belongs;
+
+                    if (phase) {
+                        const head = document.createElement('div');
+
+                        head.className = 'phase';
+                        head.textContent = phase;
+                        nav.appendChild(head);
+                    }
+                }
+
                 const a = document.createElement('a');
 
                 a.href = '#' + slug(e.path);
-                a.className = (e.path === current ? 'active' : '') + (heading ? ' nested' : '');
+                a.className = [
+                    e.path === current ? 'active' : '',
+                    heading ? 'nested' : '',
+                    phase ? 'phase-item' : '',
+                ].filter(Boolean).join(' ');
 
                 const label = document.createElement('span');
 
