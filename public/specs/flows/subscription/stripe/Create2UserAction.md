@@ -55,25 +55,21 @@ flowchart LR
     K2 -->|yes| L[Payment method step.<br/>Stripe Payment Element]
     L -.->|change address| J
     L --> M["Confirm step. getSession() total carries tax.<br/>canConfirm gates the subscribe button"]
-    M --> P1{Promotion code?}
+    M1["Stripe Payment Method on file.<br/>Brand and last4 off savedPaymentMethods,<br/>no picker. tax.status ready,<br/>addressSource customer, total is final"] --> M
+    M --> N[Submit flow]
+```
+
+The promotion code on the confirm step.
+
+```mermaid
+flowchart LR
+    M["Confirm step"] --> P1{Promotion code?}
     P1 -->|apply| P2["applyPromotionCode(), then re-read with<br/>getSession(). Discount on total.discount,<br/>subtotal drops, tax recalculates,<br/>total follows"]
     P1 -->|remove| P3["removePromotionCode(), the same<br/>re-read puts the total back"]
     P1 -->|rejected| P4[Error on the field the code was typed<br/>into, not on the page. Another code,<br/>or confirm without one]
     P2 --> M
     P3 --> M
     P4 --> M
-    M --> N[Submit flow]
-```
-
-The confirm step with a Stripe Payment Method on file.
-
-```mermaid
-flowchart LR
-    M1["Confirm step. Brand and last4 off<br/>savedPaymentMethods, no picker"] --> M2["getSession() total is final,<br/>tax.status ready,<br/>addressSource customer"]
-    M2 --> M3{Promotion code?}
-    M3 -->|apply or remove| M4["Same actions, same re-read.<br/>The App subtracts nothing"]
-    M4 --> M2
-    M3 -->|no| N[Submit flow]
 ```
 
 ## Notes
