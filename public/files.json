@@ -2,6 +2,7 @@
     { "path": "docs/conventions/Terms.md", "label": "Terms", "status": "done", "updated": "2026-09-25" },
     { "path": "docs/conventions/Status.md", "label": "Status", "status": "done", "updated": "2026-09-04" },
     { "path": "docs/setup/DockerSetup.md", "label": "Docker Setup", "status": "done", "updated": "2026-09-02" },
+    { "path": "docs/setup/StripeWebhooks.md", "label": "Stripe Webhooks", "status": "done", "updated": "2026-09-29" },
 
     { "path": "flows/subscription/stripe/Create1Load.md", "group": "Create", "label": "Load", "status": "done", "updated": "2026-09-29" },
     { "path": "flows/subscription/stripe/Create2UserAction.md", "group": "Create", "label": "User Action", "status": "done", "updated": "2026-09-29" },
