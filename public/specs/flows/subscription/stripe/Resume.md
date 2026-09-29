@@ -23,51 +23,46 @@ A User resumes a cancelled Stripe Subscription from a dedicated confirm page, wh
 
 ## Flow
 
-1. User opens the billing page. The resume control shows only on a cancelled Stripe Subscription that is still inside the paid term with a Stripe Payment Method on file.
-   1. Once the end date passes there is nothing left at Stripe to resume, and the User goes through the [subscription create flow](#flows/subscription/stripe/Create1Load).
-   2. Hiding the control is display. The API reads the same rule again on the request, so the hidden control was never the rule.
-2. The control leads to a dedicated confirm page. The page states the plan, the interval and the date billing picks back up. Confirm is the only action on it.
-3. User confirms. The App calls the API. No body, the Stripe Subscription is resolved from the API User.
+1. App shows the resume control on the billing page, only on a cancelled Stripe Subscription that is still inside the paid term with a Stripe Payment Method on file. Hiding it is display, the API reads the same rule again on the request.
+   1. Send a User whose end date has passed through the [subscription create flow](#flows/subscription/stripe/Create1Load). There is nothing left at Stripe to resume.
+2. App opens a dedicated confirm page. The page states the plan, the interval and the date billing picks back up, and confirm is the only action on it.
+3. App calls the API when the User confirms. No body, the Stripe Subscription is resolved from the API User.
+4. API resumes the Stripe Subscription.
    1. Re-read the API Subscription and refuse once the end date has passed. The gate only gets stricter with time, so a term that ran out while the page sat open is refused here and the User subscribes again through create.
    2. Refuse when no Stripe Payment Method resolves. Read `default_payment_method` on the Stripe Subscription, falling back to `invoice_settings.default_payment_method` on the Stripe Customer, which is the order the renewal itself reads. Not the API Payment Method, which is display and lags the webhook. See the note below.
-   3. A Stripe Subscription that is not cancelled is not a refusal. The request is already satisfied, so return the current state and change nothing at Stripe. A double submit, a second tab and a direct call all land here.
+   3. Return the current state when the Stripe Subscription is not cancelled, and change nothing at Stripe. A double submit, a second tab and a direct call all land here.
    4. Update the Stripe Subscription with `cancel_at_period_end` set to false. Stripe returns the updated Stripe Subscription in the same call, status still `active`, `cancel_at_period_end` false, `cancel_at` null.
-   5. Write the API Subscription off the returned object, clearing the cancelled marker and the end date. See the note below.
-   6. Stripe erroring on the update errors back for display. The API Subscription is left as it is and the User retries.
-4. The response is the answer. Nothing is pending, so the App does not poll.
-   1. App refreshes the Auth User so everything reading subscription state picks up the resumed API Subscription.
-   2. Take the success action, back to billing or a confirmation page.
-5. Stripe fires `customer.subscription.updated` afterwards carrying the same fields the API already wrote, so the handler rewrites what is already there. The same handler writes the API Subscription for a resume done in the Stripe Dashboard.
-   1. The event and the response write carry the same fields either way, so whichever lands second rewrites the same values.
-6. Nothing is charged on confirm. The Stripe Subscription bills again at the renewal it was always going to bill at.
+   5. Write the API Subscription off the returned object, clearing the cancelled marker and the end date.
+   6. Error back for display when Stripe refuses the update. The API Subscription is left as it is and the User retries.
+5. API runs the same write on `customer.subscription.updated`. The event and the response carry the same fields, so whichever lands second rewrites the same values, and the same handler covers a resume done in the Stripe Dashboard.
+6. App refreshes the Auth User and takes the success action, back to billing or a confirmation page.
 
 ## Diagram
 
 ```mermaid
 flowchart LR
     A[User hits resume on the billing page] --> B{Cancelled, inside the term,<br/>Stripe Payment Method on file?}
-
     B -->|no| C[Control hidden, request refused]
-    B -->|yes| D["Confirm page<br/>plan, interval, next charge"]
-
+    B -->|yes| D["Confirm page.<br/>Plan, interval, next charge"]
     D --> E[User confirms]
-    E --> F["POST /subscription/resume"]
-
+    E --> F[App calls the API]
     F --> G{Re-read the API Subscription}
     G -->|end date passed| G1[Refuse. The User subscribes<br/>again through create]
     G -->|no Stripe Payment Method| G2[Refuse. The renewal would fail]
     G -->|not cancelled| G3[Return the current state,<br/>nothing changes at Stripe]
     G -->|cancelled, inside the term| H["subscriptions.update<br/>cancel_at_period_end: false"]
-
     H --> I{Result}
-    I -->|error| J[Relay the error,<br/>API Subscription untouched]
-    I -->|ok| K["Write the API Subscription off the response<br/>clear the cancelled marker and end date"]
-
+    I -->|error| J[Error back for display,<br/>API Subscription untouched]
+    I -->|ok| K["Write the API Subscription off the response.<br/>Clear the cancelled marker and end date"]
     K --> L[Refresh the Auth User,<br/>success action]
     K -.-> M["customer.subscription.updated<br/>lands after, same fields"]
 ```
 
 ## Notes
+
+### Nothing is charged on confirm
+
+The Stripe Subscription bills again at the renewal it was always going to bill at. Clearing `cancel_at_period_end` generates no invoice.
 
 ### Refusing a resume with no Stripe Payment Method on file
 
