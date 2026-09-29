@@ -85,8 +85,3 @@ A trial charges nothing at signup, so an applied promotion code takes nothing of
 Two figures have to be on screen for that to read correctly. A total of `$0` today, and the discounted amount from trial end. Showing only the discounted recurring figure reads as a charge that is not happening, and showing only the `$0` throws away the reason the User typed a code.
 
 Whether the discount survives to trial end is the coupon's own duration rather than anything this flow sets. A code lasting one billing period is spent on the first invoice after the trial, which is the invoice the User was expecting it against.
-
-## Todo
-
-- A promotion code restricted to a plan, a User or a campaign. Every active code Stripe holds applies here, and nothing on the API side limits which ones a given User can redeem.
-- An offer the User does not have to type. Nothing on the page surfaces an available promotion code, so a code only applies when the User already has it in hand.
