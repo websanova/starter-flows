@@ -1,7 +1,7 @@
 # Payment Method Update - Stripe (Payment Element)
 
 Status: done
-Updated: 2026-09-28
+Updated: 2026-09-29
 
 ## Description
 
@@ -155,7 +155,7 @@ This flow puts a Stripe Payment Method on file and stops. It does not look for a
 
 That is deliberate. Resolving a failed renewal is a different job with a different answer. The Stripe Payment Method on file might be fine and only need a bank challenge cleared, in which case sending the User here to type a card in again asks them for something that was never the problem. It is also the one case where the User might need to be charged before they get their access back, and charging is not what this page does.
 
-So a past due User defaults to billing until the App handles them. See the [subscription guards flow](../../subscription/Guards.md).
+So a past due User defaults to billing until the App handles them. See the [subscription guards flow](#flows/subscription/Guards).
 
 ### Note on 1.1 - opening the Stripe Setup Intent on page load
 
@@ -163,7 +163,7 @@ The page does one job, so arriving on it is the User declaring intent already an
 
 ### Note on 1.2 - creating the Stripe Customer here
 
-A User with no Stripe Subscription can put a Stripe Payment Method on file, so the Stripe Customer is created on the way in rather than assumed. That is what gives a cancelled User who removed their card a way back, since [resume](../../subscription/stripe/Resume.md) refuses without a Stripe Payment Method that resolves and this page is the only place to put one.
+A User with no Stripe Subscription can put a Stripe Payment Method on file, so the Stripe Customer is created on the way in rather than assumed. That is what gives a cancelled User who removed their card a way back, since [resume](#flows/subscription/stripe/Resume) refuses without a Stripe Payment Method that resolves and this page is the only place to put one.
 
 ### Note on 2.7 - two Stripe Elements that do not compete
 
@@ -173,7 +173,7 @@ The Stripe Payment Method's `billing_details.address` is AVS data the bank check
 
 ### Note on 4.4 - why allow_redisplay is set to always
 
-Stripe only returns a saved Stripe Payment Method to a Stripe Checkout Session when its `allow_redisplay` is `always`. Left at the default, the Stripe Payment Method sits on the Stripe Customer and bills renewals correctly while subscribe cannot see it, so a User with a card on file gets asked for one again. See the [subscription create flow](../../subscription/stripe/Create1Load.md).
+Stripe only returns a saved Stripe Payment Method to a Stripe Checkout Session when its `allow_redisplay` is `always`. Left at the default, the Stripe Payment Method sits on the Stripe Customer and bills renewals correctly while subscribe cannot see it, so a User with a card on file gets asked for one again. See the [subscription create flow](#flows/subscription/stripe/Create1Load).
 
 ### Note on 7.3 - what validate_location does not check
 

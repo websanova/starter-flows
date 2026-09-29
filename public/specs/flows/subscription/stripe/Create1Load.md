@@ -17,15 +17,15 @@ A User with no Stripe Subscription opens the subscribe page and the API hands ou
 - Collect the address with the Stripe Billing Address Element, so field layout and country rules come from Stripe.
 - Style both Stripe Elements with the App's own appearance so the page matches the rest of the App.
 - Start a trial when the User is eligible, with a Stripe Payment Method collected up front. Eligibility is decided by the API.
-- Refuse anyone who already has a Stripe Subscription. Past due and unpaid refuse with their own error, and default to billing until the App handles them. See the [subscription guards flow](../Guards.md).
+- Refuse anyone who already has a Stripe Subscription. Past due and unpaid refuse with their own error, and default to billing until the App handles them. See the [subscription guards flow](#flows/subscription/Guards).
 - The billing page shows the subscribe control only to a User with no Stripe Subscription, and the route is guarded on the same. The API decides it again on the create.
 - Only one Stripe Checkout Session at a time per User. Opening the subscribe page cancels any the User already has open, so a page left sitting in another tab or on another device cannot be completed later and subscribe them twice.
 
 ## Flow
 
 1. App loads the subscribe page. The steps are component state, so nothing routes.
-   1. Subscription route guard runs. A User with a Stripe Subscription bounces to billing. See the [subscription guards flow](../Guards.md).
-   2. Check App Storage for a returning redirect. A secret there is a User coming back from a bank challenge, so re-initialise that Stripe Checkout Session and hand to the [submit flow](Create3Submit.md). See the note below.
+   1. Subscription route guard runs. A User with a Stripe Subscription bounces to billing. See the [subscription guards flow](#flows/subscription/Guards).
+   2. Check App Storage for a returning redirect. A secret there is a User coming back from a bank challenge, so re-initialise that Stripe Checkout Session and hand to the [submit flow](#flows/subscription/stripe/Create3Submit). See the note below.
    3. Fire the request for a Stripe Checkout Session. A Stripe Checkout Session is always required, whether or not a Stripe Payment Method is already on file, since the confirm runs against one.
 2. API creates the Stripe Checkout Session.
    1. Refuse a User who already has a Stripe Subscription. A live one is `already_subscribed`, past due or unpaid is `payment_required`. See the note below.
@@ -42,7 +42,7 @@ A User with no Stripe Subscription opens the subscribe page and the API hands ou
    2. Initialise with `stripe.initCheckoutElementsSdk({ clientSecret })`, then `await checkout.loadActions()` for the actions the rest of the page runs on.
    3. Show the failure when either one fails. Without the actions there is nowhere for the User to enter anything.
 4. App opens the form on the step matching `savedPaymentMethods`. Nothing mounts before this point, the containers are not in the document yet.
-   1. Open the confirm step when a Stripe Payment Method is on file, and create no Stripe Element. Only one whose `allow_redisplay` is `always` appears in `savedPaymentMethods`, the value the [payment method flow](../../payment-method/stripe/Update.md) sets when it stores one.
+   1. Open the confirm step when a Stripe Payment Method is on file, and create no Stripe Element. Only one whose `allow_redisplay` is `always` appears in `savedPaymentMethods`, the value the [payment method flow](#flows/payment-method/stripe/Update) sets when it stores one.
    2. Open the address step when there is none, and create both Stripe Elements once the containers exist.
    3. Create the address element with `checkout.createBillingAddressElement()` and no prefill, the name along with the address. Country is an ISO alpha-2 select and the field layout follows the country.
    4. Create the payment element with `checkout.createPaymentElement({ fields: { billingDetails: { name: 'never' } } })`. The Stripe Billing Address Element already collects a name, and both collecting it fails the confirm.
@@ -92,7 +92,7 @@ flowchart LR
 
 ### The Stripe Payment Element over hosted and embedded checkout
 
-The Stripe Payment Element on a page the App renders itself over [hosted](../../../refs/subscription/stripe/CreateHosted.md) and [embedded](../../../refs/subscription/stripe/CreateEmbedded.md) checkout. The address and the payment method are Stripe Elements the App mounts and styles with the same appearance object as everything else in it, where hosted and embedded render Stripe's UI, styled by the logo, colors, fonts and border radius set in the Dashboard and nothing further. All three create the same kind of Stripe Checkout Session, so the checkout mechanics match and the fork is UI control against build cost.
+The Stripe Payment Element on a page the App renders itself over [hosted](#refs/subscription/stripe/CreateHosted) and [embedded](#refs/subscription/stripe/CreateEmbedded) checkout. The address and the payment method are Stripe Elements the App mounts and styles with the same appearance object as everything else in it, where hosted and embedded render Stripe's UI, styled by the logo, colors, fonts and border radius set in the Dashboard and nothing further. All three create the same kind of Stripe Checkout Session, so the checkout mechanics match and the fork is UI control against build cost.
 
 What the choice costs is everything Stripe's UI does inside its own page. The steps, since the Stripe Billing Address Element does not write itself onto the Stripe Checkout Session. The mount lifecycle, including a secret held in App Storage so a bank challenge returns to the same Stripe Checkout Session. The total read off the Stripe Checkout Session and rendered by hand. The promotion code field, which no Stripe Element provides, so the input, the apply, the remove and the error a rejected code lands on are all the App's.
 
@@ -104,7 +104,7 @@ Everything here assumes `2026-03-25.dahlia` or later. Two separate reasons stack
 
 ### Where the address comes from
 
-Two paths put an address on the Stripe Customer, and this flow is one of them. A User with no Stripe Payment Method on file types an address here, `customer_update: { address: 'auto', name: 'auto' }` has Stripe copy it and the name onto the Stripe Customer at confirm, and the API writes neither. A User who already has a Stripe Payment Method on file put both there through the [payment method flow](../../payment-method/stripe/Update.md), which writes the Stripe Customer's address directly.
+Two paths put an address on the Stripe Customer, and this flow is one of them. A User with no Stripe Payment Method on file types an address here, `customer_update: { address: 'auto', name: 'auto' }` has Stripe copy it and the name onto the Stripe Customer at confirm, and the API writes neither. A User who already has a Stripe Payment Method on file put both there through the [payment method flow](#flows/payment-method/stripe/Update), which writes the Stripe Customer's address directly.
 
 Nothing about the address is stored on the API. The Stripe Customer holds it, every renewal invoice computes tax off it, and Stripe's own invoices are where the User reads it back.
 
@@ -126,7 +126,7 @@ The check goes first because it reads the API Subscription off the API User, so 
 
 Reject either way. The Stripe Subscription exists whether it is live, past due or unpaid, so a second one is wrong regardless. There is nothing to hand back on success either, since the only thing this request returns is a Stripe Checkout Session secret, and a Stripe Subscription is not that. A double submit gets the same refusal as anything else.
 
-Past due and unpaid get their own `error` code rather than sharing one, so the two can be told apart. Both default to billing until the App handles the past due case, which is a guard question and not one this flow answers. See the [subscription guards flow](../Guards.md).
+Past due and unpaid get their own `error` code rather than sharing one, so the two can be told apart. Both default to billing until the App handles the past due case, which is a guard question and not one this flow answers. See the [subscription guards flow](#flows/subscription/Guards).
 
 ### Note on 2.3 - why open Stripe Checkout Sessions are expired
 

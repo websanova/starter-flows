@@ -1,11 +1,11 @@
 # Subscription Create User Action - Stripe (Checkout Sessions, Payment Element)
 
 Status: done
-Updated: 2026-09-28
+Updated: 2026-09-29
 
 ## Description
 
-The User works through the subscribe page, filling the address, entering a payment method and applying a promotion code, on the Stripe Checkout Session the [load flow](Create1Load.md) handed them. Everything typed goes onto the Stripe Checkout Session as the User moves, so the total, the tax and the discount are Stripe's to calculate and the App only renders them.
+The User works through the subscribe page, filling the address, entering a payment method and applying a promotion code, on the Stripe Checkout Session the [load flow](#flows/subscription/stripe/Create1Load) handed them. Everything typed goes onto the Stripe Checkout Session as the User moves, so the total, the tax and the discount are Stripe's to calculate and the App only renders them.
 
 ## Requirements
 
@@ -33,7 +33,7 @@ The User works through the subscribe page, filling the address, entering a payme
    3. Applying mutates the Stripe Checkout Session at Stripe. The discount lands on `total.discount`, `total.subtotal` drops, tax recalculates against the reduced amount and `total.total` follows. Re-read with `getSession()` once the action resolves and render the new figures. The App subtracts nothing.
    4. Removing runs `actions.removePromotionCode()` and the same re-read puts the total back, so a User who applied a code can reach the undiscounted total without reloading the page.
    5. A rejected code belongs to the field it was typed into rather than to the page, since nothing else about the Stripe Checkout Session has gone wrong. Expired, unknown and not applicable to the plan all land there the same way, and the User types another code or confirms without one.
-   6. The confirm carries no code. The discount is already on the Stripe Checkout Session, so `actions.confirm()` charges the discounted total with nothing in its payload naming a promotion code and nothing for the API to resolve afterwards. See the [submit flow](Create3Submit.md).
+   6. The confirm carries no code. The discount is already on the Stripe Checkout Session, so `actions.confirm()` charges the discounted total with nothing in its payload naming a promotion code and nothing for the API to resolve afterwards. See the [submit flow](#flows/subscription/stripe/Create3Submit).
    7. A Stripe Payment Method on file shows as its brand and last4, read off `savedPaymentMethods`. There is no picker, since exactly one is ever on file.
 
 ## Diagram
