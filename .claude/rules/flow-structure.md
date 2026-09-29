@@ -18,7 +18,8 @@ globs:
 - Every top level step names the system that owns it as the subject, `App` or `API`. One system per top level step, so a handoff is always a step boundary.
 - First sentence names the action. Short, no lead-in. Reading only the first sentences is a full pass of the flow.
 - Detail follows in the same bullet, never in place of the action.
-- A bullet that is not an action gets cut, not reworded.
+- A bullet that is not an action gets cut, not reworded, unless it qualifies an action. Then it nests under that action at the third level, never as a sibling of the actions.
+- A lone third level bullet is a smell. Roll it into its parent's trailing detail and nest only when several hang off the same action.
 - A step describes only what happens in that step. Naming a later step's work is a defect. A forward reference is allowed only as the reason a decision is being made here.
 - Detail cut from a step for length moves into that step's note. Nothing is deleted on the way.
 - Renumbering steps renumbers the note titles that point at them.
