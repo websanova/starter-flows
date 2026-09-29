@@ -20,8 +20,9 @@ A User opens the payment method page and the API hands out a Stripe Setup Intent
 
 ## Flow
 
-1. App loads the payment method page. Every authenticated User can open it, so there is nothing to check first.
-   1. Fire the request for a Stripe Setup Intent on load, without waiting for the User to do anything. See the note below.
+1. App loads the payment method page. Every authenticated User can open it, so there is no guard to run.
+   1. Check the url for a returning redirect. A secret there is a User coming back from a bank challenge, so hand to the [submit flow](#flows/payment-method/stripe/Update2Submit) without creating.
+   2. Fire the request for a Stripe Setup Intent on load, without waiting for the User to do anything. See the note below.
 2. API creates the Stripe Setup Intent.
    1. Load or create the Stripe Customer, and save the returned id. See the note below.
    2. Create the Stripe Setup Intent with the Stripe Customer and `usage` set to `off_session`. The renewal charges with nobody at the keyboard, and the mandate that allows it is what `off_session` sets up.
@@ -44,7 +45,9 @@ A User opens the payment method page and the API hands out a Stripe Setup Intent
 
 ```mermaid
 flowchart LR
-    A[App loads the payment method page] -->|on load| B[Fire the request for a<br/>Stripe Setup Intent]
+    A[App loads the payment method page] --> A1{Secret on the url<br/>from a confirm?}
+    A1 -->|yes| A2[Hand to the submit flow,<br/>no create]
+    A1 -->|no| B[Fire the request for a<br/>Stripe Setup Intent]
     B --> C[Load or create the Stripe Customer,<br/>save the returned id]
     C --> D["setupIntents.create<br/>usage: off_session"]
     D --> D1{Result}
@@ -80,7 +83,7 @@ A blank address form is the consequence. Every submit sends a full address and S
 
 A Stripe Setup Intent is opened for everyone who lands on the page, carrying no amount, no price and nothing about the Stripe Subscription, since it only ever stores a Stripe Payment Method. There is no API record behind an unconfirmed one and Stripe ages it out on its own, so there is nothing to clean up.
 
-### Note on 1.1 - opening the Stripe Setup Intent on page load
+### Note on 1.2 - opening the Stripe Setup Intent on page load
 
 The page does one job, so arriving on it is the User declaring intent already and a button asking for the same declaration is the second time. The Stripe Payment Element also cannot mount without a secret, so the call has to land before the form is usable whichever way it is triggered. A button would lower the number of abandoned Stripe Setup Intents rather than remove them, and an abandoned one costs nothing.
 

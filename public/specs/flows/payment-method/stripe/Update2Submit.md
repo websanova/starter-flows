@@ -16,13 +16,12 @@ The User submits and one confirm against the Stripe Setup Intent the [collect fl
 - Write the address and name to the Stripe Customer, where every renewal invoice reads them for tax.
 - Make the new Stripe Payment Method the default for both the Stripe Customer and the Stripe Subscription, and remove the old one.
 - Write the API Payment Method's brand and last4 for display.
-- An API sync call does the work while the User waits, and a Stripe webhook runs the payment method writes as a backstop.
 - Nothing is charged and no invoice is created. The new Stripe Payment Method is what the next renewal invoice bills.
 - Nothing here settles an invoice a failed renewal left open, or reads whether there is one. A User behind on payment is resolved elsewhere. See the note below.
 
 ## Flow
 
-1. App confirms the Stripe Setup Intent when the User submits, with a `return_url`, `redirect` set to `if_required`, and `allow_redisplay` set to `always`.
+1. App confirms the Stripe Setup Intent when the User submits, with a `return_url`, `redirect` set to `if_required`, and `allow_redisplay` set to `always`. See the note below.
    1. A confirmed Stripe Setup Intent attaches the Stripe Payment Method to the Stripe Customer and nothing more. It is not the default and nothing will charge it. See the note below.
    2. Handle the bank challenge inside the confirm. A challenge either runs in a dialog and resolves inline, or sends the User away to the bank and back to the return url.
    3. Hold the User on the page when the Stripe Payment Method is refused. The Stripe Setup Intent stays confirmable and both Stripe Elements stay standing, so the User corrects it and submits again on the same secret.
@@ -107,11 +106,13 @@ That is deliberate. Resolving a failed renewal is a different job with a differe
 
 So a past due User defaults to billing until the App handles them. See the [subscription guards flow](#flows/subscription/Guards).
 
+### Note on 1 - why allow_redisplay is set to always
+
+Setting `allow_redisplay` to `always` on the confirm is what lets subscribe offer this Stripe Payment Method back to the User later. Stripe only returns a saved Stripe Payment Method to a Stripe Checkout Session when `allow_redisplay` is `always`, so left at the default it bills renewals correctly while subscribe cannot see it and a User with a card on file gets asked for one again. See the [subscription create flow](#flows/subscription/stripe/Create1Load).
+
 ### Note on 1.1 - attaching and defaulting are two separate things
 
 A confirmed Stripe Setup Intent puts the Stripe Payment Method on the Stripe Customer and stops there. Nothing bills it until the defaults move, which is the sync call's job at 4.5 and 4.6, and this is where the flow is easy to get wrong.
-
-Setting `allow_redisplay` to `always` on the confirm is what lets subscribe offer this Stripe Payment Method back to the User later. Stripe only returns a saved Stripe Payment Method to a Stripe Checkout Session when `allow_redisplay` is `always`, so left at the default it bills renewals correctly while subscribe cannot see it and a User with a card on file gets asked for one again. See the [subscription create flow](#flows/subscription/stripe/Create1Load).
 
 ### Note on 4.2 - why the API validates the address at all
 
