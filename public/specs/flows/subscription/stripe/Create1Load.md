@@ -33,7 +33,7 @@ A User with no Stripe Subscription opens the subscribe page and the API hands ou
    3. Expire every open Stripe Checkout Session on the Stripe Customer. Only an `open` one can be expired and a completed one throws, so the sweep swallows the throw. See the note below.
    4. Decide trial eligibility. The API owns the answer and the App never asks for it.
    5. Read whether the Stripe Customer has a Stripe Payment Method on file. The answer decides which address parameters go on the Stripe Checkout Session create. See the note below.
-   6. Create the Stripe Checkout Session with `ui_mode: 'elements'`, `mode: 'subscription'`, the Stripe Customer, `line_items` carrying the plan's price id at quantity one, a `return_url`, `allow_promotion_codes: true`, `automatic_tax: { enabled: true }` when the API's automatic tax flag is on, `subscription_data.payment_settings.save_default_payment_method`, and `subscription_data.trial_end` when eligible. Use `trial_end` rather than `trial_period_days`, since a User carrying a partial trial keeps whatever is left of it and a whole number of days cannot say that. Passing the Stripe Customer covers the Stripe Checkout Session's email requirement, so no contact details element is needed.
+   6. Create the Stripe Checkout Session with `ui_mode: 'elements'`, `mode: 'subscription'`, the Stripe Customer, `line_items` carrying the plan's price id at quantity one, a `return_url`, `automatic_tax: { enabled: true }` when the API's automatic tax flag is on, `subscription_data.payment_settings.save_default_payment_method`, and `subscription_data.trial_end` when eligible. Use `trial_end` rather than `trial_period_days`, since a User carrying a partial trial keeps whatever is left of it and a whole number of days cannot say that. Passing the Stripe Customer covers the Stripe Checkout Session's email requirement, so no contact details element is needed.
    7. Add `billing_address_collection: 'required'` and `customer_update: { address: 'auto', name: 'auto' }` when there is no Stripe Payment Method on file. Those two carry a collected address onto the Stripe Customer at confirm, and a User with one on file already has an address there.
    8. Error back for display when Stripe refuses the create. No secret means nothing to mount.
    9. Return the Stripe Checkout Session's `client_secret`.
@@ -67,7 +67,7 @@ flowchart LR
     C --> C1[Expire every open Stripe Checkout Session<br/>on the Stripe Customer]
     C1 --> D[Decide trial eligibility]
     D --> D1{Stripe Payment Method<br/>on the Stripe Customer?}
-    D1 -->|yes| E1["checkout.sessions.create<br/>ui_mode: elements, mode: subscription<br/>customer, line_items, return_url<br/>allow_promotion_codes, automatic_tax<br/>save_default_payment_method, trial_end?"]
+    D1 -->|yes| E1["checkout.sessions.create<br/>ui_mode: elements, mode: subscription<br/>customer, line_items, return_url<br/>automatic_tax<br/>save_default_payment_method, trial_end?"]
     D1 -->|no| E2["Same create, plus<br/>billing_address_collection: required<br/>customer_update: address, name auto"]
     E1 --> F{Result}
     E2 --> F
@@ -94,7 +94,7 @@ flowchart LR
 
 The Stripe Payment Element on a page the App renders itself over [hosted](#refs/subscription/stripe/CreateHosted) and [embedded](#refs/subscription/stripe/CreateEmbedded) checkout. The address and the payment method are Stripe Elements the App mounts and styles with the same appearance object as everything else in it, where hosted and embedded render Stripe's UI, styled by the logo, colors, fonts and border radius set in the Dashboard and nothing further. All three create the same kind of Stripe Checkout Session, so the checkout mechanics match and the fork is UI control against build cost.
 
-What the choice costs is everything Stripe's UI does inside its own page. The steps, since the Stripe Billing Address Element does not write itself onto the Stripe Checkout Session. The mount lifecycle, including a secret held in App Storage so a bank challenge returns to the same Stripe Checkout Session. The total read off the Stripe Checkout Session and rendered by hand. The promotion code field, which no Stripe Element provides, so the input, the apply, the remove and the error a rejected code lands on are all the App's.
+What the choice costs is everything Stripe's UI does inside its own page. The steps, since the Stripe Billing Address Element does not write itself onto the Stripe Checkout Session. The mount lifecycle, including a secret held in App Storage so a bank challenge returns to the same Stripe Checkout Session. The total read off the Stripe Checkout Session and rendered by hand.
 
 What it buys beyond styling is the confirm step for a User with a Stripe Payment Method on file, which is a page of the App's own text and no Stripe UI at all. Hosted and embedded put a payment form in front of that User whether or not anything needs collecting.
 
@@ -142,7 +142,7 @@ A Stripe Subscription created at the Dashboard or by an admin is outside all of 
 
 ### Note on 2.5 - why the branch is only about the address
 
-The two creates differ by `billing_address_collection` and `customer_update` and nothing else. Both carry the same plan, the same promotion code setting, the same automatic tax setting and the same trial. The App reads `savedPaymentMethods` off the Stripe Checkout Session to decide which step to open, so the API never has to say which branch it took and the App never has to ask.
+The two creates differ by `billing_address_collection` and `customer_update` and nothing else. Both carry the same plan, the same automatic tax setting and the same trial. The App reads `savedPaymentMethods` off the Stripe Checkout Session to decide which step to open, so the API never has to say which branch it took and the App never has to ask.
 
 Asking for the address on a Stripe Checkout Session whose Stripe Customer already has one would put a step in front of a User with nothing to correct, and `customer_update` would then overwrite a tax address from a form they did not come to fill in.
 

@@ -23,8 +23,7 @@ The User presses subscribe and one confirm call against the Stripe Checkout Sess
    2. Call `actions.confirm({ redirect: 'if_required' })`, passing the Stripe Payment Method's id as `paymentMethod` when one is on file. One call creates the Stripe Subscription and settles the first invoice.
       1. Passing `paymentMethod` makes Stripe ignore whatever a Stripe Payment Element holds and confirm against the id, which is what lets the confirm step stand alone with no Stripe Element behind it.
       2. The address is already on the Stripe Checkout Session or the Stripe Customer by this point.
-      3. Nothing in the payload names a promotion code. The discount is already on the Stripe Checkout Session, so the confirm charges the discounted total with nothing for the API to resolve afterwards.
-      4. On a trial the invoice is `$0` and the Stripe Subscription lands at `trialing` with `trial_end` stamped from now. Otherwise Stripe charges the total it already showed the User.
+      3. On a trial the invoice is `$0` and the Stripe Subscription lands at `trialing` with `trial_end` stamped from now. Otherwise Stripe charges the total it already showed the User.
    3. Handle the bank challenge inside the confirm. A challenge either runs in a dialog and resolves inline or sends the User away to the bank and back to the `return_url`. There is no separate next action step.
    4. Retry on the same Stripe Checkout Session when the charge is refused. It stays open, nothing was created, and there is no Stripe Subscription or invoice to tear down before the retry.
    5. Open the payment method step when the refusal was against a Stripe Payment Method on file, and create the Stripe Payment Element at that point. The retry confirms without `paymentMethod`, so the new Stripe Payment Method is what pays. See the note below.
