@@ -36,7 +36,7 @@ The User works through the subscribe page on the Stripe Checkout Session the [lo
    2. Show the Stripe Payment Method on file as its brand and last4, read off `savedPaymentMethods`. There is no picker, since exactly one is ever on file.
    3. Show a final total when a Stripe Payment Method is on file. `tax.status` is `ready` and `tax.automaticTax.addressSource` is `customer`, since the Stripe Checkout Session reads tax off the Stripe Customer's address from the moment it is created.
    4. Write the promotion code field and its apply control by hand. No Stripe Element collects one.
-   5. Apply a code with `actions.applyPromotionCode()`. Setting `allow_promotion_codes` is what puts the field in play, so there is no verify call of your own and no code travelling on a subscribe payload to be resolved later.
+   5. Apply a code with `actions.applyPromotionCode()`. Setting `allow_promotion_codes` is what puts the field in play, so there is no verify call of your own. Applying mutates the Stripe Checkout Session at Stripe.
    6. Re-read with `getSession()` once the action resolves. The discount lands on `total.discount`, `total.subtotal` drops, tax recalculates against the reduced amount and `total.total` follows. The App subtracts nothing.
    7. Remove with `actions.removePromotionCode()` and the same re-read, so a User who applied a code can reach the undiscounted total without reloading the page.
    8. Error on the field a rejected code was typed into, not on the page. Expired, unknown and not applicable to the plan all land there the same way, and the User types another code or confirms without one.
