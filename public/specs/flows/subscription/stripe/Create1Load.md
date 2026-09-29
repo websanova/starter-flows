@@ -25,7 +25,7 @@ A User with no Stripe Subscription opens the subscribe page and the API hands ou
 
 1. App loads the subscribe page. The steps are component state, so nothing routes.
    1. Subscription route guard runs. A User with a Stripe Subscription bounces to billing. See the [subscription guards flow](#flows/subscription/Guards).
-   2. Check App Storage for a returning redirect. A secret there is a User coming back from a bank challenge, so re-initialise that Stripe Checkout Session and hand to the [submit flow](#flows/subscription/stripe/Create3Submit). See the note below.
+   2. Check App Storage for a returning redirect. A secret there is a User coming back from a bank challenge, so hand to the [submit flow](#flows/subscription/stripe/Create3Submit) without creating. See the note below.
    3. Fire the request for a Stripe Checkout Session. A Stripe Checkout Session is always required, whether or not a Stripe Payment Method is already on file, since the confirm runs against one.
 2. API creates the Stripe Checkout Session.
    1. Refuse a User who already has a Stripe Subscription. A live one is `already_subscribed`, past due or unpaid is `payment_required`. See the note below.
@@ -59,7 +59,7 @@ flowchart LR
     A[App loads the subscribe page] --> A0{Subscription route guard}
     A0 -->|"Stripe Subscription"| A2[Bounce to billing]
     A0 -->|none| A1{Secret in App Storage<br/>from a confirm?}
-    A1 -->|yes| Z[Re-initialise that Stripe Checkout Session<br/>and hand to the submit flow]
+    A1 -->|yes| Z[Hand to the submit flow,<br/>no create]
     A1 -->|no| B[Fire the request for a<br/>Stripe Checkout Session]
     B --> B1{Stripe Subscription<br/>already on the User?}
     B1 -->|"live, past due or unpaid"| B2[Refuse. already_subscribed,<br/>or payment_required]
