@@ -71,7 +71,7 @@ Cancelled with the paid term still running and ended both mean no invoice is com
 
 ### Nothing to wait on
 
-There is no Stripe Setup Intent, no confirm and no bank challenge, so nothing can settle after the response and there is nothing to poll. That is what separates this from the [payment method update flow](#flows/payment-method/stripe/Update), where the browser confirms first and the writes follow.
+There is no Stripe Setup Intent, no confirm and no bank challenge, so nothing can settle after the response and there is nothing to poll. That is what separates this from the [payment method update submit flow](#flows/payment-method/stripe/Update2Submit), where the browser confirms first and the writes follow.
 
 ### Note on 2.1 - a Stripe Subscription resumed mid-request
 

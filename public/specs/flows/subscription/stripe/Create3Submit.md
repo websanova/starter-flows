@@ -91,7 +91,7 @@ The secret is written going into the confirm and cleared as soon as the call lan
 
 The confirm step stands with no Stripe Payment Element behind it, so a refusal has nothing on screen for the User to correct. Opening the payment method step and creating the Stripe Payment Element at that moment puts the form in front of them on the same page, on the same Stripe Checkout Session, and the retry confirms without `paymentMethod` so the new Stripe Payment Method is what Stripe charges.
 
-The alternative is sending them to the [payment method flow](#flows/payment-method/stripe/Update) and back, which is two page transitions and a detach of the Stripe Payment Method they were trying to replace, for a card that may simply have been over its limit.
+The alternative is sending them to the [payment method flow](#flows/payment-method/stripe/Update1Collect) and back, which is two page transitions and a detach of the Stripe Payment Method they were trying to replace, for a card that may simply have been over its limit.
 
 Tax is unaffected. The address is on the Stripe Customer and the Stripe Checkout Session is reading it there, so the total the User already saw is still the total.
 

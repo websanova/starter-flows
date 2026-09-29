@@ -77,7 +77,7 @@ Stripe does not reject one. Clearing `cancel_at_period_end` generates no invoice
 
 Rare in practice. The Stripe Payment Method is stored during subscribe and a cancellation does not touch it, so the only way to arrive here is a User who deleted the card themselves after cancelling. The resume control is hidden and the API refuses until a card is back on the Stripe Customer.
 
-Putting one there is the [payment method flow](#flows/payment-method/stripe/Update)'s job, which takes a Stripe Payment Method whether or not one is already on file. Resume has no opinion on how the User gets a card back, only that it will not run until one resolves.
+Putting one there is the [payment method flow](#flows/payment-method/stripe/Update1Collect)'s job, which takes a Stripe Payment Method whether or not one is already on file. Resume has no opinion on how the User gets a card back, only that it will not run until one resolves.
 
 ### Plan controls while cancelled
 

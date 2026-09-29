@@ -42,7 +42,7 @@ A User with no Stripe Subscription opens the subscribe page and the API hands ou
    2. Initialise with `stripe.initCheckoutElementsSdk({ clientSecret })`, then `await checkout.loadActions()` for the actions the rest of the page runs on.
    3. Show the failure when either one fails. Without the actions there is nowhere for the User to enter anything.
 4. App opens the form on the step matching `savedPaymentMethods`. Nothing mounts before this point, the containers are not in the document yet.
-   1. Open the confirm step when a Stripe Payment Method is on file, and create no Stripe Element. Only one whose `allow_redisplay` is `always` appears in `savedPaymentMethods`, the value the [payment method flow](#flows/payment-method/stripe/Update) sets when it stores one.
+   1. Open the confirm step when a Stripe Payment Method is on file, and create no Stripe Element. Only one whose `allow_redisplay` is `always` appears in `savedPaymentMethods`, the value the [payment method flow](#flows/payment-method/stripe/Update2Submit) sets when it stores one.
    2. Open the address step when there is none, and create both Stripe Elements once the containers exist.
    3. Create the address element with `checkout.createBillingAddressElement()` and no prefill, the name along with the address. Country is an ISO alpha-2 select and the field layout follows the country.
    4. Create the payment element with `checkout.createPaymentElement({ fields: { billingDetails: { name: 'never' } } })`. The Stripe Billing Address Element already collects a name, and both collecting it fails the confirm.
@@ -104,7 +104,7 @@ Everything here assumes `2026-03-25.dahlia` or later. Two separate reasons stack
 
 ### Where the address comes from
 
-Two paths put an address on the Stripe Customer, and this flow is one of them. A User with no Stripe Payment Method on file types an address here, `customer_update: { address: 'auto', name: 'auto' }` has Stripe copy it and the name onto the Stripe Customer at confirm, and the API writes neither. A User who already has a Stripe Payment Method on file put both there through the [payment method flow](#flows/payment-method/stripe/Update), which writes the Stripe Customer's address directly.
+Two paths put an address on the Stripe Customer, and this flow is one of them. A User with no Stripe Payment Method on file types an address here, `customer_update: { address: 'auto', name: 'auto' }` has Stripe copy it and the name onto the Stripe Customer at confirm, and the API writes neither. A User who already has a Stripe Payment Method on file put both there through the [payment method flow](#flows/payment-method/stripe/Update2Submit), which writes the Stripe Customer's address directly.
 
 Nothing about the address is stored on the API. The Stripe Customer holds it, every renewal invoice computes tax off it, and Stripe's own invoices are where the User reads it back.
 
