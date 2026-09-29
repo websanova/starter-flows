@@ -177,6 +177,15 @@
             padding-left: 2.8rem;
         }
 
+        /* Every flow carries the bullet, whether it stands alone or heads a set
+           of phases, so two rows at the same indent read as the same kind of
+           thing. The phases under a heading carry none. */
+        nav .phase::before,
+        nav a.nested:not(.phase-item) span.name::before {
+            content: "# ";
+            color: var(--muted);
+        }
+
         nav a:hover {
             background: var(--hover);
         }
