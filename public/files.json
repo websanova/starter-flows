@@ -3,7 +3,7 @@
     { "path": "docs/conventions/Status.md", "label": "Status", "status": "done", "updated": "2026-09-04" },
     { "path": "docs/setup/DockerSetup.md", "label": "Docker Setup", "status": "done", "updated": "2026-09-02" },
 
-    { "path": "flows/subscription/stripe/Create1Load.md", "label": "Create 1 (Load)", "status": "done", "updated": "2026-09-28" },
+    { "path": "flows/subscription/stripe/Create1Load.md", "label": "Create 1 (Load)", "status": "done", "updated": "2026-09-29" },
     { "path": "flows/subscription/stripe/Create2UserAction.md", "label": "Create 2 (User Action)", "status": "done", "updated": "2026-09-28" },
     { "path": "flows/subscription/stripe/Create3Submit.md", "label": "Create 3 (Submit)", "status": "done", "updated": "2026-09-28" },
     { "path": "flows/subscription/stripe/Cancel.md", "label": "Cancel", "status": "done", "updated": "2026-09-28" },

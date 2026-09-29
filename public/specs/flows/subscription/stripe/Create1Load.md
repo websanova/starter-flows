@@ -1,85 +1,71 @@
 # Subscription Create Load - Stripe (Checkout Sessions, Payment Element)
 
 Status: done
-Updated: 2026-09-28
+Updated: 2026-09-29
 
 ## Description
 
-A User with no Stripe Subscription opens the subscribe page and the API hands out a Stripe Checkout Session for them to work against. The App initialises against it and opens on the address step, or straight on the confirm step when a Stripe Payment Method is already on file, and everything the page shows is read off the Stripe Checkout Session.
+A User with no Stripe Subscription opens the subscribe page and the API hands out a Stripe Checkout Session for them to work against. The App initialises against it and opens the form on the address step, or straight on the confirm step when a Stripe Payment Method is already on file.
 
 ## Requirements
 
 - Create an initial Stripe Subscription, either for a new User or for a User whose previous Stripe Subscription has ended.
 - Authenticated Users only.
-- Three step wizard, the billing address and name first, required for tax purposes, then the payment method, then the confirm.
+- One form with two steps, the billing address and name first, required for tax purposes, then the payment method.
 - A User with a Stripe Payment Method already on file opens on the confirm step. The address and the payment method are both already held, so there is nothing to collect and no Stripe Element on screen.
 - Use the Stripe Payment Element in the App against a Stripe Checkout Session created by the API.
 - Collect the address with the Stripe Billing Address Element, so field layout and country rules come from Stripe.
 - Style both Stripe Elements with the App's own appearance so the page matches the rest of the App.
-- Show the total, tax and discount as Stripe calculates them. Nothing is priced in the App.
 - Start a trial when the User is eligible, with a Stripe Payment Method collected up front. Eligibility is decided by the API.
 - Refuse anyone who already has a Stripe Subscription. Past due and unpaid refuse with their own error, and default to billing until the App handles them. See the [subscription guards flow](../Guards.md).
 - The billing page shows the subscribe control only to a User with no Stripe Subscription, and the route is guarded on the same. The API decides it again on the create.
 - Only one Stripe Checkout Session at a time per User. Opening the subscribe page cancels any the User already has open, so a page left sitting in another tab or on another device cannot be completed later and subscribe them twice.
-- Nothing is created until the User confirms. Abandoning the page leaves no Stripe Subscription, no trial and no API records.
 
 ## Flow
 
-1. User hits the subscribe page. The steps are component state rather than routes, so there is nothing to route between and no landing check on a step.
-   1. The billing page shows the subscribe control only to a User with no Stripe Subscription, and the route is guarded on the same. The guard reads the API Subscription off the Auth User and counts live, trialing, cancelled inside the paid term, past due and unpaid all as subscribed, so it lines up with the `already_subscribed` and `payment_required` refusals below. Refusing in the App is display. The API reads the same rule again on the request, so what the App said was never the rule.
-   2. A secret in App Storage means the User is coming back from a bank challenge. Re-initialise against that Stripe Checkout Session and hand straight to the [submit flow](Create3Submit.md), no create. See the [submit flow](Create3Submit.md) for what the App does with it from there.
-   3. Every visit without a stored secret creates.
-2. The App asks the API for a Stripe Checkout Session.
-   1. Load the API User's Stripe Customer id. Create the Stripe Customer if there isn't one, and save the returned id. The load goes first because the sweep below is addressed to a Stripe Customer, and a Stripe Customer made a moment ago has nothing to sweep. Passing `customer` on the Stripe Checkout Session is also what satisfies its email requirement, so no contact details element is needed.
-   2. Expire every open Stripe Checkout Session the Stripe Customer already has. One live Stripe Checkout Session at a time, so a tab left open on another device cannot be confirmed after this one is handed out. Only an `open` Stripe Checkout Session can be expired and a completed one throws, so the sweep swallows the throw rather than failing the create on it. See the note below.
-   3. Refuse if the User already has a Stripe Subscription. A live one, which counts a trial and a cancelled one still inside its paid term, comes back as `already_subscribed` on the response's `error` field. Past due or unpaid is `payment_required`, kept separate so the two can be told apart rather than telling a past due User they are already subscribed. Both default to billing until the App handles the past due case. See the [subscription guards flow](../Guards.md). Reject either way, and there is no success to hand back. The check sits after the sweep so that anything an abandoned Stripe Checkout Session already completed is visible to it rather than racing it. See the note below.
-   4. Work out trial eligibility here. The API decides eligibility and never answers a question about it. The App reads whether the Stripe Checkout Session it was handed carries a trial, and uses that for what it says on screen and nothing else.
-   5. Read whether the Stripe Customer has a Stripe Payment Method on file. That answer decides which address parameters go on the create, and nothing else on this request changes with it. See the note below.
-   6. Create the Stripe Checkout Session with `ui_mode: 'elements'`, `mode: 'subscription'`, the Stripe Customer, `line_items` carrying the plan's price id at quantity one, a `return_url`, `allow_promotion_codes: true`, `automatic_tax: { enabled: true }` when the API's automatic tax flag is on, `subscription_data.payment_settings.save_default_payment_method`, and `subscription_data.trial_end` when eligible. Use `trial_end` rather than `trial_period_days`, since a User carrying a partial trial keeps whatever is left of it and a whole number of days cannot say that.
-   7. Add `billing_address_collection: 'required'` and `customer_update: { address: 'auto', name: 'auto' }` only when there is no Stripe Payment Method on file. Those two are what carry a collected address onto the Stripe Customer at confirm, and a User with a Stripe Payment Method on file already has an address there for tax to read.
-   8. A Stripe Payment Method already on the Stripe Customer comes back on the Stripe Checkout Session as `savedPaymentMethods`, carrying its id, brand and last4. Only one whose `allow_redisplay` is `always` appears, which is what the [payment method flow](../../payment-method/stripe/Update.md) sets when it stores one.
-   9. A Stripe Payment Method up front on a trial is the default. `payment_method_collection` only needs setting when you want a trial without one, which is the opposite of what this flow wants, so the field is left alone.
-   10. Nothing is created beyond the Stripe Checkout Session itself. No address is written to the Stripe Customer, no intent is opened, no Stripe Subscription exists. A User who abandons here leaves a Stripe Checkout Session that ages out on its own, or gets swept on their next visit, so there is nothing to deduplicate and nothing to clean up.
-   11. Stripe erroring on the create errors back for display. Without a client secret there is nothing to mount, so the page cannot continue.
-   12. Return the Stripe Checkout Session's `client_secret`.
-3. The App initialises the Stripe Checkout SDK against that secret.
+1. App loads the subscribe page. The steps are component state, so nothing routes.
+   1. Subscription route guard runs. A User with a Stripe Subscription bounces to billing. See the [subscription guards flow](../Guards.md).
+   2. Check App Storage for a returning redirect. A secret there is a User coming back from a bank challenge, so re-initialise that Stripe Checkout Session and hand to the [submit flow](Create3Submit.md). See the note below.
+   3. Fire the request for a Stripe Checkout Session. A Stripe Checkout Session is always required, whether or not a Stripe Payment Method is already on file, since the confirm runs against one.
+2. API creates the Stripe Checkout Session.
+   1. Load or create the Stripe Customer, and save the returned id. The create carries the User's email.
+   2. Expire every open Stripe Checkout Session on the Stripe Customer. Only an `open` one can be expired and a completed one throws, so the sweep swallows the throw. See the note below.
+   3. Refuse a User who already has a Stripe Subscription. A live one is `already_subscribed`, past due or unpaid is `payment_required`. See the note below.
+   4. Decide trial eligibility. The API owns the answer and the App never asks for it.
+   5. Read whether the Stripe Customer has a Stripe Payment Method on file. The answer decides which address parameters go on the create. See the note below.
+   6. Create the Stripe Checkout Session with `ui_mode: 'elements'`, `mode: 'subscription'`, the Stripe Customer, `line_items` carrying the plan's price id at quantity one, a `return_url`, `allow_promotion_codes: true`, `automatic_tax: { enabled: true }` when the API's automatic tax flag is on, `subscription_data.payment_settings.save_default_payment_method`, and `subscription_data.trial_end` when eligible. Use `trial_end` rather than `trial_period_days`, since a User carrying a partial trial keeps whatever is left of it and a whole number of days cannot say that. Passing the Stripe Customer covers the Stripe Checkout Session's email requirement, so no contact details element is needed.
+   7. Add `billing_address_collection: 'required'` and `customer_update: { address: 'auto', name: 'auto' }` when there is no Stripe Payment Method on file. Those two carry a collected address onto the Stripe Customer at confirm, and a User with one on file already has an address there.
+   8. Error back for display when Stripe refuses the create. No secret means nothing to mount.
+   9. Return the Stripe Checkout Session's `client_secret`.
+3. App initialises the Stripe Checkout SDK against that secret.
    1. Load stripe.js if it isn't already on the page.
-   2. Call `stripe.initCheckoutElementsSdk({ clientSecret })`, then `await checkout.loadActions()` for the actions the rest of the page runs on.
-   3. Nothing is mounted here. The page is still showing its loading state at this point and the containers the Stripe Elements go into are not in the document yet.
-   4. Failing to load stripe.js, or failing to resolve the actions, leaves the User with nowhere to enter anything. Show the failure rather than an empty page where the form should be.
-4. Which step opens, and what goes up with it, follows `savedPaymentMethods` on the Stripe Checkout Session.
-   1. A Stripe Payment Method on file opens the confirm step and creates no Stripe Element at all. The address is on the Stripe Customer, the Stripe Payment Method is on the Stripe Customer, and there is nothing left for the User to type.
-   2. No Stripe Payment Method on file opens the address step and creates both Stripe Elements once the loading state drops and the containers exist.
-   3. Create the address element with `checkout.createBillingAddressElement()` and no prefill, the name along with the address. `contacts` is a different thing, a picker for addresses already saved against the Stripe Customer.
-   4. Create the payment element with `checkout.createPaymentElement({ fields: { billingDetails: { name: 'never' } } })`. The Stripe Billing Address Element collects a name and gives no option not to, so the Stripe Payment Element has to stand down. Leaving both on it fails the confirm for collecting the same field twice.
-   5. Country is an ISO alpha-2 select and the field layout follows the country, so the shape of an address is Stripe's problem rather than a hand rolled form's.
-   6. Both Stripe Elements take the same appearance object, so they match the rest of the App.
-   7. A step that is not open hides its container, it never removes it. Taking the container out of the document tears the mount down and the Stripe Element does not come back on its own.
-   8. The Stripe Billing Address Element's change event is the only thing that reports what is in it. The event carries the value, which is what gets pushed onto the Stripe Checkout Session, and a complete flag, which is what says the User can move on. Both have to be held, since nothing else on the page knows either.
-5. Read the Stripe Checkout Session for what to display, on every step.
-   1. Call `actions.getSession()` for `total` and `lineItems`. Render those rather than pricing the plan in the App. This is enforced rather than advised. Reading and displaying either `total.total.amount`, or `total.total.minorUnitsAmount` alongside `currency` and `minorUnitsAmountDivisor`, is required and Stripe throws if you skip it.
-   2. Tax is calculated off whatever address the Stripe Checkout Session is carrying and the discount off the promotion code, both by Stripe, both before anything is charged.
-   3. The address step shows a total before tax and needs a line saying so. `tax.status` reads `requires_billing_address` until the Stripe Checkout Session has an address to calculate against, and the Stripe Billing Address Element does not put one there.
-   4. A Stripe Payment Method on file means the Stripe Checkout Session reads tax off the Stripe Customer's address from the moment it is created. `tax.status` is `ready` and `tax.automaticTax.addressSource` is `customer`, so the confirm step opens with a final total.
-   5. Use `canConfirm` to gate the confirm button. Stripe is the one that knows whether enough has been collected on either path.
-   6. A trial carrying a promotion code shows two figures, `$0` today and the discounted amount from trial end. See the [user action flow](Create2UserAction.md).
+   2. Initialise with `stripe.initCheckoutElementsSdk({ clientSecret })`, then `await checkout.loadActions()` for the actions the rest of the page runs on.
+   3. Show the failure when either one fails. Without the actions there is nowhere for the User to enter anything.
+4. App opens the form on the step matching `savedPaymentMethods`. Nothing mounts before this point, the containers are not in the document yet.
+   1. Open the confirm step when a Stripe Payment Method is on file, and create no Stripe Element. Only one whose `allow_redisplay` is `always` appears in `savedPaymentMethods`, the value the [payment method flow](../../payment-method/stripe/Update.md) sets when it stores one.
+   2. Open the address step when there is none, and create both Stripe Elements once the containers exist.
+   3. Create the address element with `checkout.createBillingAddressElement()` and no prefill, the name along with the address. Country is an ISO alpha-2 select and the field layout follows the country.
+   4. Create the payment element with `checkout.createPaymentElement({ fields: { billingDetails: { name: 'never' } } })`. The Stripe Billing Address Element already collects a name, and both collecting it fails the confirm.
+   5. Give both Stripe Elements the same appearance object.
+   6. Hide the container of a step that is not open, never remove it. Removing it tears the mount down and the Stripe Element does not come back.
+   7. Hold what the Stripe Billing Address Element's change event reports. The event carries the value to push onto the Stripe Checkout Session and a complete flag saying the User can move on, and nothing else on the page knows either.
 
 ## Diagram
 
-The API handing out the Stripe Checkout Session.
+The App requesting and the API creating the Stripe Checkout Session.
 
 ```mermaid
 flowchart LR
-    A[User hits the subscribe page] --> A0{Stripe Subscription<br/>on the Auth User?}
-    A0 -->|yes| A2[Control hidden and the route guarded.<br/>Default to billing]
-    A0 -->|no| A1{Secret in App Storage<br/>from a confirm?}
+    A[App loads the subscribe page] --> A0{Subscription route guard}
+    A0 -->|"Stripe Subscription"| A2[Bounce to billing]
+    A0 -->|none| A1{Secret in App Storage<br/>from a confirm?}
     A1 -->|yes| Z[Re-initialise that Stripe Checkout Session<br/>and hand to the submit flow]
-    A1 -->|no| B[App asks the API for a<br/>Stripe Checkout Session]
+    A1 -->|no| B[Fire the request for a<br/>Stripe Checkout Session]
     B --> C[Load or create the Stripe Customer,<br/>save the returned id]
-    C --> C1[Expire every open Stripe Checkout Session<br/>the Stripe Customer already has.<br/>One live one at a time]
+    C --> C1[Expire every open Stripe Checkout Session<br/>on the Stripe Customer]
     C1 --> B1{Stripe Subscription<br/>already on the User?}
-    B1 -->|"live, past due or unpaid"| B2[Refuse. already_subscribed,<br/>or payment_required.<br/>Nothing is created]
-    B1 -->|no| D[Work out trial eligibility.<br/>The App never asks]
+    B1 -->|"live, past due or unpaid"| B2[Refuse. already_subscribed,<br/>or payment_required]
+    B1 -->|no| D[Decide trial eligibility]
     D --> D1{Stripe Payment Method<br/>on the Stripe Customer?}
     D1 -->|yes| E1["checkout.sessions.create<br/>ui_mode: elements, mode: subscription<br/>customer, line_items, return_url<br/>allow_promotion_codes, automatic_tax<br/>save_default_payment_method, trial_end?"]
     D1 -->|no| E2["Same create, plus<br/>billing_address_collection: required<br/>customer_update: address, name auto"]
@@ -89,15 +75,15 @@ flowchart LR
     F -->|ok| G[Return client_secret]
 ```
 
-The App initialising and picking the step to open.
+The App initialising and opening the form.
 
 ```mermaid
 flowchart LR
-    G["initCheckoutElementsSdk({ clientSecret })<br/>then loadActions()"] --> I{Loaded?}
-    I -->|no| I1[Show the failure, not an empty page<br/>where the form should be]
+    G["App initialises with<br/>initCheckoutElementsSdk({ clientSecret })<br/>then loadActions()"] --> I{Loaded?}
+    I -->|no| I1[Show the failure. Without the actions there is<br/>nowhere for the User to enter anything]
     I -->|yes| I3{savedPaymentMethods<br/>on the Stripe Checkout Session?}
-    I3 -->|"none"| J["Address step opens. Create both<br/>Stripe Elements. Total before tax and<br/>says so, tax.status<br/>requires_billing_address"]
-    I3 -->|"one on file"| M1["Confirm step opens, no Stripe Element<br/>created. tax.status ready,<br/>addressSource customer, brand and<br/>last4 off savedPaymentMethods"]
+    I3 -->|"none"| J["Address step opens.<br/>Create both Stripe Elements"]
+    I3 -->|"one on file"| M1["Confirm step opens,<br/>no Stripe Element created"]
     J --> U[User action flow]
     M1 --> U
 ```
@@ -122,11 +108,21 @@ Two paths put an address on the Stripe Customer, and this flow is one of them. A
 
 Nothing about the address is stored on the API. The Stripe Customer holds it, every renewal invoice computes tax off it, and Stripe's own invoices are where the User reads it back.
 
+### What exists once the page has loaded
+
+Nothing is created beyond the Stripe Checkout Session itself. No address is written to the Stripe Customer, no intent is opened, no Stripe Subscription exists. A User who abandons here leaves a Stripe Checkout Session that ages out on its own, or gets swept on their next visit, so there is nothing to deduplicate and nothing to clean up.
+
+### Note on 1.2 - why the secret comes from App Storage
+
+A bank challenge can take the User off the page and drop them back at the `return_url` with nothing in memory. The App owns that url and can mark it, so a query parameter is one way to know a return happened.
+
+The client secret cannot travel there. Re-initialising needs the secret itself, and a url puts it into browser history, referrers and server logs, so App Storage holds it and the url at most says a return happened. Since App Storage already answers the question on its own, nothing on the url is required.
+
 ### Note on 2.2 - why open Stripe Checkout Sessions are expired
 
 The check runs once, when the secret is handed out, and Stripe keeps a Stripe Checkout Session usable for up to a day after that. So a User could pass the check with no subscription, leave the tab open, subscribe on another device, then come back to the stale tab and press subscribe. It went through, and they had two.
 
-Expiring the Stripe Customer's open Stripe Checkout Sessions on every create is what closes the hole. The stale tab is confirming against one that no longer accepts a confirm, so it fails there instead of buying a second Stripe Subscription, and the User starts again on a fresh Stripe Checkout Session. That is the whole reason the sweep exists.
+Expiring the Stripe Customer's open Stripe Checkout Sessions on every create is what closes the hole. The stale tab is confirming against one that no longer accepts a confirm, so it fails there rather than buying a second Stripe Subscription, and the User starts again on a fresh Stripe Checkout Session. That is the whole reason the sweep exists.
 
 A narrow window survives. The subscription check reads the API Subscription, and that record is only written once the sync call or the webhook lands, so it trails Stripe by a moment. Confirm on one device and then confirm on a second before the first API Subscription arrives and both go through. It takes the same person confirming twice within seconds of each other, so we are living with it.
 
@@ -138,6 +134,8 @@ A Stripe Subscription created at the Dashboard or by an admin is outside all of 
 
 Stripe creates the Stripe Subscription inside the confirm, in the App. The API sees the User once, when it hands out the Stripe Checkout Session secret, so that is the only place a check can run at all.
 
+The check sits after the sweep so anything an abandoned Stripe Checkout Session already completed is visible to it rather than racing it.
+
 Reject either way. The Stripe Subscription exists whether it is live, past due or unpaid, so a second one is wrong regardless. There is nothing to hand back on success either, since the only thing this request returns is a Stripe Checkout Session secret, and a Stripe Subscription is not that. A double submit gets the same refusal as anything else.
 
 Past due and unpaid get their own `error` code rather than sharing one, so the two can be told apart. Both default to billing until the App handles the past due case, which is a guard question and not one this flow answers. See the [subscription guards flow](../Guards.md).
@@ -147,6 +145,10 @@ Past due and unpaid get their own `error` code rather than sharing one, so the t
 The two creates differ by `billing_address_collection` and `customer_update` and nothing else. Both carry the same plan, the same promotion code setting, the same automatic tax setting and the same trial. The App reads `savedPaymentMethods` off the Stripe Checkout Session to decide which step to open, so the API never has to say which branch it took and the App never has to ask.
 
 Asking for the address on a Stripe Checkout Session whose Stripe Customer already has one would put a step in front of a User with nothing to correct, and `customer_update` would then overwrite a tax address from a form they did not come to fill in.
+
+### Note on 2.6 - why payment_method_collection is left alone
+
+A Stripe Payment Method up front on a trial is the default. Setting `payment_method_collection` is only needed to run a trial without one, which is the opposite of what this flow wants, so the field never appears on the create.
 
 ## Todo
 
