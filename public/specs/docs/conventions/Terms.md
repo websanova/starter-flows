@@ -1,7 +1,7 @@
 # Terms
 
 Status: done
-Updated: 2026-09-25
+Updated: 2026-09-29
 
 The master vocabulary. Every flow and doc in this repo draws its terms from here, word for word.
 

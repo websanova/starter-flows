@@ -1,6 +1,6 @@
 # Subscription Update - Stripe
 
-Status: done
+Status: built
 Updated: 2026-09-29
 
 ## Description

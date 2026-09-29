@@ -1,6 +1,6 @@
 # Subscription Create Load - Stripe (Checkout Sessions, Payment Element)
 
-Status: done
+Status: built
 Updated: 2026-09-29
 
 ## Description

@@ -93,7 +93,7 @@
   - Directory names stay lowercase and hyphenated.
   - `public/specs/flows/subscriptions/Guards.md`, `public/specs/flows/subscriptions/stripe/Create.md`, `public/specs/flows/billing/stripe/PaymentMethodUpdate.md`.
 - Header lines at top of every flow:
-  - `Status: wip | draft | ready | done`, defined in [public/specs/docs/conventions/Status.md](public/specs/docs/conventions/Status.md)
+  - `Status: wip | ready | built`, defined in [public/specs/docs/conventions/Status.md](public/specs/docs/conventions/Status.md)
   - `Updated: YYYY-MM-DD`
 - Fixed section order, every file:
   1. `Description`

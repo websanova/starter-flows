@@ -1,7 +1,7 @@
 # Docker Setup
 
 Status: done
-Updated: 2026-09-20
+Updated: 2026-09-29
 
 ## Layout
 
