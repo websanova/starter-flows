@@ -7,6 +7,7 @@
     { "path": "flows/subscription/stripe/Create2UserAction.md", "group": "Create", "label": "User Action", "status": "done", "updated": "2026-09-29" },
     { "path": "flows/subscription/stripe/Create3Submit.md", "group": "Create", "label": "Submit", "status": "done", "updated": "2026-09-29" },
     { "path": "flows/subscription/stripe/PromotionCodes.md", "label": "Promotion Codes", "status": "ready", "updated": "2026-09-29" },
+    { "path": "flows/subscription/stripe/Trials.md", "label": "Trials", "status": "ready", "updated": "2026-09-29" },
     { "path": "flows/subscription/stripe/Cancel.md", "label": "Cancel", "status": "done", "updated": "2026-09-29" },
     { "path": "flows/subscription/stripe/Resume.md", "label": "Resume", "status": "done", "updated": "2026-09-29" },
     { "path": "flows/subscription/stripe/Update.md", "label": "Update", "status": "done", "updated": "2026-09-29" },

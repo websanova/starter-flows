@@ -12,7 +12,7 @@ A User on an active Stripe Subscription changes the plan, the interval, or both.
 - Authenticated Users only.
 - Change the plan, the interval, or both, on an active Stripe Subscription.
 - Keep the existing Stripe Subscription. Nothing is cancelled and nothing is created.
-- Refused on anything other than an active Stripe Subscription. Trialing, past due and unpaid each refuse with their own error. See the [subscription guards flow](#flows/subscription/Guards).
+- Refused on anything other than an active Stripe Subscription. Past due and unpaid each refuse with their own error. See the [subscription guards flow](#flows/subscription/Guards).
 - A cancelled Stripe Subscription still inside the term shows the resume control and never the change control. See the [subscription resume flow](#flows/subscription/stripe/Resume).
 - Refused when no Stripe Payment Method resolves.
 - The control leads to a dedicated confirm page rather than an inline picker.
@@ -32,7 +32,7 @@ A User on an active Stripe Subscription changes the plan, the interval, or both.
 3. App opens a dedicated confirm page stating the plan and the interval being changed to. Confirm is the only action on it and no amounts are shown.
 4. App calls the API with the plan and the interval when the User confirms. The Stripe Subscription is resolved from the API User.
 5. API changes the price on the Stripe Subscription.
-   1. Re-read the API Subscription and refuse anything other than an active Stripe Subscription. No Stripe Subscription at all, trialing, past due, unpaid and cancelled inside the term each refuse.
+   1. Re-read the API Subscription and refuse anything other than an active Stripe Subscription. No Stripe Subscription at all, past due, unpaid and cancelled inside the term each refuse.
    2. Refuse a plan or an interval the API does not know.
    3. Refuse when no Stripe Payment Method resolves. Read `default_payment_method` on the Stripe Subscription, falling back to `invoice_settings.default_payment_method` on the Stripe Customer, which is the order the charge itself reads. Not the API Payment Method, which is display and lags the webhook. See the note below.
    4. Return the current state when the plan and interval are already on the Stripe Subscription, and change nothing at Stripe. A double submit, a second tab and a direct call all land here.
@@ -99,5 +99,4 @@ A call to `handleNextAction` over a Stripe Payment Element, because the card is 
 
 ## Todo
 
-- Changing plan during a trial is refused outright. Revisit once a trial is tied to a specific plan rather than to the Stripe Subscription.
 - A flat decline at 6.3 leaves the Stripe Subscription on the new plan with the proration invoice unpaid, and nothing in the App settles it. Rare, and tied to the payment recovery page in the [subscription guards flow](#flows/subscription/Guards).

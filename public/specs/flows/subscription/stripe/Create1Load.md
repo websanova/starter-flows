@@ -16,7 +16,6 @@ A User with no Stripe Subscription opens the subscribe page and the API hands ou
 - Use the Stripe Payment Element in the App against a Stripe Checkout Session created by the API.
 - Collect the address with the Stripe Billing Address Element, so field layout and country rules come from Stripe.
 - Style both Stripe Elements with the App's own appearance so the page matches the rest of the App.
-- Start a trial when the User is eligible, with a Stripe Payment Method collected up front. Eligibility is decided by the API.
 - Refuse anyone who already has a Stripe Subscription. Past due and unpaid refuse with their own error, and default to billing until the App handles them. See the [subscription guards flow](#flows/subscription/Guards).
 - The billing page shows the subscribe control only to a User with no Stripe Subscription, and the route is guarded on the same. The API decides it again on the create.
 - Only one Stripe Checkout Session at a time per User. Opening the subscribe page cancels any the User already has open, so a page left sitting in another tab or on another device cannot be completed later and subscribe them twice.
@@ -31,12 +30,11 @@ A User with no Stripe Subscription opens the subscribe page and the API hands ou
    1. Refuse a User who already has a Stripe Subscription. A live one is `already_subscribed`, past due or unpaid is `payment_required`. See the note below.
    2. Load or create the Stripe Customer, and save the returned id. The create carries the User's email.
    3. Expire every open Stripe Checkout Session on the Stripe Customer. Only an `open` one can be expired and a completed one throws, so the sweep swallows the throw. See the note below.
-   4. Decide trial eligibility. The API owns the answer and the App never asks for it.
-   5. Read whether the Stripe Customer has a Stripe Payment Method on file. The answer decides which address parameters go on the Stripe Checkout Session create. See the note below.
-   6. Create the Stripe Checkout Session with `ui_mode: 'elements'`, `mode: 'subscription'`, the Stripe Customer, `line_items` carrying the plan's price id at quantity one, a `return_url`, `automatic_tax: { enabled: true }` when the API's automatic tax flag is on, `subscription_data.payment_settings.save_default_payment_method`, and `subscription_data.trial_end` when eligible. Use `trial_end` rather than `trial_period_days`, since a User carrying a partial trial keeps whatever is left of it and a whole number of days cannot say that. Passing the Stripe Customer covers the Stripe Checkout Session's email requirement, so no contact details element is needed.
-   7. Add `billing_address_collection: 'required'` and `customer_update: { address: 'auto', name: 'auto' }` when there is no Stripe Payment Method on file. Those two carry a collected address onto the Stripe Customer at confirm, and a User with one on file already has an address there.
-   8. Error back for display when Stripe refuses the create. No secret means nothing to mount.
-   9. Return the Stripe Checkout Session's `client_secret`.
+   4. Read whether the Stripe Customer has a Stripe Payment Method on file. The answer decides which address parameters go on the Stripe Checkout Session create. See the note below.
+   5. Create the Stripe Checkout Session with `ui_mode: 'elements'`, `mode: 'subscription'`, the Stripe Customer, `line_items` carrying the plan's price id at quantity one, a `return_url`, `automatic_tax: { enabled: true }` when the API's automatic tax flag is on, and `subscription_data.payment_settings.save_default_payment_method`. Passing the Stripe Customer covers the Stripe Checkout Session's email requirement, so no contact details element is needed.
+   6. Add `billing_address_collection: 'required'` and `customer_update: { address: 'auto', name: 'auto' }` when there is no Stripe Payment Method on file. Those two carry a collected address onto the Stripe Customer at confirm, and a User with one on file already has an address there.
+   7. Error back for display when Stripe refuses the create. No secret means nothing to mount.
+   8. Return the Stripe Checkout Session's `client_secret`.
 3. App initialises the Stripe Checkout SDK against that secret.
    1. Load stripe.js if it isn't already on the page.
    2. Initialise with `stripe.initCheckoutElementsSdk({ clientSecret })`, then `await checkout.loadActions()` for the actions the rest of the page runs on.
@@ -65,9 +63,8 @@ flowchart LR
     B1 -->|"live, past due or unpaid"| B2[Refuse. already_subscribed,<br/>or payment_required]
     B1 -->|no| C[Load or create the Stripe Customer,<br/>save the returned id]
     C --> C1[Expire every open Stripe Checkout Session<br/>on the Stripe Customer]
-    C1 --> D[Decide trial eligibility]
-    D --> D1{Stripe Payment Method<br/>on the Stripe Customer?}
-    D1 -->|yes| E1["checkout.sessions.create<br/>ui_mode: elements, mode: subscription<br/>customer, line_items, return_url<br/>automatic_tax<br/>save_default_payment_method, trial_end?"]
+    C1 --> D1{Stripe Payment Method<br/>on the Stripe Customer?}
+    D1 -->|yes| E1["checkout.sessions.create<br/>ui_mode: elements, mode: subscription<br/>customer, line_items, return_url<br/>automatic_tax<br/>save_default_payment_method"]
     D1 -->|no| E2["Same create, plus<br/>billing_address_collection: required<br/>customer_update: address, name auto"]
     E1 --> F{Result}
     E2 --> F
@@ -140,18 +137,13 @@ Closing the window properly means asking Stripe for the Stripe Customer's live S
 
 A Stripe Subscription created at the Dashboard or by an admin is outside all of this. There is no Stripe Checkout Session to expire, and blocking a second one could be wrong anyway, since it may well be deliberate.
 
-### Note on 2.5 - why the branch is only about the address
+### Note on 2.4 - why the branch is only about the address
 
-The two creates differ by `billing_address_collection` and `customer_update` and nothing else. Both carry the same plan, the same automatic tax setting and the same trial. The App reads `savedPaymentMethods` off the Stripe Checkout Session to decide which step to open, so the API never has to say which branch it took and the App never has to ask.
+The two creates differ by `billing_address_collection` and `customer_update` and nothing else. Both carry the same plan and the same automatic tax setting. The App reads `savedPaymentMethods` off the Stripe Checkout Session to decide which step to open, so the API never has to say which branch it took and the App never has to ask.
 
 Asking for the address on a Stripe Checkout Session whose Stripe Customer already has one would put a step in front of a User with nothing to correct, and `customer_update` would then overwrite a tax address from a form they did not come to fill in.
-
-### Note on 2.6 - why payment_method_collection is left alone
-
-A Stripe Payment Method up front on a trial is the default. Setting `payment_method_collection` is only needed to run a trial without one, which is the opposite of what this flow wants, so the field never appears on the create.
 
 ## Todo
 
 - Dunning. Past due and unpaid are refused here and belong to a flow that does not exist.
 - Asking Stripe for the Stripe Customer's live Stripe Subscriptions on every create rather than reading the API Subscription, to close the window where two confirms seconds apart both go through.
-- Trial eligibility is restricted to a single plan, always the cheapest one. Which plan that is, how the API identifies it, and what the App shows a User who picks any other plan are not pinned down.

@@ -12,7 +12,7 @@ The User presses subscribe and one confirm call against the Stripe Checkout Sess
 - Handle bank authentication challenges (3DS), including one that takes the User off the page and returns them.
 - A refused charge leaves nothing behind. The User corrects the Stripe Payment Method and tries again on the same Stripe Checkout Session.
 - A refused charge against the Stripe Payment Method on file opens the payment method step, so the User enters a different one without leaving the page.
-- Nothing is created until the User confirms. Abandoning the page leaves no Stripe Subscription, no trial and no API records.
+- Nothing is created until the User confirms. Abandoning the page leaves no Stripe Subscription and no API records.
 - Write the API Subscription and the API Payment Method once the Stripe Checkout Session completes, via an API sync call.
 - A Stripe webhook runs the same write as a backstop, for the case where the App never comes back to make the sync call.
 
@@ -23,7 +23,7 @@ The User presses subscribe and one confirm call against the Stripe Checkout Sess
    2. Call `actions.confirm({ redirect: 'if_required' })`, passing the Stripe Payment Method's id as `paymentMethod` when one is on file. One call creates the Stripe Subscription and settles the first invoice.
       1. Passing `paymentMethod` makes Stripe ignore whatever a Stripe Payment Element holds and confirm against the id, which is what lets the confirm step stand alone with no Stripe Element behind it.
       2. The address is already on the Stripe Checkout Session or the Stripe Customer by this point.
-      3. On a trial the invoice is `$0` and the Stripe Subscription lands at `trialing` with `trial_end` stamped from now. Otherwise Stripe charges the total it already showed the User.
+      3. Stripe charges the total it already showed the User.
    3. Handle the bank challenge inside the confirm. A challenge either runs in a dialog and resolves inline or sends the User away to the bank and back to the `return_url`. There is no separate next action step.
    4. Retry on the same Stripe Checkout Session when the charge is refused. It stays open, nothing was created, and there is no Stripe Subscription or invoice to tear down before the retry.
    5. Open the payment method step when the refusal was against a Stripe Payment Method on file, and create the Stripe Payment Element at that point. The retry confirms without `paymentMethod`, so the new Stripe Payment Method is what pays. See the note below.
@@ -96,12 +96,11 @@ Tax is unaffected. The address is on the Stripe Customer and the Stripe Checkout
 
 ### Note on 4.3 - why the defaults are written on both paths
 
-`subscription_data.payment_settings.save_default_payment_method` has Stripe make whatever paid the invoice the Stripe Subscription's default, which covers most of this on its own. It has nothing to act on when the first invoice is `$0`, which is every trial, so the write has to be explicit.
+`subscription_data.payment_settings.save_default_payment_method` has Stripe make whatever paid the invoice the Stripe Subscription's default, which covers most of this on its own. It has nothing to act on when nothing paid the invoice, so the write has to be explicit.
 
 Running the same writes whichever step the User came through is what covers the refused charge at 1.5, where a User who opened on the confirm step ends up paying with a Stripe Payment Method that was not the one on file. Reading the Stripe Payment Method off the completed Stripe Checkout Session rather than off what the Stripe Customer held beforehand means one rule for both paths.
 
 ## Todo
 
-- A Stripe Payment Method that cannot be charged at trial end. Nothing is charged at signup on a trial, so one that will fail is indistinguishable from one that will not until the first real invoice runs with no User on the page. The failure arrives as a webhook, and the Stripe Subscription has to carry state that forces the User back into entering a Stripe Payment Method.
 - A Stripe Checkout Session that ages out while the page sits open untouched. Step 2.3 covers a dead secret found on the way back from a bank, nothing covers a page standing for longer than Stripe keeps the Stripe Checkout Session usable.
 - The old Stripe Payment Method is left attached when a refused charge at 1.5 leads to a new one. The Stripe Customer ends the flow with two, which the API Payment Method's single brand and last4 cannot describe.
