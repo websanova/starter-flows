@@ -28,11 +28,11 @@ A User with no Stripe Subscription opens the subscribe page and the API hands ou
    2. Check App Storage for a returning redirect. A secret there is a User coming back from a bank challenge, so re-initialise that Stripe Checkout Session and hand to the [submit flow](Create3Submit.md). See the note below.
    3. Fire the request for a Stripe Checkout Session. A Stripe Checkout Session is always required, whether or not a Stripe Payment Method is already on file, since the confirm runs against one.
 2. API creates the Stripe Checkout Session.
-   1. Load or create the Stripe Customer, and save the returned id. The create carries the User's email.
-   2. Expire every open Stripe Checkout Session on the Stripe Customer. Only an `open` one can be expired and a completed one throws, so the sweep swallows the throw. See the note below.
-   3. Refuse a User who already has a Stripe Subscription. A live one is `already_subscribed`, past due or unpaid is `payment_required`. See the note below.
+   1. Refuse a User who already has a Stripe Subscription. A live one is `already_subscribed`, past due or unpaid is `payment_required`. See the note below.
+   2. Load or create the Stripe Customer, and save the returned id. The create carries the User's email.
+   3. Expire every open Stripe Checkout Session on the Stripe Customer. Only an `open` one can be expired and a completed one throws, so the sweep swallows the throw. See the note below.
    4. Decide trial eligibility. The API owns the answer and the App never asks for it.
-   5. Read whether the Stripe Customer has a Stripe Payment Method on file. The answer decides which address parameters go on the create. See the note below.
+   5. Read whether the Stripe Customer has a Stripe Payment Method on file. The answer decides which address parameters go on the Stripe Checkout Session create. See the note below.
    6. Create the Stripe Checkout Session with `ui_mode: 'elements'`, `mode: 'subscription'`, the Stripe Customer, `line_items` carrying the plan's price id at quantity one, a `return_url`, `allow_promotion_codes: true`, `automatic_tax: { enabled: true }` when the API's automatic tax flag is on, `subscription_data.payment_settings.save_default_payment_method`, and `subscription_data.trial_end` when eligible. Use `trial_end` rather than `trial_period_days`, since a User carrying a partial trial keeps whatever is left of it and a whole number of days cannot say that. Passing the Stripe Customer covers the Stripe Checkout Session's email requirement, so no contact details element is needed.
    7. Add `billing_address_collection: 'required'` and `customer_update: { address: 'auto', name: 'auto' }` when there is no Stripe Payment Method on file. Those two carry a collected address onto the Stripe Customer at confirm, and a User with one on file already has an address there.
    8. Error back for display when Stripe refuses the create. No secret means nothing to mount.
@@ -61,11 +61,11 @@ flowchart LR
     A0 -->|none| A1{Secret in App Storage<br/>from a confirm?}
     A1 -->|yes| Z[Re-initialise that Stripe Checkout Session<br/>and hand to the submit flow]
     A1 -->|no| B[Fire the request for a<br/>Stripe Checkout Session]
-    B --> C[Load or create the Stripe Customer,<br/>save the returned id]
-    C --> C1[Expire every open Stripe Checkout Session<br/>on the Stripe Customer]
-    C1 --> B1{Stripe Subscription<br/>already on the User?}
+    B --> B1{Stripe Subscription<br/>already on the User?}
     B1 -->|"live, past due or unpaid"| B2[Refuse. already_subscribed,<br/>or payment_required]
-    B1 -->|no| D[Decide trial eligibility]
+    B1 -->|no| C[Load or create the Stripe Customer,<br/>save the returned id]
+    C --> C1[Expire every open Stripe Checkout Session<br/>on the Stripe Customer]
+    C1 --> D[Decide trial eligibility]
     D --> D1{Stripe Payment Method<br/>on the Stripe Customer?}
     D1 -->|yes| E1["checkout.sessions.create<br/>ui_mode: elements, mode: subscription<br/>customer, line_items, return_url<br/>allow_promotion_codes, automatic_tax<br/>save_default_payment_method, trial_end?"]
     D1 -->|no| E2["Same create, plus<br/>billing_address_collection: required<br/>customer_update: address, name auto"]
@@ -118,7 +118,17 @@ A bank challenge can take the User off the page and drop them back at the `retur
 
 The client secret cannot travel there. Re-initialising needs the secret itself, and a url puts it into browser history, referrers and server logs, so App Storage holds it and the url at most says a return happened. Since App Storage already answers the question on its own, nothing on the url is required.
 
-### Note on 2.2 - why open Stripe Checkout Sessions are expired
+### Note on 2.1 - why the subscription check sits here
+
+Stripe creates the Stripe Subscription inside the confirm, in the App. The API sees the User once, when it hands out the Stripe Checkout Session secret, so that is the only place a check can run at all.
+
+The check goes first because it reads the API Subscription off the API User, so it needs neither the Stripe Customer nor the sweep, and a refused User costs no Stripe call at all.
+
+Reject either way. The Stripe Subscription exists whether it is live, past due or unpaid, so a second one is wrong regardless. There is nothing to hand back on success either, since the only thing this request returns is a Stripe Checkout Session secret, and a Stripe Subscription is not that. A double submit gets the same refusal as anything else.
+
+Past due and unpaid get their own `error` code rather than sharing one, so the two can be told apart. Both default to billing until the App handles the past due case, which is a guard question and not one this flow answers. See the [subscription guards flow](../Guards.md).
+
+### Note on 2.3 - why open Stripe Checkout Sessions are expired
 
 The check runs once, when the secret is handed out, and Stripe keeps a Stripe Checkout Session usable for up to a day after that. So a User could pass the check with no subscription, leave the tab open, subscribe on another device, then come back to the stale tab and press subscribe. It went through, and they had two.
 
@@ -129,16 +139,6 @@ A narrow window survives. The subscription check reads the API Subscription, and
 Closing the window properly means asking Stripe for the Stripe Customer's live Stripe Subscriptions on every create rather than reading the API Subscription, which is a call to Stripe on every subscribe to cover that. Worth looking into later, not important now.
 
 A Stripe Subscription created at the Dashboard or by an admin is outside all of this. There is no Stripe Checkout Session to expire, and blocking a second one could be wrong anyway, since it may well be deliberate.
-
-### Note on 2.3 - why the subscription check sits here
-
-Stripe creates the Stripe Subscription inside the confirm, in the App. The API sees the User once, when it hands out the Stripe Checkout Session secret, so that is the only place a check can run at all.
-
-The check sits after the sweep so anything an abandoned Stripe Checkout Session already completed is visible to it rather than racing it.
-
-Reject either way. The Stripe Subscription exists whether it is live, past due or unpaid, so a second one is wrong regardless. There is nothing to hand back on success either, since the only thing this request returns is a Stripe Checkout Session secret, and a Stripe Subscription is not that. A double submit gets the same refusal as anything else.
-
-Past due and unpaid get their own `error` code rather than sharing one, so the two can be told apart. Both default to billing until the App handles the past due case, which is a guard question and not one this flow answers. See the [subscription guards flow](../Guards.md).
 
 ### Note on 2.5 - why the branch is only about the address
 
