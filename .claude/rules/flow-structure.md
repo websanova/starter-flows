@@ -12,6 +12,15 @@ globs:
 - A feature split across numbered files is phases. `Create1Load.md` is phase 1, `Create2UserAction.md` is phase 2, `Create3Submit.md` is phase 3. Refer to them that way.
 - `step` is loose and takes whatever is being counted, a state of a form component, a numbered line in `Flow`. It is not a defined term and never needs one.
 - Content belongs to the phase that performs it. A phase never describes another phase's work, it links to it.
+- A phase is one sitting. Load the page, fire the request, mount the elements, commit. If a file cannot be implemented and committed as one task, it is two.
+
+## Layered Features
+
+- A feature a build may not want at all gets its own flow, not a phase. Promotion codes and trials are the two.
+- The base flows carry no trace of it. No conditional clause, no parameter, no hook. They read as if the feature does not exist.
+- The layered flow states what it adds and where, one step per base flow it touches, each linking to the flow it adds to.
+- Never numbered. Numbering is for phases and implies sequence, and a layered feature sits inside one rather than after it.
+- Its Description says the feature is layered on and a config flag turns it on, which the flow assumes. The why goes in a note.
 
 ## Flow Section
 
@@ -28,3 +37,4 @@ globs:
 ## Links
 
 - Links between spec files are viewer hash links, the manifest path minus `.md`. `[subscription guards flow](#flows/subscription/Guards)`. A relative `.md` link 404s.
+- A new flow needs a row in `public/files.json`. Phases of one flow carry a `group` key holding the flow name, and the label is the phase alone.
