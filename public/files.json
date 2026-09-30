@@ -13,8 +13,8 @@
     { "path": "flows/subscription/stripe/Resume.md", "label": "Resume", "status": "built", "updated": "2026-09-29" },
     { "path": "flows/subscription/stripe/Update.md", "label": "Update", "status": "built", "updated": "2026-09-29" },
     { "path": "flows/subscription/Guards.md", "label": "Guards", "status": "wip", "updated": "2026-09-29" },
-    { "path": "flows/payment-method/stripe/Update1Collect.md", "group": "Update", "label": "Collect", "status": "built", "updated": "2026-09-29" },
-    { "path": "flows/payment-method/stripe/Update2Submit.md", "group": "Update", "label": "Submit", "status": "built", "updated": "2026-09-29" },
+    { "path": "flows/payment-method/stripe/Update1Collect.md", "group": "Update", "label": "Collect", "status": "built", "updated": "2026-09-30" },
+    { "path": "flows/payment-method/stripe/Update2Submit.md", "group": "Update", "label": "Submit", "status": "built", "updated": "2026-09-30" },
     { "path": "flows/payment-method/stripe/Delete.md", "label": "Delete", "status": "built", "updated": "2026-09-29" },
     { "path": "flows/account/Delete.md", "label": "Delete", "status": "wip", "updated": "2026-09-07" },
 

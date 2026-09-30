@@ -10,7 +10,7 @@ The User submits and one confirm against the Stripe Setup Intent the [collect fl
 ## Requirements
 
 - Handle bank authentication challenges (3DS), including one that takes the User off the page and returns them.
-- A refused Stripe Payment Method leaves the User on the page to correct it, with nothing changed anywhere.
+- A refused Stripe Payment Method leaves the User on the page to correct it, with nothing stored and no default moved.
 - Mark the Stripe Payment Method so it can be offered back to the User later, since subscribe reads the Stripe Customer's saved Stripe Payment Methods.
 - Make the new Stripe Payment Method the default for both the Stripe Customer and the Stripe Subscription, and remove the old one.
 - Write the API Payment Method's brand and last4 for display.
@@ -22,7 +22,7 @@ The User submits and one confirm against the Stripe Setup Intent the [collect fl
 1. App confirms the Stripe Setup Intent when the User submits, with a `return_url`, `redirect` set to `if_required`, and `allow_redisplay` set to `always`. See the note below.
    1. A confirmed Stripe Setup Intent attaches the Stripe Payment Method to the Stripe Customer and nothing more. It is not the default and nothing will charge it. See the note below.
    2. Handle the bank challenge inside the confirm. A challenge either runs in a dialog and resolves inline, or sends the User away to the bank and back to the return url.
-   3. Hold the User on the page when the Stripe Payment Method is refused. The Stripe Setup Intent stays confirmable and both Stripe Elements stay standing, so the User corrects it and submits again on the same secret.
+   3. Hold the User on the page when the Stripe Payment Method is refused. The Stripe Setup Intent stays confirmable and the Stripe Payment Element stays standing, so the User corrects the Stripe Payment Method and submits again on the same secret.
    4. Strip Stripe's return keys off the return url, which is the page's own. A second attempt carrying the first attempt's secret would resume a Stripe Setup Intent that is already spent.
 2. App picks the Stripe Setup Intent back up on landing from a bank, with no state and the secret Stripe appended to the url.
    1. Read the secret and retrieve the Stripe Setup Intent rather than opening a second one. A create here spends one that nothing mounts and buries a challenge the User already passed.
@@ -72,12 +72,6 @@ flowchart LR
 
 ## Notes
 
-### The address is not on the Stripe Setup Intent
-
-A Stripe Setup Intent carries a Stripe Payment Method and nothing else. That is why the address is written in the [collect flow](#flows/payment-method/stripe/Update1Collect) before the Stripe Setup Intent is issued, rather than sent along with this call. If it travelled with the confirm, a User who cleared a bank challenge and never came back would leave the Stripe Payment Method stored and the address they typed lost with the tab, since the webhook would have none to write.
-
-Writing it first also means the webhook covers this whole call rather than half of it, and a Stripe Payment Method can never sit against a Stripe Customer with no address.
-
 ### The sync call alongside the webhook
 
 Leaving the writes to the webhook alone puts the User in front of a spinner for something that has already succeeded, and the obvious thing to poll on, the last4, does not change when the same Stripe Payment Method is entered again. The sync call gives the page a straight answer to wait on, so its response is the answer and there is nothing to poll for. The webhook stays because the browser can be closed or sent to the bank and never come back, and it is the only path that always arrives, landing as a no-op when the sync call already ran. Two writers is the cost and idempotency is what pays for it.
@@ -90,7 +84,7 @@ Skipping the detach leaves another one sitting on the Stripe Customer every visi
 
 ### Nothing is charged here
 
-No invoice is created and no proration happens. The new Stripe Payment Method is what the next renewal invoice bills, and the address change applies to the tax on that same invoice.
+No invoice is created and no proration happens. The new Stripe Payment Method is what the next renewal invoice bills.
 
 ### A past due User is not resolved here
 
