@@ -31,7 +31,7 @@ A User with no Stripe Subscription opens the subscribe page and the API hands ou
    2. Load or create the Stripe Customer, and save the returned id. The create carries the User's email.
    3. Expire every open Stripe Checkout Session on the Stripe Customer. Only an `open` one can be expired and a completed one throws, so the sweep swallows the throw. See the note below.
    4. Read whether the Stripe Customer has a Stripe Payment Method on file, by listing the Stripe Customer's Stripe Payment Methods filtered to `allow_redisplay: always`. The answer decides which address parameters go on the Stripe Checkout Session create. See the note below.
-   5. Create the Stripe Checkout Session with `ui_mode: 'elements'`, `mode: 'subscription'`, the Stripe Customer, `line_items` carrying the price id resolved from the plan and the interval at quantity one, a `return_url`, the User's `locale`, `saved_payment_method_options.payment_method_save: 'enabled'`, `automatic_tax: { enabled: true }` when the API's automatic tax flag is on, and `subscription_data.payment_settings.save_default_payment_method: 'on_subscription'`. Passing the Stripe Customer covers the Stripe Checkout Session's email requirement, so no contact details element is needed. See the note below.
+   5. Create the Stripe Checkout Session. The create carries `ui_mode: 'elements'`, `mode: 'subscription'`, the Stripe Customer, `line_items` carrying the price id resolved from the plan and the interval at quantity one, a `return_url`, the User's `locale`, `saved_payment_method_options.payment_method_save: 'enabled'`, and `automatic_tax: { enabled: true }` when the API's automatic tax flag is on. The Stripe Customer covers the Stripe Checkout Session's email requirement, so no contact details element is needed. See the note below.
    6. Add `billing_address_collection: 'required'` and `customer_update: { address: 'auto', name: 'auto' }` when there is no Stripe Payment Method on file. Those two carry a collected address onto the Stripe Customer at confirm, and a User with one on file already has an address there.
    7. Error back for display when Stripe refuses the create. No secret means nothing to mount.
    8. Return the Stripe Checkout Session's `client_secret` and its id. The id is the only thing naming which Stripe Checkout Session the App is holding, and the [submit flow](#flows/subscription/stripe/Create3Submit) is addressed to one.
@@ -64,7 +64,7 @@ flowchart LR
     B1 -->|no| C[Load or create the Stripe Customer,<br/>save the returned id]
     C --> C1[Expire every open Stripe Checkout Session<br/>on the Stripe Customer]
     C1 --> D1{Stripe Payment Method<br/>on the Stripe Customer?}
-    D1 -->|yes| E1["checkout.sessions.create<br/>ui_mode: elements, mode: subscription<br/>customer, line_items, return_url, locale<br/>payment_method_save: enabled<br/>automatic_tax<br/>save_default_payment_method"]
+    D1 -->|yes| E1["checkout.sessions.create<br/>ui_mode: elements, mode: subscription<br/>customer, line_items, return_url, locale<br/>payment_method_save: enabled<br/>automatic_tax"]
     D1 -->|no| E2["Same create, plus<br/>billing_address_collection: required<br/>customer_update: address, name auto"]
     E1 --> F{Result}
     E2 --> F
@@ -147,13 +147,11 @@ Asking for the address on a Stripe Checkout Session whose Stripe Customer alread
 
 The read has to give the same answer the App gets. The App picks its step off `savedPaymentMethods`, which Stripe filters on `allow_redisplay`, so the read filters on the same value rather than asking for the default Stripe Payment Method or trusting a flag held on the API. Disagree and a User lands on the confirm step of a Stripe Checkout Session still asking for an address, with nothing on screen to fix it. The coupling runs the other way too, since a Stripe Payment Method stored without `allow_redisplay: always` never appears and the confirm step never opens for anyone.
 
-### Note on 2.5 - why three of the parameters are there
+### Note on 2.5 - why locale and the saved payment method option are set
 
 The `locale` goes on the create because the Stripe Checkout Elements SDK takes none of its own, so the create is the only place the Stripe Elements are told what language to render in.
 
 Passing `saved_payment_method_options.payment_method_save: 'enabled'` is what puts the Stripe Customer's saved Stripe Payment Methods on the Stripe Checkout Session. Without it `savedPaymentMethods` comes back empty, every User opens on the address step, and a User with a Stripe Payment Method on file is asked for another.
-
-Setting `subscription_data.payment_settings.save_default_payment_method: 'on_subscription'` makes the confirmed Stripe Payment Method the Stripe Subscription's default, so every renewal charges the one the User confirmed with.
 
 ## Todo
 

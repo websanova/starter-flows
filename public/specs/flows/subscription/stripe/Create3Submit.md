@@ -35,7 +35,7 @@ The User presses subscribe and one confirm call against the Stripe Checkout Sess
 4. API writes every record off that one Stripe Checkout Session.
    1. Retrieve the Stripe Checkout Session with the Stripe Subscription expanded. The invoice does not exist until it reaches `complete`, which is why completion is the trigger rather than a payment intent event.
    2. Write the API Subscription. Stripe id, plan, interval, status. The Stripe Subscription id exists by this point, and the User may already be subscribed by the time the write runs, so nothing assumes it is the first Stripe Subscription.
-   3. Set `invoice_settings.default_payment_method` on the Stripe Customer and `default_payment_method` on the Stripe Subscription to the Stripe Payment Method the Stripe Checkout Session confirmed with. The same writes run whichever step the User came through. See the note below.
+   3. Set `invoice_settings.default_payment_method` on the Stripe Customer to the Stripe Payment Method the Stripe Checkout Session confirmed with. The Stripe Subscription's own `default_payment_method` is already that Stripe Payment Method, so it is the one the write reads. The same write runs whichever step the User came through. See the note below.
    4. Write the API Payment Method's brand and last4. No address is written, since Stripe copies it onto the Stripe Customer at confirm on the path that collected one and the other path never touched it.
    5. Error back for display when a write fails. Everything is already correct at Stripe, only the API records are behind, so a retry is idempotent and the webhook lands regardless.
 5. API runs the same writes on `checkout.session.completed`, idempotently. The backstop for every path where the sync call never lands. An App that died after confirm. A challenge that cleared at the bank while the User closed the tab rather than returning. A sync call that errored or timed out after the confirm already succeeded.
@@ -94,11 +94,11 @@ The alternative is sending them to the [payment method flow](#flows/payment-meth
 
 Tax is unaffected. The address is on the Stripe Customer and the Stripe Checkout Session is reading it there, so the total the User already saw is still the total.
 
-### Note on 4.3 - why the defaults are written on both paths
+### Note on 4.3 - why the Stripe Customer's default is written here
 
-`subscription_data.payment_settings.save_default_payment_method` has Stripe make whatever paid the invoice the Stripe Subscription's default, which covers most of this on its own. It has nothing to act on when nothing paid the invoice, so the write has to be explicit.
+Stripe Checkout creates the Stripe Subscription with the Stripe Payment Method that confirmed it as its own default, so that level needs nothing from the API. The Stripe Customer's is the one left, and it is what the API reads a card's brand and last4 off.
 
-Running the same writes whichever step the User came through is what covers the refused charge at 1.5, where a User who opened on the confirm step ends up paying with a Stripe Payment Method that was not the one on file. Reading the Stripe Payment Method off the completed Stripe Checkout Session rather than off what the Stripe Customer held beforehand means one rule for both paths.
+Running the same write whichever step the User came through is what covers the refused charge at 1.5, where a User who opened on the confirm step ends up paying with a Stripe Payment Method that was not the one on file. Reading the Stripe Payment Method off the completed Stripe Checkout Session rather than off what the Stripe Customer held beforehand means one rule for both paths.
 
 ## Todo
 
