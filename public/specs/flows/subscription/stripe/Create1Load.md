@@ -105,6 +105,12 @@ Two paths put an address on the Stripe Customer, and this flow is one of them. A
 
 Nothing about the address is stored on the API. The Stripe Customer holds it, every renewal invoice computes tax off it, and Stripe's own invoices are where the User reads it back.
 
+### The address and the Stripe Payment Method are one gate
+
+Nothing reads whether the Stripe Customer has an address. The Stripe Payment Method read at 2.4 decides the whole form, because the address and the Stripe Payment Method only ever arrive together. A User who types an address here has `customer_update` copy it onto the Stripe Customer by the same confirm that stores the Stripe Payment Method, and a User who came through the [payment method flow](#flows/payment-method/stripe/Update2Submit) had the address written on the sync that stored one there. Both paths that put a Stripe Payment Method on the Stripe Customer put an address there too.
+
+So the form has two shapes, not three. The address step and the payment method step open together and are skipped together, and a User on the confirm step is asked for neither. Treating the address as its own gate invents a User who has one and not the other.
+
 ### What exists once the page has loaded
 
 Nothing is created beyond the Stripe Checkout Session itself. No address is written to the Stripe Customer, no intent is opened, no Stripe Subscription exists. A User who abandons here leaves a Stripe Checkout Session that ages out on its own, or gets swept on their next visit, so there is nothing to deduplicate and nothing to clean up.
@@ -157,3 +163,4 @@ Passing `saved_payment_method_options.payment_method_save: 'enabled'` is what pu
 
 - Dunning. Past due and unpaid are refused here and belong to a flow that does not exist.
 - Asking Stripe for the Stripe Customer's live Stripe Subscriptions on every create rather than reading the API Subscription, to close the window where two confirms seconds apart both go through.
+- There is a potential edge case where a payment method could exist without an address. This is not currently handled and should in theory not happen via the app. But perhaps it was entered manually, etc. This could be detected and cleaned up but is not high priority at the moment.
