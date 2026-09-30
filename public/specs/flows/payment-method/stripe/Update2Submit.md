@@ -74,7 +74,9 @@ flowchart LR
 
 ### The address is not on the Stripe Setup Intent
 
-A Stripe Setup Intent carries a Stripe Payment Method and nothing else, so the webhook has no address to write. The sync call is the only path that writes the Stripe Customer's address, and the webhook covers the payment method writes alone. A User who confirms at the bank and never comes back ends up with the Stripe Payment Method on file and the address they typed discarded.
+A Stripe Setup Intent carries a Stripe Payment Method and nothing else. That is why the address is written in the [collect flow](#flows/payment-method/stripe/Update1Collect) before the Stripe Setup Intent is issued, rather than sent along with this call. If it travelled with the confirm, a User who cleared a bank challenge and never came back would leave the Stripe Payment Method stored and the address they typed lost with the tab, since the webhook would have none to write.
+
+Writing it first also means the webhook covers this whole call rather than half of it, and a Stripe Payment Method can never sit against a Stripe Customer with no address.
 
 ### The sync call alongside the webhook
 
@@ -104,25 +106,9 @@ Setting `allow_redisplay` to `always` on the confirm is what lets subscribe offe
 
 ### Note on 1.1 - attaching and defaulting are two separate things
 
-A confirmed Stripe Setup Intent puts the Stripe Payment Method on the Stripe Customer and stops there. Nothing bills it until the defaults move, which is the sync call's job at 4.5 and 4.6, and this is where the flow is easy to get wrong.
+A confirmed Stripe Setup Intent puts the Stripe Payment Method on the Stripe Customer and stops there. Nothing bills it until the defaults move, which is the sync call's job at 4.2 and 4.3, and this is where the flow is easy to get wrong.
 
-### Note on 4.2 - why the API validates the address at all
-
-The Stripe Billing Address Element has already enforced the country's own field rules, and Stripe verifies the address properly on the next call. So the check is a backstop for a request that did not come from the Stripe Element, not the validation the User sees, and nothing here should be built to render field errors.
-
-### Note on 4.3 - what validate_location does not check
-
-Setting `tax[validate_location]` to `immediately` returns an error and leaves the Stripe Customer unchanged when the address cannot be placed. What it does not check is registration. An address that resolves cleanly in a jurisdiction you are not registered in comes back with `automatic_tax` at `not_collecting` and bills zero tax, which you may still be liable for.
-
-The `name` field is `customer.name`, which sits alongside `address` on the Stripe Customer rather than inside it.
-
-### Note on 4.4 - why the address write goes first
-
-An address Stripe refuses stops the sync before any default moves, so the Stripe Customer and the Stripe Subscription still point at the Stripe Payment Method that was already billing and the old one is still attached. The new Stripe Payment Method is attached and idle, which costs nothing, and that is the state the User arrived in. The User corrects the address and submits again on the same confirmed Stripe Setup Intent, so the card is never asked for twice.
-
-Running the defaults first would leave the opposite, a new Stripe Payment Method billing against a tax address that was never updated, which reads as a success on every screen.
-
-### Note on 4.6 - why the Stripe Subscription default matters
+### Note on 4.3 - why the Stripe Subscription default matters
 
 A Stripe Subscription level default overrides the Stripe Customer level one, so an old Stripe Payment Method left pinned there bills at the next renewal. Nothing fails at update time, it surfaces a month later.
 
@@ -131,6 +117,5 @@ A User with no Stripe Subscription skips this write and the rest still run.
 ## Todo
 
 - Manual reconcile for a Stripe Payment Method that confirmed at Stripe where neither the sync call nor the webhook ran. Stripe holds the new Stripe Payment Method attached to the Stripe Customer, nothing is defaulted at either level, and the API still shows the old brand and last4, so the next renewal bills the old Stripe Payment Method and nothing on any screen says so. It takes both writers failing on the same update, and the webhook retries itself, so this is thin. Closing it means a sweep that finds succeeded Stripe Setup Intents whose Stripe Payment Method is not the Stripe Customer default and runs the same writes over them.
-- An address that never reaches the Stripe Customer because the User confirmed at the bank and closed the tab. The webhook stores the Stripe Payment Method and has no address to write, so the two halves of one submit land apart and nothing surfaces it.
 - Multiple Stripe Payment Methods on file. The flow assumes exactly one throughout.
 - Tax IDs, VAT numbers and reverse charge.
