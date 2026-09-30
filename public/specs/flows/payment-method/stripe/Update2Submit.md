@@ -1,19 +1,17 @@
 # Payment Method Update Submit - Stripe (Payment Element)
 
 Status: built
-Updated: 2026-09-29
+Updated: 2026-09-30
 
 ## Description
 
-The User submits and one confirm against the Stripe Setup Intent the [collect flow](#flows/payment-method/stripe/Update1Collect) handed them stores the Stripe Payment Method, handling a bank challenge and a refusal along the way. An API sync call then writes the address to the Stripe Customer, moves both defaults to the new Stripe Payment Method and detaches the old one, with a Stripe webhook running the payment method writes as a backstop.
+The User submits and one confirm against the Stripe Setup Intent the [collect flow](#flows/payment-method/stripe/Update1Collect) handed them stores the Stripe Payment Method, handling a bank challenge and a refusal along the way. An API sync call then moves both defaults to the new Stripe Payment Method and detaches the old one, with a Stripe webhook running the same writes as a backstop. The address is already on the Stripe Customer by this point, written before the Stripe Setup Intent was ever issued, so nothing here touches it.
 
 ## Requirements
 
 - Handle bank authentication challenges (3DS), including one that takes the User off the page and returns them.
 - A refused Stripe Payment Method leaves the User on the page to correct it, with nothing changed anywhere.
 - Mark the Stripe Payment Method so it can be offered back to the User later, since subscribe reads the Stripe Customer's saved Stripe Payment Methods.
-- Verify the address resolves to a real tax jurisdiction before saving it. An address Stripe cannot place is refused and no defaults move.
-- Write the address and name to the Stripe Customer, where every renewal invoice reads them for tax.
 - Make the new Stripe Payment Method the default for both the Stripe Customer and the Stripe Subscription, and remove the old one.
 - Write the API Payment Method's brand and last4 for display.
 - Nothing is charged and no invoice is created. The new Stripe Payment Method is what the next renewal invoice bills.
@@ -28,20 +26,17 @@ The User submits and one confirm against the Stripe Setup Intent the [collect fl
    4. Strip Stripe's return keys off the return url, which is the page's own. A second attempt carrying the first attempt's secret would resume a Stripe Setup Intent that is already spent.
 2. App picks the Stripe Setup Intent back up on landing from a bank, with no state and the secret Stripe appended to the url.
    1. Read the secret and retrieve the Stripe Setup Intent rather than opening a second one. A create here spends one that nothing mounts and buries a challenge the User already passed.
-   2. Reopen on the address step with both Stripe Elements empty. The address was only ever held in the App, so the User walks the two steps again.
-   3. Remount against the same secret and show what came back for anything other than a success.
-3. App posts the Stripe Setup Intent's id and the address to the payment method sync as soon as the confirm resolves.
+   2. Go straight to the sync on a success. The address is already on the Stripe Customer, so there is nothing left to collect and no step to reopen.
+   3. Reopen on the payment step against the same secret and show what came back for anything other than a success.
+3. App posts the Stripe Setup Intent's id to the payment method sync as soon as the confirm resolves.
 4. API writes every record off that one Stripe Setup Intent, idempotently.
    1. Check that the Stripe Setup Intent belongs to the authenticated User's Stripe Customer and that it succeeded, and reject anything else.
-   2. Validate the basic shape of the address. See the note below.
-   3. Update `address` and `name` on the Stripe Customer with `tax[validate_location]` set to `immediately`. Every field goes on every save, empty where the User left it blank, since Stripe only touches what it is sent. See the note below.
-   4. Error back for display when Stripe cannot place the address, and move no default. See the note below.
-   5. Set `invoice_settings.default_payment_method` on the Stripe Customer to the new Stripe Payment Method. That is what a future invoice reads.
-   6. Set `default_payment_method` on the Stripe Subscription to the same Stripe Payment Method. See the note below.
-   7. Detach the old Stripe Payment Method. One that is already detached is not an error, and an addition has nothing to detach.
-   8. Write the API Payment Method's brand and last4.
-   9. Land every write before the response, since the App reads the result off the Auth User it refreshes next.
-5. API runs the payment method writes on `setup_intent.succeeded`, verified by its signature and idempotent. See the note below.
+   2. Set `invoice_settings.default_payment_method` on the Stripe Customer to the new Stripe Payment Method. That is what a future invoice reads.
+   3. Set `default_payment_method` on the Stripe Subscription to the same Stripe Payment Method. See the note below.
+   4. Detach the old Stripe Payment Method. One that is already detached is not an error, and an addition has nothing to detach.
+   5. Write the API Payment Method's brand and last4.
+   6. Land every write before the response, since the App reads the result off the Auth User it refreshes next.
+5. API runs the same writes on `setup_intent.succeeded`, verified by its signature and idempotent. Since the address is already held, this covers the whole sync on its own. See the note below.
 6. App refreshes the Auth User on success and sends the User back to billing, where the new brand and last4 are what shows.
    1. Hold the User on the page with the message on failure. The Stripe Setup Intent is confirmed and kept, so submitting again retries the sync rather than asking for the Stripe Payment Method a second time.
 
@@ -56,7 +51,7 @@ flowchart LR
     J -->|refused| H
     J -->|challenge redirect| J1["Back at the return url.<br/>retrieveSetupIntent rather than<br/>opening a second one"]
     J1 -->|not succeeded| J2[Remount against the same secret<br/>and show what came back]
-    J1 -->|"succeeded, address gone"| J3[Reopen on the address step,<br/>both Stripe Elements empty]
+    J1 -->|succeeded| K
     J -->|succeeded| K["Stripe Payment Method attached to the<br/>Stripe Customer, nothing defaulted"]
 ```
 
@@ -64,12 +59,9 @@ Writing the records once the Stripe Setup Intent succeeds.
 
 ```mermaid
 flowchart LR
-    K["Stripe Payment Method attached"] --> L1[App posts the Stripe Setup Intent id<br/>and the address to the sync]
+    K["Stripe Payment Method attached"] --> L1[App posts the Stripe Setup Intent id<br/>to the sync]
     K --> L2["Stripe fires<br/>setup_intent.succeeded"]
-    L1 --> M["customers.update, every address field sent<br/>address, name, validate_location"]
-    M --> N{Result}
-    N -->|error| N1["Error back for display. No default moves,<br/>the old Stripe Payment Method still bills"]
-    N -->|ok| O["Stripe Customer<br/>invoice_settings.default_payment_method"]
+    L1 --> O["Stripe Customer<br/>invoice_settings.default_payment_method"]
     L2 --> O
     O --> P["Stripe Subscription<br/>default_payment_method"]
     P --> Q[Detach the old Stripe Payment Method]
