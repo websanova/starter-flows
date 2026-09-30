@@ -1,7 +1,7 @@
 # Subscription Guards
 
 Status: wip
-Updated: 2026-09-29
+Updated: 2026-09-30
 
 
 ## Notes
@@ -38,3 +38,11 @@ Updated: 2026-09-29
   Once the invoice is paid with a new Stripe Payment Method, that card becomes the one on file rather than paying once and vanishing. The Stripe Subscription's `save_default_payment_method` does it, making whatever pays an invoice the new default. It has nothing to act on when an invoice is `$0`, which does not arise here, since a past due User is past due over an invoice that carries an amount.
 
   Also unanswered, whether the page is reachable on its own or only ever arrived at from a guard, and what it shows a User who is not past due at all.
+
+---
+
+* Guarding the cancel and resume confirm pages. Both hide their control on the billing page and both let the API decide again on the request, so what is left is the deep link.
+
+  Cancel is covered. The route refuses anyone without a live Stripe Subscription and anyone already cancelled, which is the same rule the control is hidden on.
+
+  Resume is guarded on the cancelled state but not on a Stripe Payment Method being on file. So a User who deleted their card after cancelling reaches the confirm page, presses the only button on it, and finds out from the refusal. Either the route reads the card the way the control does, or the API refusal stands as the answer and the page is left to show it.
