@@ -41,8 +41,8 @@ Updated: 2026-09-30
 
 ---
 
-* Guarding the cancel and resume confirm pages. Both hide their control on the billing page and both let the API decide again on the request, so what is left is the deep link.
+* Guarding the cancel, resume and update confirm pages. All three hide their control on the billing page and all three let the API decide again on the request, so what is left is the deep link.
 
   Cancel is covered. The route refuses anyone without a live Stripe Subscription and anyone already cancelled, which is the same rule the control is hidden on.
 
-  Resume is guarded on the cancelled state but not on a Stripe Payment Method being on file. So a User who deleted their card after cancelling reaches the confirm page, presses the only button on it, and finds out from the refusal. Either the route reads the card the way the control does, or the API refusal stands as the answer and the page is left to show it.
+  Resume and update are guarded on the subscription state but not on a Stripe Payment Method being on file. So a User who deleted their card reaches the confirm page, presses the only button on it, and finds out from the refusal. Either the routes read the card the way the controls do, or the API refusal stands as the answer and the pages are left to show it.
