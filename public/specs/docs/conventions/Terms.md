@@ -7,12 +7,13 @@ The master vocabulary. Every flow and doc in this repo draws its terms from here
 
 | Term | Description |
 | --- | --- |
+| Admin | The front end an admin is looking at (web or mobile). |
 | API | The back end. Holds the API records and talks to the providers. |
-| API MCP Server | The MCP server the API exposes (Web App and Web Admin). |
+| API MCP Server | The MCP server the API exposes (App and Admin). |
 | API Payment Method | The API record holding the Stripe Payment Method's brand and last4. |
 | API Subscription | The API record mirroring the Stripe Subscription. Stripe id, plan, interval, status. |
 | API User | The User's record on the API side. |
-| App | The front end the User is looking at, web or mobile. |
+| App | The front end the User is looking at (web or mobile). |
 | App Storage | Short lived storage in the App that survives a redirect away and back. |
 | Auth User | The signed in User's data held by the App. |
 | MCP Client | The program a User connects to the API MCP Server, such as Claude Desktop or Claude Code. |

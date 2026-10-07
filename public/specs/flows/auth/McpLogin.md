@@ -5,14 +5,15 @@ Updated: 2026-10-07
 
 ## Description
 
-A User connects an MCP Client, such as Claude Desktop or Claude Code, to the API MCP Server by signing in and approving it in the App. The MCP Client ends with an access token for that User.
+A User connects an MCP Client, such as Claude Desktop or Claude Code, to the API MCP Server by signing in and approving it in the App. The MCP Client ends with an access token for that User. The same steps apply to both API MCP Servers, App and Admin, which differ only in the URL given to the MCP Client.
 
 ## Terms
 
 | Term | Description |
 | --- | --- |
+| Admin | The front end an admin is looking at. |
 | API | The back end. Holds the API records and talks to the providers. |
-| API MCP Server | The MCP server the API exposes, one for Users and one for admins. |
+| API MCP Server | The MCP server the API exposes (App and Admin). |
 | App | The front end the User is looking at, web or mobile. |
 | MCP Client | The program a User connects to the API MCP Server, such as Claude Desktop or Claude Code. |
 | User | The human using the App. Never the App and never the API. |
