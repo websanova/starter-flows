@@ -1,7 +1,7 @@
 # Stripe Webhooks
 
 Status: done
-Updated: 2026-09-29
+Updated: 2026-10-07
 
 One endpoint takes every Stripe event. Most of them back a flow that already wrote from the browser, so the webhook is the second writer and every handler is idempotent.
 
@@ -34,4 +34,4 @@ One handler covers `customer.subscription.updated` for all three subscription fl
 
 ## Local development
 
-The Stripe CLI container forwards events inward, so a local endpoint receives the same payloads and the same signature header as production with its own signing secret. See the [Docker setup](#docs/setup/DockerSetup) for the container.
+The Stripe CLI container forwards events inward, so a local endpoint receives the same payloads and the same signature header as production with its own signing secret. See the [Docker doc](#docs/setup/Docker) for the container.

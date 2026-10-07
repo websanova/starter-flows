@@ -4,7 +4,7 @@
 | --- | ------ | ------- |
 | [Terms](../public/specs/docs/conventions/Terms.md) | done | 2026-09-25 |
 | [Status](../public/specs/docs/conventions/Status.md) | done | 2026-09-04 |
-| [Docker Setup](../public/specs/docs/setup/DockerSetup.md) | done | 2026-09-02 |
+| [Docker](../public/specs/docs/setup/Docker.md) | done | 2026-10-07 |
 
 | Flow | Status | Updated |
 | ---- | ------ | ------- |
