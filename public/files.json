@@ -1,5 +1,5 @@
 [
-    { "path": "docs/conventions/Terms.md", "label": "Terms", "status": "done", "updated": "2026-09-29" },
+    { "path": "docs/conventions/Terms.md", "label": "Terms", "status": "done", "updated": "2026-10-07" },
     { "path": "docs/conventions/Status.md", "label": "Status", "status": "done", "updated": "2026-09-29" },
     { "path": "docs/setup/Auth.md", "label": "Auth", "status": "wip", "updated": "2026-10-07" },
     { "path": "docs/setup/Docker.md", "label": "Docker", "status": "done", "updated": "2026-10-07" },
@@ -18,6 +18,7 @@
     { "path": "flows/payment-method/stripe/Update2Submit.md", "group": "Update", "label": "Submit", "status": "built", "updated": "2026-09-30" },
     { "path": "flows/payment-method/stripe/Delete.md", "label": "Delete", "status": "built", "updated": "2026-09-29" },
     { "path": "flows/account/Delete.md", "label": "Delete", "status": "wip", "updated": "2026-09-07" },
+    { "path": "flows/auth/McpLogin.md", "label": "MCP Login", "status": "wip", "updated": "2026-10-07" },
 
     { "path": "refs/subscription/stripe/CreateHosted.md", "label": "Create Hosted", "status": "ref", "updated": "2026-09-28" },
     { "path": "refs/subscription/stripe/CreateEmbedded.md", "label": "Create Embedded", "status": "ref", "updated": "2026-09-28" }

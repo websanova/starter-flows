@@ -3,7 +3,7 @@
 Status: wip
 Updated: 2026-10-07
 
-The API runs two auth setups. Sanctum covers the App with straightforward bearer authentication. Passport is Laravel's OAuth implementation, which MCP clients such as claude.ai and Claude Desktop use to connect to the MCP servers.
+The API runs two auth setups. Sanctum covers the App with straightforward bearer authentication. Passport is Laravel's OAuth implementation, which MCP clients such as claude.ai and Claude Desktop use to connect to the MCP servers. The step by step login is the [MCP Login flow](/flows/auth/McpLogin).
 
 ## Flow
 

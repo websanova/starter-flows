@@ -2,7 +2,7 @@
 
 | Doc | Status | Updated |
 | --- | ------ | ------- |
-| [Terms](../public/specs/docs/conventions/Terms.md) | done | 2026-09-25 |
+| [Terms](../public/specs/docs/conventions/Terms.md) | done | 2026-10-07 |
 | [Status](../public/specs/docs/conventions/Status.md) | done | 2026-09-04 |
 | [Auth](../public/specs/docs/setup/Auth.md) | wip | 2026-10-07 |
 | [Docker](../public/specs/docs/setup/Docker.md) | done | 2026-10-07 |
@@ -19,6 +19,7 @@
 | [Payment Method Update - Stripe (Payment Element)](../public/specs/flows/payment-method/stripe/Update.md) | done | 2026-09-28 |
 | [Payment Method Delete - Stripe](../public/specs/flows/payment-method/stripe/Delete.md) | done | 2026-09-28 |
 | [Account Delete](../public/specs/flows/account/Delete.md) | wip | 2026-09-07 |
+| [MCP Login](../public/specs/flows/auth/McpLogin.md) | wip | 2026-10-07 |
 
 | Ref | Status | Updated |
 | --- | ------ | ------- |
