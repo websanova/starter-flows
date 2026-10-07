@@ -7,17 +7,6 @@ Updated: 2026-10-07
 
 A User connects an MCP Client, such as Claude Desktop or Claude Code, to the API MCP Server by signing in and approving it in the App. The MCP Client ends with an access token for that User. The same steps apply to both API MCP Servers, App and Admin, which differ only in the URL given to the MCP Client.
 
-## Terms
-
-| Term | Description |
-| --- | --- |
-| Admin | The front end an admin is looking at. |
-| API | The back end. Holds the API records and talks to the providers. |
-| API MCP Server | The MCP server the API exposes (App and Admin). |
-| App | The front end the User is looking at, web or mobile. |
-| MCP Client | The program a User connects to the API MCP Server, such as Claude Desktop or Claude Code. |
-| User | The human using the App. Never the App and never the API. |
-
 ## Requirements
 
 - A User connects an MCP Client by pasting the API MCP Server URL.
@@ -66,6 +55,8 @@ A User connects an MCP Client, such as Claude Desktop or Claude Code, to the API
 
 ## Diagram
 
+Discovery and registration.
+
 ```mermaid
 sequenceDiagram
     participant C as MCP Client
@@ -76,14 +67,29 @@ sequenceDiagram
     P-->>C: authorization_endpoint, token_endpoint, registration_endpoint
     C->>P: Register with client_name, redirect_uris
     P-->>C: client_id
-    create participant A as App
+```
+
+Authorization.
+
+```mermaid
+sequenceDiagram
+    participant C as MCP Client
+    participant A as App
+    participant P as API
     C->>A: Open browser at authorization_endpoint with client_id, redirect_uri, state, code_challenge
     A->>P: Send the same params
     P-->>A: client_name, scope
     A->>P: Send decision with the same params
     P-->>A: redirect_uri with code and state
-    destroy A
     A->>C: Send browser to redirect_uri with code and state
+```
+
+Token.
+
+```mermaid
+sequenceDiagram
+    participant C as MCP Client
+    participant P as API
     C->>P: POST token_endpoint with code, code_verifier, client_id, redirect_uri
     P-->>C: access_token
     C->>P: Call API MCP Server with access_token
