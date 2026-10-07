@@ -26,9 +26,6 @@
 - The master vocabulary lives in [public/specs/docs/conventions/Terms.md](public/specs/docs/conventions/Terms.md).
 - Table only. Two columns, `Term` and `Description`. Alphabetical.
 - Rows are written so they hold anywhere. No row may reference the file it is read in, no row may describe one feature's use of the term.
-- A local table in any other file is a verbatim subset. Row for row, word for word, so a mismatch is visible on sight.
-- Edit the master first, then re-copy into every file carrying the term. Never edit a local table directly.
-- The master has no row limit. The ~16 cap is about scanning one flow, not looking a term up.
 
 ## Standalone Documents
 - A file describes the current design only. It is not a changelog and carries no revision history.
@@ -100,24 +97,18 @@
      - One paragraph, hard maximum. What the feature is.
      - Describe the feature, not how it works. Mechanism belongs in `Flow`.
      - No out of scope list, that lives in `Todo`. No concerns, those are `Notes` or `Todo`.
-  2. `Terms`
-     - Table only. Two columns, `Term` and `Description`. No prose under the heading.
-     - Alphabetical. No exceptions, no hand grouping.
-     - Mandatory. Rows are copied word for word from the master, see `Naming & Terms`.
-     - Only terms the flow uses in a specific or invented sense. Never define a provider concept the provider already documents.
-     - Past ~16 rows it stops being scannable. If it is growing past that, the flow is probably two flows.
-  3. `Requirements`
+  2. `Requirements`
      - Point form only. No paragraphs, no sub-bullets, no explanation of why. Why is `Notes`.
      - Readable by a non-technical client. That is the audience test.
      - Product names are encouraged so clients and developers share one vocabulary. Stripe Payment Element, Stripe Checkout Session. Method names, field names and mechanics are not.
-     - Written in `Terms`, same as every other section.
-  4. `Flow` - numbered steps, sub-numbered
+     - Written in the master terms, same as every other section.
+  3. `Flow` - numbered steps, sub-numbered
      - Happy path and failure paths both. A step that can fail says what happens, on the step.
      - Ends a step with "See the note below" only when the why needs a paragraph.
-  5. `Diagram` - mermaid
+  4. `Diagram` - mermaid
      - Always LR.
-     - Node labels use the same `Terms` as `Flow`. A diagram naming things differently from the prose is a defect.
-  6. `Notes`
+     - Node labels use the same master terms as `Flow`. A diagram naming things differently from the prose is a defect.
+  5. `Notes`
      - One catch-all. No uniform heading scheme across notes.
      - A note about a flow step is titled by the step, `Note on 1.2 - why open sessions are expired`. A standalone topic gets a topic title.
      - General notes first, flow step notes after, in flow order.
@@ -125,10 +116,10 @@
      - No inbound pointer required. Not every note is reachable from `Flow`.
      - Redundant with `Flow` means drop the note, never the `Flow` line.
      - Decisions live here as a topic titled note. Present tense, "X over Y, because". Only when a real fork existed and the rejected option had a real cost. Do not manufacture one. If the "why not" is "that option was never possible", there is no decision.
-  7. `Todo`
+  6. `Todo`
      - One flat list. No Now, Later or Out of scope buckets. No sub-headings.
      - Outstanding items, deferred work, and anything the flow knowingly does not cover.
-- `Description`, `Terms`, `Requirements`, `Flow` and `Diagram` are mandatory. `Notes` and `Todo` are omitted when genuinely empty. Never reorder.
+- `Description`, `Requirements`, `Flow` and `Diagram` are mandatory. `Notes` and `Todo` are omitted when genuinely empty. Never reorder.
 
 ### Diagram Rules
 - Sequence diagram for time-ordered exchanges (client, api, third party, webhooks).
@@ -146,7 +137,6 @@
 - No fixed structure. Sections, order and length are whatever the topic needs.
 - Diagrams are free form. No LR requirement, no diagram type rules, no one screen limit.
 - A doc gives the overview. The explicit install and usage instructions live in the repo they belong to.
-- A local `Terms` table is optional in a doc. If one is there, it follows the master exactly like a flow's.
 
 ## Refs
 - Location: `public/specs/refs/<area>/<Feature>.md`. A provider takes its own level when the ref is provider specific, `public/specs/refs/<area>/<provider>/<Feature>.md`. PascalCase file names and lowercase directories, same as a flow.
