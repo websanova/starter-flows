@@ -18,14 +18,14 @@ A User eligible for a trial subscribes without being charged, and the Stripe Sub
 
 ## Flow
 
-1. API decides trial eligibility on the Stripe Checkout Session create, and adds `subscription_data.trial_end` when the User is eligible. Use `trial_end` rather than `trial_period_days`, since a User carrying a partial trial keeps whatever is left of it and a whole number of days cannot say that. See the [load flow](#flows/subscription/stripe/Create1Load) for the rest of the create.
+1. API decides trial eligibility on the Stripe Checkout Session create, and adds `subscription_data.trial_end` when the User is eligible. Use `trial_end` rather than `trial_period_days`, since a User carrying a partial trial keeps whatever is left of it and a whole number of days cannot say that. See the [load flow](/flows/subscription/stripe/Create1Load) for the rest of the create.
    1. Leave `payment_method_collection` alone. A Stripe Payment Method up front on a trial is the default, and setting the field is only needed to run a trial without one, which is the opposite of what this flow wants.
-2. App reads the trial off the Stripe Checkout Session it was handed. That is the only place it learns there is one, since the API decides eligibility and never answers a question about it. See the [user action flow](#flows/subscription/stripe/Create2UserAction).
-3. Stripe charges nothing on the confirm. The invoice is `$0` and the Stripe Subscription lands at `trialing` with `trial_end` stamped from now. See the [submit flow](#flows/subscription/stripe/Create3Submit).
+2. App reads the trial off the Stripe Checkout Session it was handed. That is the only place it learns there is one, since the API decides eligibility and never answers a question about it. See the [user action flow](/flows/subscription/stripe/Create2UserAction).
+3. Stripe charges nothing on the confirm. The invoice is `$0` and the Stripe Subscription lands at `trialing` with `trial_end` stamped from now. See the [submit flow](/flows/subscription/stripe/Create3Submit).
    1. Write both Stripe defaults explicitly on the sync call. Nothing paid the `$0` invoice, so `save_default_payment_method` has nothing to act on and the Stripe Payment Method has to be set on the Stripe Customer and the Stripe Subscription by hand.
-4. App shows the trial wording on the cancel confirm page. Access runs to the end of the trial and nothing is charged, with no mention of a refund since nothing was ever taken, and the date comes off the trial rather than the API Subscription. See the [cancel flow](#flows/subscription/stripe/Cancel) and the note below.
+4. App shows the trial wording on the cancel confirm page. Access runs to the end of the trial and nothing is charged, with no mention of a refund since nothing was ever taken, and the date comes off the trial rather than the API Subscription. See the [cancel flow](/flows/subscription/stripe/Cancel) and the note below.
    1. Cancel needs no special casing at the API. Stripe puts `cancel_at` on the trial end, so the same two fields are read the same way.
-5. API refuses a plan change while the Stripe Subscription is trialing. See the [subscription update flow](#flows/subscription/stripe/Update).
+5. API refuses a plan change while the Stripe Subscription is trialing. See the [subscription update flow](/flows/subscription/stripe/Update).
 
 ## Diagram
 

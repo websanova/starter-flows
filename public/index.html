@@ -480,8 +480,8 @@
         </svg>
     </button>
 
-    <script src="./vendor/marked.umd.js"></script>
-    <script src="./vendor/mermaid.min.js"></script>
+    <script src="/vendor/marked.umd.js"></script>
+    <script src="/vendor/mermaid.min.js"></script>
 
     <script type="module">
         const { marked } = window.marked;
@@ -592,26 +592,76 @@
 
         const encodePath = path => path.split('/').map(encodeURIComponent).join('/');
 
-        // The hash is the full path without .md, e.g. #flows/subscriptions/stripe/create
-        // or #docs/terms. Its first segment picks the tab.
-        const hashRoot = () => {
-            const first = location.hash.slice(1).split('/')[0];
+        // The address is the full path without .md, e.g. /flows/subscription/stripe/Create1Load
+        // or /docs/conventions/Terms. Its first segment picks the tab.
+        const route = () => decodeURIComponent(location.pathname.slice(1)).replace(/\/$/, '');
+
+        const pathRoot = () => {
+            const first = route().split('/')[0];
 
             return ROOTS.includes(first) ? first : null;
         };
 
-        // A bare #flows names a tab and no document, so only a hash carrying a
-        // path resolves to a file.
-        const hashName = () => {
-            const want = location.hash.slice(1);
+        // A bare /flows names a tab and no document, so only an address carrying
+        // a path below the root resolves to a file.
+        const pathName = () => {
+            const want = route();
 
-            return hashRoot() && want.includes('/') ? want + '.md' : null;
+            return pathRoot() && want.includes('/') ? want + '.md' : null;
+        };
+
+        // A hash carrying a viewer path, #flows/subscription/Guards, opens the same
+        // document as /flows/subscription/Guards, so hash links and bookmarks keep
+        // working. Any other hash is a section.
+        const pathForm = url => {
+            const hash = url.hash.slice(1);
+
+            return ROOTS.includes(hash.split('/')[0]) ? new URL('/' + hash, url.origin) : url;
+        };
+
+        const unhash = () => {
+            const url = pathForm(new URL(location.href));
+
+            if (url.href !== location.href) {
+                history.replaceState(null, '', url.href);
+            }
+        };
+
+        // Scrolls the open document to the heading the hash names, or to the top
+        // when there is none. Scoped to the document, so a heading can never
+        // match an id in the sidebar.
+        const toSection = () => {
+            const id = decodeURIComponent(location.hash.slice(1));
+            const target = id ? el.querySelector('#' + CSS.escape(id)) : null;
+
+            if (target) {
+                target.scrollIntoView();
+            }
+            else {
+                el.scrollTop = 0;
+            }
+        };
+
+        // Every move inside the viewer. An address in the open document only
+        // scrolls, anything else opens the document it names.
+        const go = href => {
+            const url = new URL(href, location.origin);
+            const same = url.pathname === location.pathname;
+
+            history.pushState(null, '', url.href);
+
+            if (same) {
+                toSection();
+            }
+            else {
+                show();
+            }
         };
 
         // The sidebar is listed by hand in files.json, the same way the README
         // table is. Nothing walks the directories.
         async function fetchFiles () {
-            const res = await fetch('files.json', { cache: 'no-store' });
+            const res = await fetch('/files.json', { cache: 'no-store' });
 
             if (! res.ok) {
                 throw new Error(res.status + ' ' + res.statusText);
@@ -633,9 +683,7 @@
                 }
             }
 
-            // A wip file is unfinished, so it stays out of the sidebar and out of
-            // the deep link lookup until its status moves on.
-            return list.filter(e => e.status !== 'wip');
+            return list;
         }
 
         const inRoot = () => files.filter(e => e.path.startsWith(root + '/'));
@@ -673,9 +721,9 @@
         );
 
         // Manifest paths are addresses, so the specs directory is prepended here
-        // and never reaches the hash.
+        // and never reaches the address bar.
         async function fetchDoc (name) {
-            const res = await fetch('specs/' + encodePath(name), { cache: 'no-store' });
+            const res = await fetch('/specs/' + encodePath(name), { cache: 'no-store' });
 
             if (! res.ok) {
                 throw new Error(res.status + ' ' + res.statusText);
@@ -705,14 +753,17 @@
                     root = name;
                     current = null;
                     writeStore({ root: name });
-                    location.hash = last ? slug(last) : name;
+                    go('/' + encodePath(last ? slug(last) : name));
                 };
 
                 tabs.appendChild(button);
             }
         }
 
-        function renderNav (list) {
+        function renderNav (all) {
+            // A wip file stays out of the sidebar. Its address still opens it.
+            const list = all.filter(e => e.status !== 'wip');
+
             nav.innerHTML = '';
 
             if (! list.length) {
@@ -763,7 +814,7 @@
 
                 const a = document.createElement('a');
 
-                a.href = '#' + slug(e.path);
+                a.href = '/' + encodePath(slug(e.path));
                 a.className = [
                     e.path === current ? 'active' : '',
                     heading ? 'nested' : '',
@@ -837,7 +888,7 @@
                     const a = document.createElement('a');
 
                     a.className = 'term';
-                    a.href = '#' + slug(TERMS_PATH);
+                    a.href = '/' + slug(TERMS_PATH);
                     a.title = described.get(m[1]) || '';
                     a.textContent = m[0];
 
@@ -858,10 +909,31 @@
             }
         }
 
+        // Heading ids in the GitHub style, so a #section written against GitHub
+        // lands here too. Lowercase, punctuation dropped, each space a hyphen,
+        // and a repeated heading takes -1, -2 on the end.
+        function anchorHeadings () {
+            const seen = new Map();
+
+            el.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => {
+                const base = h.textContent
+                    .trim()
+                    .toLowerCase()
+                    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+                    .replace(/\s/g, '-');
+                const count = seen.get(base) || 0;
+
+                seen.set(base, count + 1);
+                h.id = count ? base + '-' + count : base;
+            });
+        }
+
         async function render (text, keepScroll) {
             const top = keepScroll ? el.scrollTop : 0;
 
             el.innerHTML = marked.parse(text);
+
+            anchorHeadings();
 
             // marked emits <pre><code class="language-mermaid">, mermaid wants <pre class="mermaid">.
             el.querySelectorAll('pre > code.language-mermaid').forEach(code => {
@@ -886,7 +958,14 @@
 
             await mermaid.run({ nodes: el.querySelectorAll('pre.mermaid') });
 
-            el.scrollTop = top;
+            // A section in the address is placed after mermaid, so the diagrams
+            // above it already have their height.
+            if (keepScroll) {
+                el.scrollTop = top;
+            }
+            else {
+                toSection();
+            }
         }
 
         async function load (name, keepScroll) {
@@ -912,10 +991,10 @@
             }
         }
 
-        // Resolves the hash against the manifest already in memory, so a tab
+        // Resolves the address against the manifest already in memory, so a tab
         // click paints the sidebar with no request at all.
         async function show () {
-            const first = location.hash.slice(1).split('/')[0];
+            const first = route().split('/')[0];
 
             if (first && ! ROOTS.includes(first)) {
                 current = null;
@@ -927,13 +1006,13 @@
                 return;
             }
 
-            root = hashRoot() || root;
+            root = pathRoot() || root;
 
             renderTabs();
 
             const list = inRoot();
             const paths = new Set(list.map(e => e.path));
-            const want = hashName();
+            const want = pathName();
 
             if (want && ! paths.has(want)) {
                 current = null;
@@ -944,8 +1023,8 @@
                 return;
             }
 
-            // Hash first so links and refreshes win, then the file last open in
-            // this tab, then whatever is at the top of the list.
+            // Address first so links and refreshes win, then the file last open
+            // in this tab, then whatever is at the top of the list.
             const last = readStore()[root];
             const target = want || (paths.has(last) ? last : (list[0] ? list[0].path : null));
 
@@ -957,6 +1036,12 @@
                 el.innerHTML = '<p class="empty">Nothing listed under <code>' + root + '/</code> in files.json.</p>';
 
                 return;
+            }
+
+            // A bare / or /flows names no document, so the address takes the
+            // path of the one that opens. Same-page section links need it.
+            if (! want) {
+                history.replaceState(null, '', '/' + encodePath(slug(target)));
             }
 
             // Marked active before the fetch, so the sidebar is correct while
@@ -1019,7 +1104,9 @@
         }
 
         async function boot () {
-            const early = hashName();
+            unhash();
+
+            const early = pathName();
 
             if (early) {
                 // Sent alongside files.json rather than after it. The rejection is
@@ -1071,7 +1158,37 @@
 
         window.addEventListener('keydown', e => e.key === 'Escape' && closeDrawer());
 
-        window.addEventListener('hashchange', () => show());
+        // A link to a viewer path opens in place, with no reload. A link to
+        // another site, to a raw file, or clicked with a modifier held is left
+        // to the browser.
+        document.addEventListener('click', e => {
+            const a = e.target.closest('a[href]');
+
+            if (! a || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target) {
+                return;
+            }
+
+            const url = pathForm(new URL(a.href));
+
+            if (url.origin !== location.origin || ! ROOTS.includes(url.pathname.split('/')[1])) {
+                return;
+            }
+
+            e.preventDefault();
+            go(url.href);
+        });
+
+        // Back and forward. A move within the open document only scrolls.
+        window.addEventListener('popstate', () => {
+            unhash();
+
+            if (pathName() === current) {
+                toSection();
+            }
+            else {
+                show();
+            }
+        });
 
         await boot();
     </script>

@@ -3,7 +3,7 @@
     { "path": "docs/conventions/Status.md", "label": "Status", "status": "done", "updated": "2026-09-29" },
     { "path": "docs/setup/Auth.md", "label": "Auth", "status": "wip", "updated": "2026-10-07" },
     { "path": "docs/setup/Docker.md", "label": "Docker", "status": "done", "updated": "2026-10-07" },
-    { "path": "docs/setup/StripeWebhooks.md", "label": "Stripe Webhooks", "status": "done", "updated": "2026-10-07" },
+    { "path": "docs/setup/StripeWebhooks.md", "label": "Stripe Webhooks", "status": "done", "updated": "2026-09-29" },
 
     { "path": "flows/subscription/stripe/Create1Load.md", "group": "Create", "label": "Load", "status": "built", "updated": "2026-09-30" },
     { "path": "flows/subscription/stripe/Create2UserAction.md", "group": "Create", "label": "User Action", "status": "built", "updated": "2026-09-29" },

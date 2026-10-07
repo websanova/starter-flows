@@ -1,7 +1,7 @@
 # Stripe Webhooks
 
 Status: done
-Updated: 2026-10-07
+Updated: 2026-09-29
 
 One endpoint takes every Stripe event. Most of them back a flow that already wrote from the browser, so the webhook is the second writer and every handler is idempotent.
 
@@ -9,10 +9,10 @@ One endpoint takes every Stripe event. Most of them back a flow that already wro
 
 | Event | Writes | Flow |
 | --- | --- | --- |
-| `checkout.session.completed` | API Subscription, API Payment Method, both Stripe defaults | [Create Submit](#flows/subscription/stripe/Create3Submit) |
-| `customer.subscription.updated` | API Subscription, cancelled marker, end date, plan, interval | [Cancel](#flows/subscription/stripe/Cancel), [Resume](#flows/subscription/stripe/Resume), [Update](#flows/subscription/stripe/Update) |
-| `setup_intent.succeeded` | API Payment Method, both Stripe defaults | [Update Submit](#flows/payment-method/stripe/Update2Submit) |
-| `payment_method.detached` | Clears the API Payment Method's brand and last4 | [Delete](#flows/payment-method/stripe/Delete) |
+| `checkout.session.completed` | API Subscription, API Payment Method, both Stripe defaults | [Create Submit](/flows/subscription/stripe/Create3Submit) |
+| `customer.subscription.updated` | API Subscription, cancelled marker, end date, plan, interval | [Cancel](/flows/subscription/stripe/Cancel), [Resume](/flows/subscription/stripe/Resume), [Update](/flows/subscription/stripe/Update) |
+| `setup_intent.succeeded` | API Payment Method, both Stripe defaults | [Update Submit](/flows/payment-method/stripe/Update2Submit) |
+| `payment_method.detached` | Clears the API Payment Method's brand and last4 | [Delete](/flows/payment-method/stripe/Delete) |
 
 One handler covers `customer.subscription.updated` for all three subscription flows, and the same handler covers a change made in the Stripe Dashboard. It reads the Stripe Subscription and writes what it finds rather than branching on which flow ran.
 
@@ -34,4 +34,4 @@ One handler covers `customer.subscription.updated` for all three subscription fl
 
 ## Local development
 
-The Stripe CLI container forwards events inward, so a local endpoint receives the same payloads and the same signature header as production with its own signing secret. See the [Docker doc](#docs/setup/Docker) for the container.
+The Stripe CLI container forwards events inward, so a local endpoint receives the same payloads and the same signature header as production with its own signing secret. See the [Docker doc](/docs/setup/Docker) for the container.

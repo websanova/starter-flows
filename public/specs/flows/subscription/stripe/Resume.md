@@ -24,7 +24,7 @@ A User resumes a cancelled Stripe Subscription from a dedicated confirm page, wh
 ## Flow
 
 1. App shows the resume control on the billing page, only on a cancelled Stripe Subscription that is still inside the paid term with a Stripe Payment Method on file. Hiding it is display, the API reads the same rule again on the request.
-   1. Send a User whose end date has passed through the [subscription create flow](#flows/subscription/stripe/Create1Load). There is nothing left at Stripe to resume.
+   1. Send a User whose end date has passed through the [subscription create flow](/flows/subscription/stripe/Create1Load). There is nothing left at Stripe to resume.
 2. App opens a dedicated confirm page. The page states the plan, the interval and the date billing picks back up, and confirm is the only action on it.
 3. App calls the API when the User confirms. No body, the Stripe Subscription is resolved from the API User.
 4. API resumes the Stripe Subscription.
@@ -73,7 +73,7 @@ Stripe does not reject one. Clearing `cancel_at_period_end` generates no invoice
 
 Rare in practice. The Stripe Payment Method is stored during subscribe and a cancellation does not touch it, so the only way to arrive here is a User who deleted the card themselves after cancelling. The resume control is hidden and the API refuses until a card is back on the Stripe Customer.
 
-Putting one there is the [payment method flow](#flows/payment-method/stripe/Update1Collect)'s job, which takes a Stripe Payment Method whether or not one is already on file. Resume has no opinion on how the User gets a card back, only that it will not run until one resolves.
+Putting one there is the [payment method flow](/flows/payment-method/stripe/Update1Collect)'s job, which takes a Stripe Payment Method whether or not one is already on file. Resume has no opinion on how the User gets a card back, only that it will not run until one resolves.
 
 ### Plan controls while cancelled
 

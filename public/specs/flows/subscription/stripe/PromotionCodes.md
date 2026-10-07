@@ -19,13 +19,13 @@ A promotion code field on the subscribe page's confirm step, applied and validat
 
 ## Flow
 
-1. API adds `allow_promotion_codes: true` to the Stripe Checkout Session create. That one parameter is what puts the field in play, so there is no verify call of the App's own and no code travelling on a payload to be resolved later. See the [load flow](#flows/subscription/stripe/Create1Load) for the rest of the create.
-2. App writes the promotion code field and its apply control by hand on the confirm step. No Stripe Element collects one. See the [user action flow](#flows/subscription/stripe/Create2UserAction) for the rest of the step.
+1. API adds `allow_promotion_codes: true` to the Stripe Checkout Session create. That one parameter is what puts the field in play, so there is no verify call of the App's own and no code travelling on a payload to be resolved later. See the [load flow](/flows/subscription/stripe/Create1Load) for the rest of the create.
+2. App writes the promotion code field and its apply control by hand on the confirm step. No Stripe Element collects one. See the [user action flow](/flows/subscription/stripe/Create2UserAction) for the rest of the step.
 3. App applies a code with `actions.applyPromotionCode()`, which mutates the Stripe Checkout Session at Stripe.
    1. Re-read with `getSession()` once the action resolves. The discount lands on `total.discount`, `total.subtotal` drops, tax recalculates against the reduced amount and `total.total` follows. The App subtracts nothing.
    2. Error on the field the code was typed into, not on the page. Expired, unknown and not applicable to the plan all land there the same way, and the User types another code or confirms without one.
 4. App removes a code with `actions.removePromotionCode()` and the same re-read, so a User who applied one can reach the undiscounted total without reloading the page.
-5. App sends no promotion code in the confirm payload. The discount is already on the Stripe Checkout Session, so the confirm charges the discounted total and there is nothing for the API to resolve afterwards. See the [submit flow](#flows/subscription/stripe/Create3Submit).
+5. App sends no promotion code in the confirm payload. The discount is already on the Stripe Checkout Session, so the confirm charges the discounted total and there is nothing for the API to resolve afterwards. See the [submit flow](/flows/subscription/stripe/Create3Submit).
 
 ## Diagram
 

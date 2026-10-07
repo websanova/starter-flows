@@ -23,7 +23,7 @@ A User opens the payment method page and walks two steps, the address first and 
 ## Flow
 
 1. App loads the payment method page and opens the address step. Every authenticated User can open it, so there is no guard to run.
-   1. Check the url for a returning redirect. A secret there is a User coming back from a bank challenge, so hand to the [submit flow](#flows/payment-method/stripe/Update2Submit).
+   1. Check the url for a returning redirect. A secret there is a User coming back from a bank challenge, so hand to the [submit flow](/flows/payment-method/stripe/Update2Submit).
    2. Load stripe.js and build an Elements instance with no client secret. The Stripe Billing Address Element needs none, so nothing is requested from the API to open this step. See the note below.
    3. Create the Stripe Billing Address Element in billing mode with no `defaultValues`, and mount it. Both forms open empty, so there is nothing to seed and nothing to wait on.
    4. Gate continue on the Stripe Billing Address Element's change event, which carries the value and a `complete` flag.
@@ -47,7 +47,7 @@ A User opens the payment method page and walks two steps, the address first and 
    3. Hide the container of a step that is not open, never remove it. Removing it tears the mount down and the Stripe Element does not come back.
    4. Show the failure when the mount fails. An empty form with a live submit button under it is the one outcome to avoid.
    5. Reopen the address step with the same instance when the User goes back, with everything typed into it still there. Continuing again saves the address again and reuses the Stripe Setup Intent already held, since a Stripe Setup Intent carries no address.
-6. App collects the payment method. The User enters the Stripe Payment Method and presses submit, which hands to the [submit flow](#flows/payment-method/stripe/Update2Submit).
+6. App collects the payment method. The User enters the Stripe Payment Method and presses submit, which hands to the [submit flow](/flows/payment-method/stripe/Update2Submit).
 
 ## Diagram
 
@@ -110,7 +110,7 @@ The Stripe Billing Address Element is a plain form and mounts without a secret, 
 
 ### Note on 3.1 - creating the Stripe Customer here
 
-A User who has never subscribed reaches this page, so a missing Stripe Customer is the first add rather than a broken state. That is what gives a cancelled User who removed their card a way back, since [resume](#flows/subscription/stripe/Resume) refuses without a Stripe Payment Method that resolves and this page is the only place to put one.
+A User who has never subscribed reaches this page, so a missing Stripe Customer is the first add rather than a broken state. That is what gives a cancelled User who removed their card a way back, since [resume](/flows/subscription/stripe/Resume) refuses without a Stripe Payment Method that resolves and this page is the only place to put one.
 
 ### Note on 4.1 - why the Stripe Setup Intent refuses without an address
 

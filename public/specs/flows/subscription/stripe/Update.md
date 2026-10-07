@@ -12,8 +12,8 @@ A User on an active Stripe Subscription changes the plan, the interval, or both.
 - Authenticated Users only.
 - Change the plan, the interval, or both, on an active Stripe Subscription.
 - Keep the existing Stripe Subscription. Nothing is cancelled and nothing is created.
-- Refused on anything other than an active Stripe Subscription. Past due and unpaid each refuse with their own error. See the [subscription guards flow](#flows/subscription/Guards).
-- A cancelled Stripe Subscription still inside the term shows the resume control and never the change control. See the [subscription resume flow](#flows/subscription/stripe/Resume).
+- Refused on anything other than an active Stripe Subscription. Past due and unpaid each refuse with their own error. See the [subscription guards flow](/flows/subscription/Guards).
+- A cancelled Stripe Subscription still inside the term shows the resume control and never the change control. See the [subscription resume flow](/flows/subscription/stripe/Resume).
 - Refused when no Stripe Payment Method resolves.
 - The control leads to a dedicated confirm page rather than an inline picker.
 - The page states the plan and the interval being changed to. No amounts are shown.
@@ -91,7 +91,7 @@ The API Payment Method is display and lags the webhook, so a Stripe Payment Meth
 
 ### Note on 5.7 - a declined charge does not roll the price change back
 
-Stripe applies the price to the Stripe Subscription and raises the invoice as two separate things, so the price change stands whether or not the invoice is paid. Rolling the price back would buy nothing. The invoice exists either way, sits unpaid either way, and drops the Stripe Subscription into `past_due` on Stripe's retry schedule either way. The User is blocked by the same guard on both sides of a rollback, so the change stays and the User is sent to settle the invoice. See the [subscription guards flow](#flows/subscription/Guards).
+Stripe applies the price to the Stripe Subscription and raises the invoice as two separate things, so the price change stands whether or not the invoice is paid. Rolling the price back would buy nothing. The invoice exists either way, sits unpaid either way, and drops the Stripe Subscription into `past_due` on Stripe's retry schedule either way. The User is blocked by the same guard on both sides of a rollback, so the change stays and the User is sent to settle the invoice. See the [subscription guards flow](/flows/subscription/Guards).
 
 ### Note on 6.2 - handing the challenge to stripe.js over mounting a Stripe Payment Element
 
@@ -99,4 +99,4 @@ A call to `handleNextAction` over a Stripe Payment Element, because the card is 
 
 ## Todo
 
-- A flat decline at 6.3 leaves the Stripe Subscription on the new plan with the proration invoice unpaid, and nothing in the App settles it. Rare, and tied to the payment recovery page in the [subscription guards flow](#flows/subscription/Guards).
+- A flat decline at 6.3 leaves the Stripe Subscription on the new plan with the proration invoice unpaid, and nothing in the App settles it. Rare, and tied to the payment recovery page in the [subscription guards flow](/flows/subscription/Guards).

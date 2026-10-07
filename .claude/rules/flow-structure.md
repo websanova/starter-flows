@@ -36,5 +36,5 @@ globs:
 
 ## Links
 
-- Links between spec files are viewer hash links, the manifest path minus `.md`. `[subscription guards flow](#flows/subscription/Guards)`. A relative `.md` link 404s.
+- Links between spec files are viewer path links, the manifest path minus `.md` behind a leading slash. `[subscription guards flow](/flows/subscription/Guards)`. A link into a section adds the heading's id, `/flows/subscription/Guards#notes`. A relative `.md` link 404s.
 - A new flow needs a row in `public/files.json`. Phases of one flow carry a `group` key holding the flow name, and the label is the phase alone.

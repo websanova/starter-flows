@@ -30,7 +30,7 @@ The User presses subscribe and one confirm call against the Stripe Checkout Sess
 2. App picks the Stripe Checkout Session back up on landing from a bank, with no state and a secret in App Storage.
    1. Re-initialise against that Stripe Checkout Session rather than creating one. It may have completed while the User was away, and a new one would subscribe them twice.
    2. Skip the steps when it comes back `complete`, and make the sync call straight away.
-   3. Clear a secret that will not load and create over the top of it, through the [load flow](#flows/subscription/stripe/Create1Load). A secret that will not load is spent or expired.
+   3. Clear a secret that will not load and create over the top of it, through the [load flow](/flows/subscription/stripe/Create1Load). A secret that will not load is spent or expired.
 3. App calls the subscription sync once the Stripe Checkout Session completes.
 4. API writes every record off that one Stripe Checkout Session.
    1. Retrieve the Stripe Checkout Session with the Stripe Subscription expanded. The invoice does not exist until it reaches `complete`, which is why completion is the trigger rather than a payment intent event.
@@ -90,7 +90,7 @@ The secret is written going into the confirm and cleared as soon as the call lan
 
 The confirm step stands with no Stripe Payment Element behind it, so a refusal has nothing on screen for the User to correct. Opening the payment method step and creating the Stripe Payment Element at that moment puts the form in front of them on the same page, on the same Stripe Checkout Session, and the retry confirms without `paymentMethod` so the new Stripe Payment Method is what Stripe charges.
 
-The alternative is sending them to the [payment method flow](#flows/payment-method/stripe/Update1Collect) and back, which is two page transitions and a detach of the Stripe Payment Method they were trying to replace, for a card that may simply have been over its limit.
+The alternative is sending them to the [payment method flow](/flows/payment-method/stripe/Update1Collect) and back, which is two page transitions and a detach of the Stripe Payment Method they were trying to replace, for a card that may simply have been over its limit.
 
 Tax is unaffected. The address is on the Stripe Customer and the Stripe Checkout Session is reading it there, so the total the User already saw is still the total.
 
