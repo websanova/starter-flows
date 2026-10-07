@@ -17,6 +17,7 @@ The master vocabulary. Every flow and doc in this repo draws its terms from here
 | App Storage | Short lived storage in the App that survives a redirect away and back. |
 | Auth User | The signed in User's data held by the App. |
 | MCP Client | The program a User connects to the API MCP Server, such as Claude Desktop or Claude Code. |
+| OAuth | The standard for letting a program act for a User once approved, without seeing the User's password. |
 | Passport | Laravel's OAuth implementation. Issues the access tokens MCP Clients use against the API. |
 | Sanctum | Laravel's bearer token authentication. Issues the tokens the App uses against the API. |
 | Stripe Billing Address Element | The Stripe Element collecting the billing address and name. |
