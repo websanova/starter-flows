@@ -760,10 +760,7 @@
             }
         }
 
-        function renderNav (all) {
-            // A wip file stays out of the sidebar. Its address still opens it.
-            const list = all.filter(e => e.status !== 'wip');
-
+        function renderNav (list) {
             nav.innerHTML = '';
 
             if (! list.length) {
