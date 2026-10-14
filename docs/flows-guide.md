@@ -8,10 +8,9 @@ Every term used is defined once in [Terms](../public/specs/docs/conventions/Term
 
 ## Adding a file
 
-A new flow, doc or ref needs two entries by hand.
+A new flow, doc or ref needs an entry by hand.
 
 - A line in [public/files.json](../public/files.json), which the viewer sidebar reads for the status and updated date.
-- A row in [Summary](summary.md).
 
 ## Using a flow in a code repo
 

@@ -8,7 +8,6 @@ Part of the Starters, built at [Websanova](https://www.websanova.com).
 
 Full documentation at [websanova.com/docs/starter-flows](https://www.websanova.com/docs/starter-flows).
 
-- [Summary](docs/summary.md)
 - [Flows Guide](docs/flows-guide.md)
 - [Docker Guide](docs/docker-guide.md)
 - [Deploy Guide](docs/deploy-guide.md)
