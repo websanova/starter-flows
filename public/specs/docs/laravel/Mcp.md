@@ -53,13 +53,13 @@ Each API MCP Server is its own issuer because metadata names one authorize page 
 
 ### 8. Consent
 
-The file `routes/oauth.php` is loaded through the API routing setup, so the routes get the same middleware as `routes/api.php`.
+The consent routes sit in `routes/api.php` with the rest of the API, once at the root and once under `/admin`, both pointing at the same controller. That is the same way `/settings` and `/timezones` are shared between the two front ends.
 
 The `GET /oauth/consent` route is public and validates the request through Passport's authorization server. A bad client or redirect_uri fails before the User is asked to log in, which is the order Passport's own authorize route uses.
 
-The `POST /oauth/consent` route needs a signed in User who is verified and has updated their password. The route completes the request and returns the redirect address in the body. A User blocked from the API cannot hand an MCP Client a token that fails on every call.
+The `POST /oauth/consent` route needs a signed in User who is verified and has updated their password. The route completes the request and returns the redirect address in the body. A User blocked from the API cannot hand an MCP Client a token that fails on every call. Under `/admin` the route also needs the Admin role, for the same reason, since the Admin API MCP Server rejects everyone else.
 
-Passport's own authorize routes keep the request in a web session, render a view and answer with redirects. The App sends every parameter again with each call and needs JSON, so these two endpoints are used instead. One pair serves App and Admin because nothing in consent depends on role.
+Passport's own authorize routes keep the request in a web session, render a view and answer with redirects. The App sends every parameter again with each call and needs JSON, so these two endpoints are used instead. Each front end calls its own pair of routes, and both pairs share one controller because the consent itself is the same for App and Admin.
 
 ### 9. Login and token
 
