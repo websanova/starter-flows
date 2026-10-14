@@ -15,7 +15,7 @@ The env variables `FRONTEND_APP_URL` and `FRONTEND_ADMIN_URL` hold the base URL 
 
 ### 2. Passport tables and keys
 
-Passport's migrations create its tables. Locally the signing keys come from `passport:keys`. In production the deploy script creates them, as described in the [Forge doc](/docs/laravel/Forge).
+Passport's migrations create its tables, and a key pair signs the access tokens. Locally the keys come from `passport:keys`. In production the deploy script creates them, as described in the [Forge doc](/docs/laravel/Forge).
 
 ### 3. Guard and user model
 
@@ -25,23 +25,25 @@ Two models are needed because Sanctum and Passport each ship a token trait with 
 
 ### 4. Config
 
-The `mcp.servers` list names the API MCP Servers by name and path, where `app` is `mcp` and `admin` is `admin/mcp`. The `passport.authorization_endpoints` list names each front end's authorize page under the same names. The `mcp.redirect_domains` list limits where a registered MCP Client may redirect, which is claude.ai, claude.com and localhost.
+The `mcp.servers` list names each API MCP Server and its path, and `passport.authorization_endpoints` names each front end's authorize page under the same names, built from the step 1 URLs. The metadata points MCP Clients there instead of at the API, which serves no html.
 
-The lifetimes of the Passport tokens issued to MCP Clients are set at boot in the `AppServiceProvider`. An access token lasts one hour and a refresh token lasts 30 days. The short access token means an MCP Client refreshes during normal use, as in step 16.1 of the [MCP Login flow](/flows/auth/McpLogin). Passport's default access token lasts one year, so no refresh would ever run.
+The lifetimes of the Passport tokens issued to MCP Clients are set at boot in the `AppServiceProvider`. An access token lasts one hour because the [MCP authorization spec](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization) says authorization servers should issue short-lived access tokens, so a leaked token does limited damage. Passport's default is one year, so the override is what meets that guidance. The short lifetime also means an MCP Client refreshes during normal use, as in step 16.1 of the [MCP Login flow](/flows/auth/McpLogin).
 
-One scope, `mcp:use`, comes from the MCP package and goes to every registered client. Nothing checks the scope yet.
+The spec also requires refresh tokens to rotate for public clients, and MCP Clients are public clients. Passport's refresh grant already revokes the old refresh token and issues a new one, so no setup is needed. The spec gives no refresh token lifetime, so the 30 days is a choice with no spec basis.
+
+One scope, `mcp:use`, comes from the MCP package and goes to every registered client. Nothing checks the scope yet, so a token issued through one API MCP Server is accepted by the other as long as the User passes that server's checks.
 
 ### 5. Routes
 
-The MCP package loads `routes/ai.php` itself. The file begins with `Mcp::oauthRoutes()`, which adds the package's default discovery and registration.
+The MCP package loads `routes/ai.php` itself. MCP Clients are given only the API MCP Server URL, so the file begins with `Mcp::oauthRoutes()`, which adds the package's discovery and registration routes. Three routes registered after that replace the package's versions of the same address.
 
-Three routes then replace the package's versions of the same address, which are protected resource metadata, authorization server metadata, and registration with a throttle added. The package assumes one issuer and an authorize page on the API itself, and its registration is public and creates a client on every call. The protected resource route keeps the package's route name, because the package builds the 401 header's metadata address from the name.
+The two metadata routes are overridden because the package assumes one issuer per MCP service with it's own custom set of endpoints for each. They are moved into their own folder just for code clarity and separation.
 
-The two API MCP Servers follow, guarded by `auth:api`, the bridge middleware from step 6, and the same stack as the matching API routes.
+Registration keeps the package's address and controller. Registration is public and creates a client on every call, so the route adds a throttle. The route also gets a name, because the authorization server metadata uses the name to build the registration endpoint.
 
 ### 6. Bridge middleware
 
-After Passport authenticates, a middleware loads the real User by id and sets the User on the guard. The verified, admin and tool checks then work unchanged, and a soft deleted account fails here with a 401.
+After Passport authenticates the OAuthUser, a middleware loads the real User by id and sets the User on the guard. The verified, admin and tool checks then work unchanged, and a soft deleted account fails here with a 401.
 
 ### 7. MCP controllers
 
@@ -57,11 +59,11 @@ The `GET /oauth/consent` route is public and validates the request through Passp
 
 The `POST /oauth/consent` route needs a signed in User who is verified and has updated their password. The route completes the request and returns the redirect address in the body. A User blocked from the API cannot hand an MCP Client a token that fails on every call.
 
-Passport's own authorize routes keep the request in a web session, render a view and answer with redirects. The App sends every parameter again with each call and needs JSON, so these two endpoints replace them. One pair serves App and Admin because nothing in consent depends on role.
+Passport's own authorize routes keep the request in a web session, render a view and answer with redirects. The App sends every parameter again with each call and needs JSON, so these two endpoints are used instead. One pair serves App and Admin because nothing in consent depends on role.
 
 ### 9. Login and token
 
-The App signs the User in with the normal Sanctum login. The code exchange and the refresh go to Passport's stock token endpoint.
+The App signs the User in with the normal Sanctum login. The code exchange and the refresh go to Passport's token endpoint, which already answers JSON and needs no replacement.
 
 ### 10. Using it
 
