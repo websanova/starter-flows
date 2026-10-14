@@ -1,4 +1,4 @@
-# MCP
+# MCP Client
 
 Status: done
 Updated: 2026-10-14
