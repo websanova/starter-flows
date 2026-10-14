@@ -129,8 +129,8 @@
 
 ## Docs
 - Location: `public/specs/docs/<area>/<Topic>.md`, PascalCase file names and lowercase directories, same as a flow.
-  - `public/specs/docs/conventions/` holds the files that define how this repo works, `Terms.md` and `Status.md`. `public/specs/docs/setup/` holds the files that describe a system.
-  - Conventions sort above setup, so the files every other file depends on sit at the top of the sidebar.
+  - `public/specs/docs/conventions/` holds the files that define how this repo works, `Terms.md` and `Status.md`. Every other directory under `docs/` groups docs by topic, named for whatever fits.
+  - Conventions are listed first in `public/files.json`, so the files every other file depends on sit at the top of the sidebar.
 - Header lines at top of every doc:
   - `Status: wip | done`, defined in [public/specs/docs/conventions/Status.md](public/specs/docs/conventions/Status.md)
   - `Updated: YYYY-MM-DD`
