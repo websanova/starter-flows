@@ -1,7 +1,7 @@
 # MCP Login
 
-Status: wip
-Updated: 2026-10-07
+Status: built
+Updated: 2026-10-14
 
 ## Description
 
