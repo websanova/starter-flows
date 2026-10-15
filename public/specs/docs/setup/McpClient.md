@@ -1,9 +1,9 @@
 # MCP Client
 
 Status: done
-Updated: 2026-10-14
+Updated: 2026-10-15
 
-There are two API MCP Servers, the App server at `/mcp` and the Admin server at `/admin/mcp`, which is guarded by the Admin role. A User connects an MCP Client by signing in through the App and approving it. The steps behind the login are in the [MCP Login flow](/flows/auth/McpLogin).
+There are two API MCP Servers, the App server at `/mcp` and the Admin server at `/admin/mcp`, which is guarded by the Admin role. A User connects an MCP Client by signing in through the App and approving it. The steps behind the login are in the [MCP Client login flow](/flows/mcp/ClientLogin).
 
 ## Claude Desktop
 

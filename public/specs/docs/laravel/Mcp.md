@@ -1,7 +1,7 @@
 # MCP
 
 Status: done
-Updated: 2026-10-14
+Updated: 2026-10-15
 
 The API supports two logins. Sanctum signs in the App's Users, and Passport signs in MCP Clients through OAuth.
 
@@ -27,7 +27,7 @@ Two models are needed because Sanctum and Passport each ship a token trait with 
 
 The `mcp.servers` list names each API MCP Server and its path, and `passport.authorization_endpoints` names each front end's authorize page under the same names, built from the step 1 URLs. The metadata points MCP Clients there instead of at the API, which serves no html.
 
-The lifetimes of the Passport tokens issued to MCP Clients are set at boot in the `AppServiceProvider`. An access token lasts one hour because the [MCP authorization spec](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization) says authorization servers should issue short-lived access tokens, so a leaked token does limited damage. Passport's default is one year, so the override is what meets that guidance. The short lifetime also means an MCP Client refreshes during normal use, as in step 16.1 of the [MCP Login flow](/flows/auth/McpLogin).
+The lifetimes of the Passport tokens issued to MCP Clients are set at boot in the `AppServiceProvider`. An access token lasts one hour because the [MCP authorization spec](https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization) says authorization servers should issue short-lived access tokens, so a leaked token does limited damage. Passport's default is one year, so the override is what meets that guidance. The short lifetime also means an MCP Client refreshes during normal use, as in step 16.1 of the [MCP Client login flow](/flows/mcp/ClientLogin).
 
 The spec also requires refresh tokens to rotate for public clients, and MCP Clients are public clients. Passport's refresh grant already revokes the old refresh token and issues a new one, so no setup is needed. The spec gives no refresh token lifetime, so the 30 days is a choice with no spec basis.
 
