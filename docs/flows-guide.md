@@ -14,10 +14,7 @@ Every term is defined once, in the master list [Terms](../public/specs/docs/conv
 
 ## Adding a file
 
-A new flow, doc or ref needs two changes.
-
-- The file itself under `public/specs/flows/`, `public/specs/docs/` or `public/specs/refs/`, with the `Status` and `Updated` header lines.
-- A row in [public/files.json](../public/files.json), which the viewer sidebar reads. The row carries `path`, `label`, `status` and `updated`, and `updated` matches the file's `Updated` line. Phases of one flow also carry a `group` key holding the flow name, and the label is the phase alone.
+Drop the file into whichever section fits, flows, docs, refs or one you added, and add a line for it in [public/files.json](../public/files.json), which the viewer sidebar reads. The line carries the path, label, status and updated date. The parts of a split flow share a `group` key holding the flow name, and each label is just the part.
 
 A new noun that exists in more than one system also needs a row in [Terms](../public/specs/docs/conventions/Terms.md).
 
