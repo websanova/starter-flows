@@ -1,7 +1,7 @@
 # Subscription Trials - Stripe (Checkout Sessions, Payment Element)
 
-Status: ready
-Updated: 2026-09-29
+Status: built
+Updated: 2026-10-17
 
 ## Description
 

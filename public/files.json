@@ -11,8 +11,8 @@
     { "path": "flows/subscription/stripe/Create1Load.md", "group": "Create", "label": "Load", "status": "built", "updated": "2026-09-30" },
     { "path": "flows/subscription/stripe/Create2UserAction.md", "group": "Create", "label": "User Action", "status": "built", "updated": "2026-09-29" },
     { "path": "flows/subscription/stripe/Create3Submit.md", "group": "Create", "label": "Submit", "status": "built", "updated": "2026-09-29" },
-    { "path": "flows/subscription/stripe/PromotionCodes.md", "label": "Promotion Codes", "status": "ready", "updated": "2026-09-29" },
-    { "path": "flows/subscription/stripe/Trials.md", "label": "Trials", "status": "ready", "updated": "2026-09-29" },
+    { "path": "flows/subscription/stripe/PromotionCodes.md", "label": "Promotion Codes", "status": "built", "updated": "2026-10-17" },
+    { "path": "flows/subscription/stripe/Trials.md", "label": "Trials", "status": "built", "updated": "2026-10-17" },
     { "path": "flows/subscription/stripe/Cancel.md", "label": "Cancel", "status": "built", "updated": "2026-09-29" },
     { "path": "flows/subscription/stripe/Resume.md", "label": "Resume", "status": "built", "updated": "2026-09-29" },
     { "path": "flows/subscription/stripe/Update.md", "label": "Update", "status": "built", "updated": "2026-09-29" },
@@ -20,7 +20,6 @@
     { "path": "flows/payment-method/stripe/Update1Collect.md", "group": "Update", "label": "Collect", "status": "built", "updated": "2026-09-30" },
     { "path": "flows/payment-method/stripe/Update2Submit.md", "group": "Update", "label": "Submit", "status": "built", "updated": "2026-09-30" },
     { "path": "flows/payment-method/stripe/Delete.md", "label": "Delete", "status": "built", "updated": "2026-09-29" },
-    { "path": "flows/account/Delete.md", "label": "Delete", "status": "wip", "updated": "2026-09-07" },
     { "path": "flows/mcp/ClientLogin.md", "label": "Client Login", "status": "built", "updated": "2026-10-15" },
 
     { "path": "refs/subscription/stripe/CreateHosted.md", "label": "Create Hosted", "status": "ref", "updated": "2026-09-28" },
