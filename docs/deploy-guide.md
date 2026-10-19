@@ -4,15 +4,17 @@ To deploy the flows publicly, serve the `public` directory.
 
 ```nginx
 server {
-    root /path/to/app/dir/public;
-    index index.html;
-
-    add_header Cache-Control "no-store" always;
-
-    location ~ \.md$ {
-        default_type text/markdown;
+    location / {
+        try_files $uri /index.html;
     }
 }
 ```
 
-The viewer detects a non-localhost host and loads once instead of polling, so nothing else needs configuring.
+And if you want to add basic auth as well:
+
+```nginx
+server {
+    auth_basic           "Flows;
+    auth_basic_user_file /path/to/public/.htpasswd;
+}
+```
